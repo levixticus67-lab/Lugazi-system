@@ -1,0 +1,296 @@
+# DCL Lugazi ERP — Deployment Guide
+
+**Deliverance Church Lugazi | "The House of Kingdom Giants"**
+
+This guide walks through deploying the DCL Lugazi ERP system from scratch using:
+- **Frontend**: Firebase Hosting (or any static host)
+- **Database**: Neon PostgreSQL
+- **Media Storage**: Cloudinary
+- **Backend**: Render (or Railway, Fly.io)
+
+---
+
+## Table of Contents
+1. [Prerequisites](#1-prerequisites)
+2. [Database — Neon PostgreSQL](#2-database--neon-postgresql)
+3. [Media Storage — Cloudinary](#3-media-storage--cloudinary)
+4. [Backend — Render](#4-backend--render)
+5. [Frontend — Firebase Hosting](#5-frontend--firebase-hosting)
+6. [Environment Variables Reference](#6-environment-variables-reference)
+7. [First Login & Admin Setup](#7-first-login--admin-setup)
+8. [Removing the Hard-coded Admin (IMPORTANT)](#8-removing-the-hard-coded-admin-important)
+9. [GitHub Deployment](#9-github-deployment)
+10. [Troubleshooting](#10-troubleshooting)
+
+---
+
+## 1. Prerequisites
+
+Install these tools on your local machine:
+- Node.js 20+ (`node --version`)
+- pnpm 9+ (`npm install -g pnpm`)
+- Firebase CLI (`npm install -g firebase-tools`)
+- Git
+
+---
+
+## 2. Database — Neon PostgreSQL
+
+### Step 1: Create a Neon account
+1. Go to [neon.tech](https://neon.tech) and sign up (free tier available)
+2. Create a new project: `DCL Lugazi`
+3. Choose region: `AWS ap-southeast-1` (Singapore, closest to Uganda) or `AWS eu-west-1`
+
+### Step 2: Get your connection string
+1. In the Neon dashboard, click your project
+2. Under **Connection Details**, copy the **Connection string**
+   - Format: `postgresql://username:password@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
+3. Save this as `DATABASE_URL`
+
+### Step 3: Push the database schema
+```bash
+# From the project root
+DATABASE_URL="your-neon-connection-string" pnpm --filter @workspace/db run push
+```
+
+This creates all 14 tables in your Neon database.
+
+---
+
+## 3. Media Storage — Cloudinary
+
+### Step 1: Create a Cloudinary account
+1. Go to [cloudinary.com](https://cloudinary.com) and sign up (free tier: 25 credits/month)
+2. From the dashboard, copy:
+   - **Cloud Name**: `your-cloud-name`
+   - **API Key**: `123456789012345`
+   - **API Secret**: `your-api-secret`
+
+### Step 2: Note your credentials
+Save these three values:
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+---
+
+## 4. Backend — Render
+
+### Step 1: Create a Render account
+1. Go to [render.com](https://render.com) and sign up
+2. Click **New** → **Web Service**
+3. Connect your GitHub repository: `levixticus67-lab/Lugazi-system`
+
+### Step 2: Configure the service
+| Setting | Value |
+|---------|-------|
+| **Name** | `dcl-lugazi-api` |
+| **Region** | Frankfurt (EU West) — closest stable to Uganda |
+| **Branch** | `main` |
+| **Runtime** | Node |
+| **Build Command** | `pnpm install && pnpm --filter @workspace/api-server run build` |
+| **Start Command** | `node artifacts/api-server/dist/index.mjs` |
+
+### Step 3: Set environment variables
+In Render dashboard → Environment, add:
+
+```
+DATABASE_URL=postgresql://...   # From Neon
+JWT_SECRET=your-64-char-random-secret-here   # Generate: openssl rand -base64 64
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+NODE_ENV=production
+PORT=10000
+```
+
+**Generate a strong JWT secret:**
+```bash
+openssl rand -base64 64
+```
+
+### Step 4: Deploy
+Click **Create Web Service**. Wait for the first deploy (~3 minutes).
+Your API will be available at: `https://dcl-lugazi-api.onrender.com`
+
+### Step 5: Test the API
+```bash
+curl https://dcl-lugazi-api.onrender.com/api/healthz
+# Should return: {"status":"ok"}
+```
+
+---
+
+## 5. Frontend — Firebase Hosting
+
+### Step 1: Create a Firebase project
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. Click **Add project** → Name it `dcl-lugazi`
+3. Disable Google Analytics (optional)
+
+### Step 2: Enable Hosting
+1. In Firebase console, click **Hosting** in the left sidebar
+2. Click **Get started** and follow the setup wizard
+
+### Step 3: Build the frontend
+```bash
+# Set the backend URL
+VITE_API_BASE_URL=https://dcl-lugazi-api.onrender.com pnpm --filter @workspace/lugazi run build
+```
+
+### Step 4: Initialize Firebase in the project
+```bash
+firebase login
+firebase init hosting
+```
+When prompted:
+- **Public directory**: `artifacts/lugazi/dist`
+- **Configure as single-page app**: **Yes**
+- **Set up automatic builds**: **No**
+
+### Step 5: Deploy
+```bash
+firebase deploy --only hosting
+```
+
+Your frontend will be at: `https://dcl-lugazi.web.app`
+
+---
+
+## 6. Environment Variables Reference
+
+### Backend (Render)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
+| `JWT_SECRET` | Yes | 64+ char random string for signing JWTs |
+| `CLOUDINARY_CLOUD_NAME` | Yes | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Yes | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Yes | Cloudinary API secret |
+| `NODE_ENV` | Yes | Set to `production` |
+| `PORT` | Yes | Set to `10000` (Render's default) |
+
+### Frontend (Vite build)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_API_BASE_URL` | Yes | Full URL to your Render backend |
+
+---
+
+## 7. First Login & Admin Setup
+
+The system has a **hard-coded first admin** to allow initial access:
+- **Email**: `levixticus67@gmail.com`
+- **Password**: `*levi#ticus123`
+
+**On first login**, the system automatically:
+1. Creates the admin user record in the database
+2. Creates the admin member record with a QR token
+3. Sets the role to `admin` permanently
+
+**After first login, you should:**
+1. Go to **Settings** and configure the church information
+2. Create branches via **Admin → Branches**
+3. Add members via **Admin → Members**
+4. Create additional user accounts via registration or **Admin → Users**
+
+---
+
+## 8. Removing the Hard-coded Admin (IMPORTANT)
+
+Once you have successfully logged in and changed your password, remove the hard-coded admin from the source code to prevent security risks.
+
+**File to edit**: `artifacts/api-server/src/routes/auth.ts`
+
+Find and remove this block (approximately lines 12-52):
+```typescript
+// Special handling for hardcoded admin — ensures first admin can always log in
+if (email === HARDCODED_ADMIN_EMAIL && password === HARDCODED_ADMIN_PASSWORD) {
+  // ... entire block up to the closing "}"
+}
+```
+
+Also remove the constants at the top:
+```typescript
+const HARDCODED_ADMIN_EMAIL = "levixticus67@gmail.com";
+const HARDCODED_ADMIN_PASSWORD = "*levi#ticus123";
+```
+
+After editing:
+```bash
+git add .
+git commit -m "security: remove hardcoded admin credentials"
+git push origin main
+```
+
+Render will automatically redeploy.
+
+---
+
+## 9. GitHub Deployment
+
+The code is hosted at: `github.com/levixticus67-lab/Lugazi-system`
+
+### Automatic deploys
+Render is connected to GitHub. Every push to `main` triggers an automatic redeploy.
+
+### Manual deploy
+```bash
+git add .
+git commit -m "your change description"
+git push origin main
+```
+
+---
+
+## 10. Troubleshooting
+
+### API returns 500 errors
+- Check Render logs: Dashboard → your service → **Logs**
+- Verify `DATABASE_URL` is correct in Render environment variables
+- Run `pnpm --filter @workspace/db run push` with your Neon URL to ensure schema is applied
+
+### Login fails with "Invalid email or password"
+- On first login, use exact credentials: `levixticus67@gmail.com` / `*levi#ticus123`
+- If the database was reset, the admin record is recreated on next login
+
+### QR codes not scanning
+- Ensure the scanner has camera permission
+- The QR token is a UUID stored per member — generate a QR code image containing the UUID string
+- The `/api/attendance/qr-scan` endpoint receives the raw token string
+
+### Cloudinary uploads failing
+- Verify all three Cloudinary env vars are set in Render
+- Check CORS: Cloudinary allows direct browser uploads — the signature endpoint provides the auth
+
+### JWT expired
+- Tokens expire after 30 days
+- Users will be redirected to login automatically
+- Increase token lifetime in `artifacts/api-server/src/middlewares/auth.ts` (change `"30d"` to `"90d"`)
+
+### Role changes not reflecting
+- Role changes via Admin → Users apply immediately via the `/api/users/:id/role` endpoint
+- Users need to re-login (or refresh their token) to see their new role
+- The admin can also approve role upgrade requests via Admin → Role Requests
+
+---
+
+## Role Hierarchy
+
+| Role | Portal | Permissions |
+|------|--------|-------------|
+| `admin` | Admin | Everything — can access all portals |
+| `leadership` | Leadership | Members, groups, attendance, events, welfare, reports, pipeline |
+| `workforce` | Workforce | Attendance, events, reports, media |
+| `member` | Member | Own profile, own attendance history, events, welfare requests, upgrade requests |
+
+---
+
+## Support
+
+For technical issues, contact the system administrator or raise a GitHub issue at:
+`github.com/levixticus67-lab/Lugazi-system/issues`
+
+---
+
+*DCL Lugazi ERP — Built for the Kingdom*

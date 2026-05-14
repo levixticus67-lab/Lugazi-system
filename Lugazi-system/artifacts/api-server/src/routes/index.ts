@@ -1,0 +1,40 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import authRouter from "./auth";
+import usersRouter from "./users";
+import roleRequestsRouter from "./roleRequests";
+import membersRouter from "./members";
+import branchesRouter from "./branches";
+import groupsRouter from "./groups";
+import attendanceRouter from "./attendance";
+import eventsRouter from "./events";
+import financeRouter from "./finance";
+import mediaRouter from "./media";
+import welfareRouter from "./welfare";
+import reportsRouter from "./reports";
+import pipelineRouter from "./pipeline";
+import documentsRouter from "./documents";
+import dashboardRouter from "./dashboard";
+import settingsRouter from "./settings";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(authRouter);
+router.use(usersRouter);
+router.use(roleRequestsRouter);
+router.use(membersRouter);
+router.use(branchesRouter);
+router.use(groupsRouter);
+router.use(attendanceRouter);
+router.use(eventsRouter);
+router.use(financeRouter);
+router.use(mediaRouter);
+router.use(welfareRouter);
+router.use(reportsRouter);
+router.use(pipelineRouter);
+router.use(documentsRouter);
+router.use(dashboardRouter);
+router.use(settingsRouter);
+
+export default router;

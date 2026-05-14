@@ -1,0 +1,2081 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 1.0.0
+  description: DCL Lugazi ERP API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: auth
+  - name: users
+  - name: members
+  - name: branches
+  - name: groups
+  - name: attendance
+  - name: events
+  - name: finance
+  - name: media
+  - name: welfare
+  - name: reports
+  - name: pipeline
+  - name: documents
+  - name: roleRequests
+  - name: dashboard
+  - name: settings
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── Auth ──
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change current user password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+
+  # ── Users ──
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user (admin only) — reverts them to member-level
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /users/{id}/role:
+    patch:
+      operationId: updateUserRole
+      tags: [users]
+      summary: Change a user role in real time (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleChange"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  # ── Role Upgrade Requests ──
+  /role-requests:
+    get:
+      operationId: listRoleRequests
+      tags: [roleRequests]
+      summary: List pending role upgrade requests (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Role requests list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoleRequest"
+
+    post:
+      operationId: createRoleRequest
+      tags: [roleRequests]
+      summary: Submit a role upgrade request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequestInput"
+      responses:
+        "201":
+          description: Request submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleRequest"
+
+  /role-requests/{id}/approve:
+    patch:
+      operationId: approveRoleRequest
+      tags: [roleRequests]
+      summary: Approve a role upgrade request (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleRequest"
+
+  /role-requests/{id}/reject:
+    patch:
+      operationId: rejectRoleRequest
+      tags: [roleRequests]
+      summary: Reject a role upgrade request (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequestReject"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleRequest"
+
+  # ── Members ──
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List all members
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Members list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+
+    post:
+      operationId: createMember
+      tags: [members]
+      summary: Create a member record (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberInput"
+      responses:
+        "201":
+          description: Created member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  /members/{id}:
+    get:
+      operationId: getMember
+      tags: [members]
+      summary: Get a member by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+    patch:
+      operationId: updateMember
+      tags: [members]
+      summary: Update a member
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+    delete:
+      operationId: deleteMember
+      tags: [members]
+      summary: Delete a member (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /members/{id}/qr:
+    get:
+      operationId: getMemberQr
+      tags: [members]
+      summary: Get member QR code value for attendance
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: QR value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberQr"
+
+  # ── Branches ──
+  /branches:
+    get:
+      operationId: listBranches
+      tags: [branches]
+      summary: List all branches
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Branches list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+
+    post:
+      operationId: createBranch
+      tags: [branches]
+      summary: Create a branch (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "201":
+          description: Created branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+
+  /branches/{id}:
+    patch:
+      operationId: updateBranch
+      tags: [branches]
+      summary: Update a branch
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+
+    delete:
+      operationId: deleteBranch
+      tags: [branches]
+      summary: Delete a branch
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Groups ──
+  /groups:
+    get:
+      operationId: listGroups
+      tags: [groups]
+      summary: List all groups
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Groups list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+
+    post:
+      operationId: createGroup
+      tags: [groups]
+      summary: Create a group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupInput"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+
+  /groups/{id}:
+    patch:
+      operationId: updateGroup
+      tags: [groups]
+      summary: Update a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+
+    delete:
+      operationId: deleteGroup
+      tags: [groups]
+      summary: Delete a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Attendance ──
+  /attendance:
+    get:
+      operationId: listAttendance
+      tags: [attendance]
+      summary: List attendance records
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Attendance records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceRecord"
+
+    post:
+      operationId: checkIn
+      tags: [attendance]
+      summary: Check in a member (QR scan or manual)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckInInput"
+      responses:
+        "201":
+          description: Checked in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/qr-scan:
+    post:
+      operationId: qrScanCheckIn
+      tags: [attendance]
+      summary: Check in via QR code scan — resolves member by QR token and records attendance
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QrScanInput"
+      responses:
+        "201":
+          description: QR check-in successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+        "404":
+          description: Member not found for this QR token
+
+  # ── Events ──
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List all events
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Events list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+
+    post:
+      operationId: createEvent
+      tags: [events]
+      summary: Create an event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+  /events/{id}:
+    patch:
+      operationId: updateEvent
+      tags: [events]
+      summary: Update an event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+    delete:
+      operationId: deleteEvent
+      tags: [events]
+      summary: Delete an event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Finance ──
+  /finance:
+    get:
+      operationId: listTransactions
+      tags: [finance]
+      summary: List all finance transactions
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+    post:
+      operationId: createTransaction
+      tags: [finance]
+      summary: Record a finance transaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /finance/summary:
+    get:
+      operationId: getFinanceSummary
+      tags: [finance]
+      summary: Get finance summary totals
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Finance summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSummary"
+
+  /finance/{id}:
+    delete:
+      operationId: deleteTransaction
+      tags: [finance]
+      summary: Delete a transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Media ──
+  /media:
+    get:
+      operationId: listMedia
+      tags: [media]
+      summary: List media items
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Media list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+
+    post:
+      operationId: createMedia
+      tags: [media]
+      summary: Upload media metadata (after Cloudinary upload)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaInput"
+      responses:
+        "201":
+          description: Created media
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+
+  /media/upload-signature:
+    get:
+      operationId: getUploadSignature
+      tags: [media]
+      summary: Get Cloudinary upload signature for client-side upload
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Upload signature
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSignature"
+
+  /media/{id}:
+    delete:
+      operationId: deleteMedia
+      tags: [media]
+      summary: Delete a media item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Welfare ──
+  /welfare:
+    get:
+      operationId: listWelfare
+      tags: [welfare]
+      summary: List welfare requests
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Welfare requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WelfareRequest"
+
+    post:
+      operationId: createWelfare
+      tags: [welfare]
+      summary: Submit a welfare request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WelfareInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelfareRequest"
+
+  /welfare/{id}:
+    patch:
+      operationId: updateWelfare
+      tags: [welfare]
+      summary: Update welfare request status (admin/leadership)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WelfareUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelfareRequest"
+
+  # ── Reports ──
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List reports
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reports list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Submit a report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /reports/{id}:
+    patch:
+      operationId: updateReport
+      tags: [reports]
+      summary: Update a report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  # ── Pipeline ──
+  /pipeline:
+    get:
+      operationId: listPipeline
+      tags: [pipeline]
+      summary: List pipeline contacts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pipeline list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineContact"
+
+    post:
+      operationId: createPipelineContact
+      tags: [pipeline]
+      summary: Add a pipeline contact
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineContact"
+
+  /pipeline/{id}:
+    patch:
+      operationId: updatePipelineContact
+      tags: [pipeline]
+      summary: Update pipeline contact stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineContact"
+
+    delete:
+      operationId: deletePipelineContact
+      tags: [pipeline]
+      summary: Delete pipeline contact
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Documents ──
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List documents
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Documents list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+    post:
+      operationId: createDocument
+      tags: [documents]
+      summary: Upload a document record
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Dashboard ──
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get admin dashboard summary statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/member-stats:
+    get:
+      operationId: getMemberStats
+      tags: [dashboard]
+      summary: Get member portal stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Member stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberStats"
+
+  # ── Settings ──
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get church settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchSettings"
+
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update church settings (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchSettings"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    # Auth
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    RegisterInput:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        displayName:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+
+    UserProfile:
+      type: object
+      required: [id, email, displayName, role, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+        branchId:
+          type: ["integer", "null"]
+        phone:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        photoUrl:
+          type: string
+        phone:
+          type: string
+        branchId:
+          type: integer
+        isActive:
+          type: boolean
+
+    RoleChange:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+
+    # Role Requests
+    RoleRequest:
+      type: object
+      required: [id, userId, requestedRole, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userEmail:
+          type: ["string", "null"]
+        userDisplayName:
+          type: ["string", "null"]
+        requestedRole:
+          type: string
+        currentRole:
+          type: string
+        reason:
+          type: ["string", "null"]
+        status:
+          type: string
+        adminNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        reviewedAt:
+          type: ["string", "null"]
+
+    RoleRequestInput:
+      type: object
+      required: [requestedRole]
+      properties:
+        requestedRole:
+          type: string
+        reason:
+          type: string
+
+    RoleRequestReject:
+      type: object
+      properties:
+        adminNote:
+          type: string
+
+    # Members
+    Member:
+      type: object
+      required: [id, fullName, email, role, branchId, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        role:
+          type: string
+        branchId:
+          type: integer
+        department:
+          type: ["string", "null"]
+        profession:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        birthday:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        qrToken:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    MemberInput:
+      type: object
+      required: [fullName, email, branchId]
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        branchId:
+          type: integer
+        department:
+          type: string
+        profession:
+          type: string
+        photoUrl:
+          type: string
+        bio:
+          type: string
+        birthday:
+          type: string
+        address:
+          type: string
+
+    MemberUpdate:
+      type: object
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        branchId:
+          type: integer
+        department:
+          type: string
+        profession:
+          type: string
+        photoUrl:
+          type: string
+        bio:
+          type: string
+        birthday:
+          type: string
+        address:
+          type: string
+        isActive:
+          type: boolean
+
+    MemberQr:
+      type: object
+      required: [qrToken, memberId, memberName]
+      properties:
+        qrToken:
+          type: string
+        memberId:
+          type: integer
+        memberName:
+          type: string
+
+    # Branches
+    Branch:
+      type: object
+      required: [id, name, location, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        location:
+          type: string
+        leaderName:
+          type: ["string", "null"]
+        memberCount:
+          type: integer
+        createdAt:
+          type: string
+
+    BranchInput:
+      type: object
+      required: [name, location]
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        leaderName:
+          type: string
+
+    BranchUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        leaderName:
+          type: string
+
+    # Groups
+    Group:
+      type: object
+      required: [id, name, branchId, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        branchId:
+          type: integer
+        leaderName:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        meetingDay:
+          type: ["string", "null"]
+        meetingTime:
+          type: ["string", "null"]
+        memberCount:
+          type: integer
+        createdAt:
+          type: string
+
+    GroupInput:
+      type: object
+      required: [name, branchId]
+      properties:
+        name:
+          type: string
+        branchId:
+          type: integer
+        leaderName:
+          type: string
+        location:
+          type: string
+        meetingDay:
+          type: string
+        meetingTime:
+          type: string
+
+    GroupUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        leaderName:
+          type: string
+        location:
+          type: string
+        meetingDay:
+          type: string
+        meetingTime:
+          type: string
+
+    # Attendance
+    AttendanceRecord:
+      type: object
+      required: [id, memberId, memberName, eventName, checkedInAt, method]
+      properties:
+        id:
+          type: integer
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        eventId:
+          type: ["integer", "null"]
+        eventName:
+          type: string
+        branchId:
+          type: ["integer", "null"]
+        checkedInAt:
+          type: string
+        checkedInBy:
+          type: ["integer", "null"]
+        method:
+          type: string
+
+    CheckInInput:
+      type: object
+      required: [memberId, eventName, method]
+      properties:
+        memberId:
+          type: integer
+        eventId:
+          type: integer
+        eventName:
+          type: string
+        method:
+          type: string
+
+    QrScanInput:
+      type: object
+      required: [qrToken, eventName]
+      properties:
+        qrToken:
+          type: string
+        eventName:
+          type: string
+        eventId:
+          type: integer
+
+    # Events
+    Event:
+      type: object
+      required: [id, title, date, time, location, category, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        date:
+          type: string
+        time:
+          type: string
+        location:
+          type: string
+        branchId:
+          type: ["integer", "null"]
+        category:
+          type: string
+        attendeeCount:
+          type: integer
+        createdBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    EventInput:
+      type: object
+      required: [title, date, time, location, category]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+        time:
+          type: string
+        location:
+          type: string
+        branchId:
+          type: integer
+        category:
+          type: string
+
+    EventUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+        time:
+          type: string
+        location:
+          type: string
+        category:
+          type: string
+
+    # Finance
+    Transaction:
+      type: object
+      required: [id, type, amount, currency, description, category, date, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        memberId:
+          type: ["integer", "null"]
+        memberName:
+          type: ["string", "null"]
+        description:
+          type: string
+        category:
+          type: string
+        branchId:
+          type: ["integer", "null"]
+        recordedBy:
+          type: ["integer", "null"]
+        date:
+          type: string
+        createdAt:
+          type: string
+
+    TransactionInput:
+      type: object
+      required: [type, amount, currency, description, category, date]
+      properties:
+        type:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        branchId:
+          type: integer
+        date:
+          type: string
+
+    FinanceSummary:
+      type: object
+      required: [totalIncome, totalExpenses, netBalance, tithes, offerings, donations, thisMonth, lastMonth]
+      properties:
+        totalIncome:
+          type: number
+        totalExpenses:
+          type: number
+        netBalance:
+          type: number
+        tithes:
+          type: number
+        offerings:
+          type: number
+        donations:
+          type: number
+        thisMonth:
+          type: number
+        lastMonth:
+          type: number
+
+    # Media
+    MediaItem:
+      type: object
+      required: [id, title, type, url, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+        thumbnailUrl:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        cloudinaryId:
+          type: ["string", "null"]
+        uploadedBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    MediaInput:
+      type: object
+      required: [title, type, url]
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+        thumbnailUrl:
+          type: string
+        description:
+          type: string
+        cloudinaryId:
+          type: string
+
+    UploadSignature:
+      type: object
+      required: [signature, timestamp, cloudName, apiKey]
+      properties:
+        signature:
+          type: string
+        timestamp:
+          type: integer
+        cloudName:
+          type: string
+        apiKey:
+          type: string
+
+    # Welfare
+    WelfareRequest:
+      type: object
+      required: [id, memberId, memberName, category, description, status, createdAt]
+      properties:
+        id:
+          type: integer
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        amountRequested:
+          type: ["number", "null"]
+        status:
+          type: string
+        adminNote:
+          type: ["string", "null"]
+        reviewedBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    WelfareInput:
+      type: object
+      required: [category, description]
+      properties:
+        category:
+          type: string
+        description:
+          type: string
+        amountRequested:
+          type: number
+
+    WelfareUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+        adminNote:
+          type: string
+
+    # Reports
+    Report:
+      type: object
+      required: [id, title, type, submittedBy, period, status, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        submittedBy:
+          type: integer
+        submittedByName:
+          type: ["string", "null"]
+        branchId:
+          type: ["integer", "null"]
+        content:
+          type: string
+        attendance:
+          type: ["integer", "null"]
+        soulWinning:
+          type: ["integer", "null"]
+        period:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+
+    ReportInput:
+      type: object
+      required: [title, type, content, period]
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+        content:
+          type: string
+        period:
+          type: string
+        branchId:
+          type: integer
+        attendance:
+          type: integer
+        soulWinning:
+          type: integer
+
+    ReportUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+        attendance:
+          type: integer
+        soulWinning:
+          type: integer
+        status:
+          type: string
+
+    # Pipeline
+    PipelineContact:
+      type: object
+      required: [id, name, phone, stage, assignedTo, source, branchId, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+        stage:
+          type: string
+        assignedTo:
+          type: integer
+        assignedToName:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        source:
+          type: string
+        branchId:
+          type: integer
+        createdAt:
+          type: string
+        lastContactedAt:
+          type: ["string", "null"]
+
+    PipelineInput:
+      type: object
+      required: [name, phone, stage, source, branchId]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        stage:
+          type: string
+        notes:
+          type: string
+        source:
+          type: string
+        branchId:
+          type: integer
+
+    PipelineUpdate:
+      type: object
+      properties:
+        stage:
+          type: string
+        notes:
+          type: string
+        lastContactedAt:
+          type: string
+
+    # Documents
+    Document:
+      type: object
+      required: [id, title, category, fileUrl, fileType, uploadedBy, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        category:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: ["integer", "null"]
+        uploadedBy:
+          type: integer
+        uploadedByName:
+          type: ["string", "null"]
+        accessRoles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+
+    DocumentInput:
+      type: object
+      required: [title, category, fileUrl, fileType]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: integer
+        accessRoles:
+          type: array
+          items:
+            type: string
+
+    # Dashboard
+    DashboardStats:
+      type: object
+      required: [totalMembers, activeMembers, totalBranches, totalGroups, thisWeekAttendance, monthlyIncome, monthlyExpenses, pendingWelfare, pendingRoleRequests, upcomingEvents]
+      properties:
+        totalMembers:
+          type: integer
+        activeMembers:
+          type: integer
+        totalBranches:
+          type: integer
+        totalGroups:
+          type: integer
+        thisWeekAttendance:
+          type: integer
+        lastWeekAttendance:
+          type: integer
+        monthlyIncome:
+          type: number
+        monthlyExpenses:
+          type: number
+        pendingWelfare:
+          type: integer
+        pendingRoleRequests:
+          type: integer
+        upcomingEvents:
+          type: integer
+
+    MemberStats:
+      type: object
+      required: [myAttendanceCount, myGivingTotal, pendingWelfareRequests, upcomingEvents]
+      properties:
+        myAttendanceCount:
+          type: integer
+        myGivingTotal:
+          type: number
+        pendingWelfareRequests:
+          type: integer
+        upcomingEvents:
+          type: integer
+
+    # Settings
+    ChurchSettings:
+      type: object
+      properties:
+        churchName:
+          type: ["string", "null"]
+        tagline:
+          type: ["string", "null"]
+        mission:
+          type: ["string", "null"]
+        vision:
+          type: ["string", "null"]
+        coreValues:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+
+    SettingsUpdate:
+      type: object
+      properties:
+        churchName:
+          type: string
+        tagline:
+          type: string
+        mission:
+          type: string
+        vision:
+          type: string
+        coreValues:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        website:
+          type: string

@@ -1,0 +1,49 @@
+name: Deploy Frontend to Firebase Hosting
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'artifacts/lugazi/**'
+      - 'lib/api-client-react/**'
+      - 'lib/api-zod/**'
+      - 'lib/api-spec/**'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Build frontend
+        run: pnpm --filter @workspace/lugazi run build
+        env:
+          NODE_ENV: production
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
+      - name: Deploy to Firebase Hosting
+        run: |
+          cd artifacts/lugazi
+          npx firebase-tools@latest deploy --only hosting --project lugazi-system1
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
