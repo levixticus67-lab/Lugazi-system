@@ -2,11 +2,12 @@ import { NavItem } from "@/components/PortalLayout";
 import {
   LayoutDashboard, Users, UserCog, Bell, GitBranch, UsersRound,
   CalendarCheck, CalendarDays, Wallet, Image, Heart,
-  FileText, TrendingUp, FolderOpen, Settings
+  FileText, TrendingUp, FolderOpen, Settings, User, Mic2, HandHeart, Cake
 } from "lucide-react";
 
 export const adminNavItems: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { label: "My Profile", href: "/admin/profile", icon: <User className="h-4 w-4" /> },
   { label: "Members", href: "/admin/members", icon: <Users className="h-4 w-4" /> },
   { label: "Users & Roles", href: "/admin/users", icon: <UserCog className="h-4 w-4" /> },
   { label: "Role Requests", href: "/admin/role-requests", icon: <Bell className="h-4 w-4" /> },
@@ -17,6 +18,9 @@ export const adminNavItems: NavItem[] = [
   { label: "Finance", href: "/admin/finance", icon: <Wallet className="h-4 w-4" /> },
   { label: "Media", href: "/admin/media", icon: <Image className="h-4 w-4" /> },
   { label: "Welfare", href: "/admin/welfare", icon: <Heart className="h-4 w-4" /> },
+  { label: "Prayer Requests", href: "/admin/prayer-requests", icon: <HandHeart className="h-4 w-4" /> },
+  { label: "Sermon Library", href: "/admin/sermons", icon: <Mic2 className="h-4 w-4" /> },
+  { label: "Birthdays", href: "/admin/birthdays", icon: <Cake className="h-4 w-4" /> },
   { label: "Reports", href: "/admin/reports", icon: <FileText className="h-4 w-4" /> },
   { label: "Pipeline", href: "/admin/pipeline", icon: <TrendingUp className="h-4 w-4" /> },
   { label: "Documents", href: "/admin/documents", icon: <FolderOpen className="h-4 w-4" /> },

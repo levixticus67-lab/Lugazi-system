@@ -16,6 +16,9 @@ import pipelineRouter from "./pipeline";
 import documentsRouter from "./documents";
 import dashboardRouter from "./dashboard";
 import settingsRouter from "./settings";
+import chatRouter from "./chat";
+import prayerRequestsRouter from "./prayerRequests";
+import sermonsRouter from "./sermons";
 
 const router: IRouter = Router();
 
@@ -36,5 +39,8 @@ router.use(pipelineRouter);
 router.use(documentsRouter);
 router.use(dashboardRouter);
 router.use(settingsRouter);
+router.use(chatRouter);
+router.use(prayerRequestsRouter);
+router.use(sermonsRouter);
 
 export default router;

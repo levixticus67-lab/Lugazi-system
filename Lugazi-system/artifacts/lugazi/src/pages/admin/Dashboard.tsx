@@ -4,6 +4,7 @@ import axios from "@/lib/axios";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
+import LiveChat from "@/components/LiveChat";
 import { adminNavItems } from "./navItems";
 import {
   Users, GitBranch, UsersRound, CalendarCheck, Wallet, Heart,
@@ -226,6 +227,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       ) : null}
+      <LiveChat scope="admin" />
     </PortalLayout>
   );
 }

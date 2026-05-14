@@ -12,3 +12,6 @@ export * from "./pipeline";
 export * from "./documents";
 export * from "./roleRequests";
 export * from "./settings";
+export * from "./chat";
+export * from "./prayerRequests";
+export * from "./sermons";
