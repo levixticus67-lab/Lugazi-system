@@ -6,10 +6,10 @@ on:
     branches:
       - main
     paths:
-      - 'artifacts/lugazi/**'
-      - 'lib/api-client-react/**'
-      - 'lib/api-zod/**'
-      - 'lib/api-spec/**'
+      - 'Lugazi-system/artifacts/lugazi/**'
+      - 'Lugazi-system/lib/api-client-react/**'
+      - 'Lugazi-system/lib/api-zod/**'
+      - 'Lugazi-system/lib/api-spec/**'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
 
@@ -33,17 +33,17 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: cd Lugazi-system && pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Build frontend
-        run: pnpm --filter @workspace/lugazi run build
+        run: cd Lugazi-system && pnpm --filter @workspace/lugazi run build
         env:
           NODE_ENV: production
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
       - name: Deploy to Firebase Hosting
         run: |
-          cd artifacts/lugazi
+          cd Lugazi-system/artifacts/lugazi
           npx firebase-tools@latest deploy --only hosting --project lugazi-system1
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
