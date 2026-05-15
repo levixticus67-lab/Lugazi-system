@@ -6,8 +6,10 @@ on:
     branches:
       - main
     paths:
-      - 'lib/db/src/schema/**'
-      - 'lib/db/drizzle.config.ts'
+      - 'Lugazi-system/lib/db/src/schema/**'
+      - 'Lugazi-system/lib/db/drizzle.config.ts'
+      - 'Lugazi-system/pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
 
 jobs:
   migrate:
@@ -29,9 +31,9 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: cd Lugazi-system && pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Push schema to Neon
-        run: pnpm --filter @workspace/db run push
+        run: cd Lugazi-system && pnpm --filter @workspace/db run push
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
