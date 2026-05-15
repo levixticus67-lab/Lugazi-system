@@ -6,6 +6,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface ReportUpdate {
+  content?: string;
+  attendance?: number;
+  soulWinning?: number;
+  status?: string;
 }

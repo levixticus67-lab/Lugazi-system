@@ -6,6 +6,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface CheckInInput {
+  memberId: number;
+  eventId?: number;
+  eventName: string;
+  method: string;
 }
