@@ -32,17 +32,24 @@ router.patch("/users/:id", requireAuth, async (req: AuthRequest, res): Promise<v
   if (req.userRole !== "admin" && req.userId !== id) {
     res.status(403).json({ error: "Forbidden" }); return;
   }
-  const { displayName, photoUrl, phone, branchId, isActive } = req.body;
+  const { displayName, photoUrl, phone, birthday, branchId, isActive } = req.body;
   const updateData: Record<string, unknown> = {};
   if (displayName !== undefined) updateData.displayName = displayName;
   if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
   if (phone !== undefined) updateData.phone = phone;
+  if (birthday !== undefined) updateData.birthday = birthday;
   if (branchId !== undefined && req.userRole === "admin") updateData.branchId = branchId;
   if (isActive !== undefined && req.userRole === "admin") updateData.isActive = isActive;
 
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "User not found" }); return; }
-  res.json({ id: updated.id, email: updated.email, displayName: updated.displayName, role: updated.role, photoUrl: updated.photoUrl, branchId: updated.branchId, phone: updated.phone, isActive: updated.isActive, createdAt: updated.createdAt.toISOString() });
+
+  // Sync birthday to members table if set
+  if (birthday !== undefined) {
+    await db.update(membersTable).set({ birthday }).where(eq(membersTable.userId, id)).catch(() => {});
+  }
+
+  res.json({ id: updated.id, email: updated.email, displayName: updated.displayName, role: updated.role, photoUrl: updated.photoUrl, branchId: updated.branchId, phone: updated.phone, birthday: updated.birthday, isActive: updated.isActive, createdAt: updated.createdAt.toISOString() });
 });
 
 router.delete("/users/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {

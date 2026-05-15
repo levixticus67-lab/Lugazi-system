@@ -186,7 +186,7 @@ export default function AdminCommunication() {
         "Compose a welfare awareness announcement",
         "Create an invitation message for a new event",
       ]} />
-      <LiveChat scope="global" />
+      <LiveChat />
     </PortalLayout>
   );
 }

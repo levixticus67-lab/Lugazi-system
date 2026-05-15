@@ -16,6 +16,8 @@ export const membersTable = pgTable("members", {
   bio: text("bio"),
   birthday: text("birthday"),
   address: text("address"),
+  cellGroupId: integer("cell_group_id"),
+  cellGroupName: text("cell_group_name"),
   qrToken: text("qr_token").notNull().unique(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

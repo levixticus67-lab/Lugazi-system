@@ -1,7 +1,7 @@
 import { NavItem } from "@/components/PortalLayout";
 import {
   LayoutDashboard, Users, UsersRound, CalendarCheck, CalendarDays, Heart,
-  FileText, TrendingUp, User, HandHeart, Mic2, Calendar, CheckCircle2, UserCheck
+  FileText, TrendingUp, User, HandHeart, Mic2, Calendar, CheckCircle2, UserCheck, Image
 } from "lucide-react";
 
 export const leadershipNavItems: NavItem[] = [
@@ -16,6 +16,7 @@ export const leadershipNavItems: NavItem[] = [
   { label: "Approvals", href: "/leadership/approvals", icon: <CheckCircle2 className="h-4 w-4" /> },
   { label: "Prayer Requests", href: "/leadership/prayer-requests", icon: <HandHeart className="h-4 w-4" /> },
   { label: "Sermon Library", href: "/leadership/sermons", icon: <Mic2 className="h-4 w-4" /> },
+  { label: "Media Gallery", href: "/leadership/media", icon: <Image className="h-4 w-4" /> },
   { label: "Welfare", href: "/leadership/welfare", icon: <Heart className="h-4 w-4" /> },
   { label: "Reports", href: "/leadership/reports", icon: <FileText className="h-4 w-4" /> },
   { label: "Pipeline", href: "/leadership/pipeline", icon: <TrendingUp className="h-4 w-4" /> },

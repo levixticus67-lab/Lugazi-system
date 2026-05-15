@@ -49,6 +49,7 @@ import LeadershipPipeline from "@/pages/leadership/Pipeline";
 import LeadershipMeetings from "@/pages/leadership/Meetings";
 import LeadershipTeams from "@/pages/leadership/Teams";
 import LeadershipApprovals from "@/pages/leadership/Approvals";
+import LeadershipMedia from "@/pages/leadership/Media";
 
 // Workforce pages
 import WorkforceDashboard from "@/pages/workforce/Dashboard";
@@ -73,6 +74,7 @@ import MemberQrCode from "@/pages/member/QrCode";
 import MemberFamily from "@/pages/member/Family";
 import MemberGiving from "@/pages/member/Giving";
 import MemberTestimonies from "@/pages/member/Testimonies";
+import MemberMedia from "@/pages/member/Media";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,6 +169,7 @@ function Router() {
       <Route path="/leadership/welfare"><RequireAuth roles={["admin", "leadership"]}><LeadershipWelfare /></RequireAuth></Route>
       <Route path="/leadership/prayer-requests"><RequireAuth roles={["admin", "leadership"]}><LeadershipPrayerRequests /></RequireAuth></Route>
       <Route path="/leadership/sermons"><RequireAuth roles={["admin", "leadership"]}><LeadershipSermons /></RequireAuth></Route>
+      <Route path="/leadership/media"><RequireAuth roles={["admin", "leadership"]}><LeadershipMedia /></RequireAuth></Route>
       <Route path="/leadership/reports"><RequireAuth roles={["admin", "leadership"]}><LeadershipReports /></RequireAuth></Route>
       <Route path="/leadership/pipeline"><RequireAuth roles={["admin", "leadership"]}><LeadershipPipeline /></RequireAuth></Route>
 
@@ -192,6 +195,7 @@ function Router() {
       <Route path="/member/giving"><RequireAuth><MemberGiving /></RequireAuth></Route>
       <Route path="/member/welfare"><RequireAuth><MemberWelfare /></RequireAuth></Route>
       <Route path="/member/upgrade"><RequireAuth><MemberUpgrade /></RequireAuth></Route>
+      <Route path="/member/media"><RequireAuth><MemberMedia /></RequireAuth></Route>
       <Route path="/member/qr"><RequireAuth><MemberQrCode /></RequireAuth></Route>
 
       <Route component={NotFound} />

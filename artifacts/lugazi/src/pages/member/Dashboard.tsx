@@ -6,6 +6,8 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
+import TestimonySlider from "@/components/TestimonySlider";
+import BirthdayCard from "@/components/BirthdayCard";
 import { memberNavItems } from "./navItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarCheck, CalendarDays, Heart, Wallet, TrendingUp } from "lucide-react";
@@ -40,6 +42,13 @@ export default function MemberDashboard() {
       ) : stats ? (
         <div className="space-y-6">
           <BroadcastCard />
+
+          {/* Testimonies + Birthdays row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TestimonySlider />
+            <BirthdayCard />
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up">
             <StatCard title="My Attendance" value={stats.myAttendanceCount} subtitle="Total check-ins" icon={<CalendarCheck className="h-5 w-5" />} />
             <StatCard title="My Giving" value={`UGX ${Number(stats.myGivingTotal).toLocaleString()}`} icon={<Wallet className="h-5 w-5" />} />
@@ -91,7 +100,7 @@ export default function MemberDashboard() {
           </div>
         </div>
       ) : null}
-      <LiveChat scope="general" />
+      <LiveChat />
     </PortalLayout>
   );
 }

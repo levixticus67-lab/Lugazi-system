@@ -6,6 +6,8 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
+import TestimonySlider from "@/components/TestimonySlider";
+import BirthdayCard from "@/components/BirthdayCard";
 import { adminNavItems } from "./navItems";
 import {
   Users, GitBranch, UsersRound, CalendarCheck, Wallet, Heart,
@@ -93,6 +95,13 @@ export default function AdminDashboard() {
       ) : stats ? (
         <div className="space-y-6">
           <BroadcastCard />
+
+          {/* Testimonies + Birthdays row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TestimonySlider />
+            <BirthdayCard />
+          </div>
+
           {/* ── Stat Cards ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard title="Total Members" value={stats.totalMembers} subtitle={`${stats.activeMembers} active`} icon={<Users className="h-5 w-5" />} />
@@ -115,7 +124,6 @@ export default function AdminDashboard() {
           ) : charts ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Weekly Attendance */}
                 <div className="bg-card border border-card-border rounded-xl p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <CalendarCheck className="h-4 w-4 text-primary" />
@@ -132,7 +140,6 @@ export default function AdminDashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Monthly Finance */}
                 <div className="bg-card border border-card-border rounded-xl p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <Wallet className="h-4 w-4 text-green-500" />
@@ -153,7 +160,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Member Growth */}
                 <div className="bg-card border border-card-border rounded-xl p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="h-4 w-4 text-blue-500" />
@@ -176,7 +182,6 @@ export default function AdminDashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Activity Feed */}
                 <div className="bg-card border border-card-border rounded-xl p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -216,12 +221,8 @@ export default function AdminDashboard() {
                 { label: "Mark Attendance", href: "/admin/attendance" },
                 { label: "Create Event", href: "/admin/events" },
               ].map((action) => (
-                <a
-                  key={action.href}
-                  href={action.href}
-                  className="block p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors text-sm font-medium text-center"
-                  data-testid={`action-${action.label.toLowerCase().replace(/\s/g, "-")}`}
-                >
+                <a key={action.href} href={action.href}
+                  className="block p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors text-sm font-medium text-center">
                   {action.label}
                 </a>
               ))}
@@ -229,7 +230,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       ) : null}
-      <LiveChat scope="admin" />
+      <LiveChat />
     </PortalLayout>
   );
 }

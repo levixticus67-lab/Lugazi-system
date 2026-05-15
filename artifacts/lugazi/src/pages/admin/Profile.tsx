@@ -10,27 +10,29 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Shield, User } from "lucide-react";
+import { Shield, User, Cake } from "lucide-react";
 
 export default function AdminProfile() {
   const { data: me, isLoading } = useGetMe();
   const updateMutation = useUpdateUser();
   const changePasswordMutation = useChangePassword();
   const queryClient = useQueryClient();
-  const { toast } = useAuth() as any;
   const { user } = useAuth();
   const { toast: showToast } = useToast();
-  const [form, setForm] = useState({ displayName: "", phone: "" });
+  const [form, setForm] = useState({ displayName: "", phone: "", birthday: "" });
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "" });
   const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
 
   useEffect(() => {
-    if (me) setForm({ displayName: me.displayName, phone: me.phone || "" });
+    if (me) setForm({ displayName: me.displayName, phone: me.phone || "", birthday: (me as any).birthday || "" });
   }, [me]);
 
   function handleSave() {
     if (!user) return;
-    updateMutation.mutate({ id: user.id, data: { displayName: form.displayName, phone: form.phone || undefined, photoUrl: photoResult?.url ?? undefined } }, {
+    updateMutation.mutate({
+      id: user.id,
+      data: { displayName: form.displayName, phone: form.phone || undefined, birthday: form.birthday || undefined, photoUrl: photoResult?.url ?? undefined } as any,
+    }, {
       onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }); showToast({ title: "Profile updated" }); },
       onError: () => showToast({ title: "Update failed", variant: "destructive" }),
     });
@@ -52,14 +54,12 @@ export default function AdminProfile() {
       <div className="max-w-lg space-y-6 animate-slide-in-up">
         <div className="glass-card p-6 space-y-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 blue-gradient-bg rounded-xl">
-              <User className="h-5 w-5 text-white" />
-            </div>
+            <div className="p-2 blue-gradient-bg rounded-xl"><User className="h-5 w-5 text-white" /></div>
             <h2 className="font-serif text-lg font-semibold">Personal Information</h2>
           </div>
           <div className="flex items-center gap-3 py-2">
-            {me?.photoUrl ? (
-              <img src={me.photoUrl} alt={me.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+            {me?.photoUrl || photoResult?.url ? (
+              <img src={photoResult?.url ?? me?.photoUrl!} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
             ) : (
               <div className="w-16 h-16 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-2xl">
                 {me?.displayName?.charAt(0).toUpperCase()}
@@ -80,6 +80,10 @@ export default function AdminProfile() {
           </div>
           <div><Label>Display Name</Label><Input value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} className="mt-1" /></div>
           <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
+          <div>
+            <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-pink-500" />Birthday</Label>
+            <Input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} className="mt-1" />
+          </div>
           <Button onClick={handleSave} disabled={updateMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
             {updateMutation.isPending ? "Saving…" : "Save Profile"}
           </Button>

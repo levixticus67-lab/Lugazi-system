@@ -148,7 +148,7 @@ export default function AdminPrayerRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <LiveChat scope="admin" />
+      <LiveChat />
     </PortalLayout>
   );
 }

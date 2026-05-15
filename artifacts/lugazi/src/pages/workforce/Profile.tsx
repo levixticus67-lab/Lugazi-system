@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Zap } from "lucide-react";
+import { Zap, Cake } from "lucide-react";
 
 export default function WorkforceProfile() {
   const { data: me, isLoading } = useGetMe();
@@ -19,17 +19,17 @@ export default function WorkforceProfile() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [form, setForm] = useState({ displayName: "", phone: "" });
+  const [form, setForm] = useState({ displayName: "", phone: "", birthday: "" });
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "" });
   const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
 
   useEffect(() => {
-    if (me) setForm({ displayName: me.displayName, phone: me.phone || "" });
+    if (me) setForm({ displayName: me.displayName, phone: me.phone || "", birthday: (me as any).birthday || "" });
   }, [me]);
 
   function handleSave() {
     if (!user) return;
-    updateMutation.mutate({ id: user.id, data: { displayName: form.displayName, phone: form.phone || undefined, photoUrl: photoResult?.url ?? undefined } }, {
+    updateMutation.mutate({ id: user.id, data: { displayName: form.displayName, phone: form.phone || undefined, birthday: form.birthday || undefined, photoUrl: photoResult?.url ?? undefined } as any }, {
       onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }); toast({ title: "Profile updated" }); },
       onError: () => toast({ title: "Update failed", variant: "destructive" }),
     });
@@ -73,6 +73,10 @@ export default function WorkforceProfile() {
           </div>
           <div><Label>Display Name</Label><Input value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} className="mt-1" /></div>
           <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
+          <div>
+            <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-pink-500" />Birthday</Label>
+            <Input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} className="mt-1" />
+          </div>
           <Button onClick={handleSave} disabled={updateMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
             {updateMutation.isPending ? "Saving…" : "Save Profile"}
           </Button>

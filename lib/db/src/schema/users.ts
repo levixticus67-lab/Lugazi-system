@@ -10,6 +10,7 @@ export const usersTable = pgTable("users", {
   role: text("role").notNull().default("member"),
   photoUrl: text("photo_url"),
   phone: text("phone"),
+  birthday: text("birthday"),
   branchId: integer("branch_id"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

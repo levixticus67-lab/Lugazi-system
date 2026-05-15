@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Mic2, Plus, Pencil, Trash2, Play, FileText } from "lucide-react";
+import { Mic2, Plus, Pencil, Trash2, Play, FileText, Video } from "lucide-react";
 
 type Sermon = {
   id: number; title: string; preacher: string; sermonDate: string; series?: string;
@@ -73,7 +73,13 @@ export default function LeadershipSermons() {
     }
   }
 
-  const SermonForm = () => (
+  function openEdit(s: Sermon) {
+    setEditSermon(s);
+    setForm({ title: s.title, preacher: s.preacher, sermonDate: s.sermonDate, series: s.series || "", description: s.description || "", scriptureRef: s.scriptureRef || "", mediaType: s.mediaType || "audio" });
+    setMediaResult(null); setThumbResult(null);
+  }
+
+  const sermonFormJsx = (
     <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Title *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="mt-1" /></div>
@@ -119,7 +125,9 @@ export default function LeadershipSermons() {
               <div key={s.id} className="glass-card p-5 card-hover">
                 <div className="flex gap-3">
                   {s.thumbnailUrl ? <img src={s.thumbnailUrl} alt={s.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" /> :
-                    <div className="w-16 h-16 rounded-lg blue-gradient-bg flex items-center justify-center flex-shrink-0"><Mic2 className="h-7 w-7 text-white" /></div>}
+                    <div className="w-16 h-16 rounded-lg blue-gradient-bg flex items-center justify-center flex-shrink-0">
+                      {s.mediaType === "document" ? <FileText className="h-7 w-7 text-white" /> : s.mediaType === "video" ? <Video className="h-7 w-7 text-white" /> : <Mic2 className="h-7 w-7 text-white" />}
+                    </div>}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{s.title}</p>
                     <p className="text-xs text-muted-foreground">{s.preacher} · {new Date(s.sermonDate).toLocaleDateString()}</p>
@@ -128,12 +136,13 @@ export default function LeadershipSermons() {
                 </div>
                 {s.mediaUrl && <div className="mt-3">
                   {s.mediaType === "audio" ? <audio controls src={s.mediaUrl} className="w-full h-8 mt-1" /> :
+                   s.mediaType === "video" ? <div className="mt-2 rounded-lg overflow-hidden bg-black aspect-video"><video src={s.mediaUrl} controls className="w-full h-full" preload="metadata" /></div> :
                     <a href={s.mediaUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
-                      {s.mediaType === "video" ? <><Play className="h-3 w-3" /> Watch</> : <><FileText className="h-3 w-3" /> View</>}
+                      <Play className="h-3 w-3" /> View Document
                     </a>}
                 </div>}
                 <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
-                  <button onClick={() => { setEditSermon(s); setForm({ title: s.title, preacher: s.preacher, sermonDate: s.sermonDate, series: s.series || "", description: s.description || "", scriptureRef: s.scriptureRef || "", mediaType: s.mediaType || "audio" }); }} className="text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => openEdit(s)} className="text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></button>
                   <button onClick={() => handleDelete(s.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
@@ -143,13 +152,13 @@ export default function LeadershipSermons() {
 
       <Dialog open={showAdd} onOpenChange={o => { if (!o) resetForm(); setShowAdd(o); }}>
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Add Sermon</DialogTitle></DialogHeader>
-          <SermonForm />
+          {sermonFormJsx}
           <DialogFooter><Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button><Button onClick={handleSave} disabled={saving} className="blue-gradient-bg text-white border-0">{saving ? "Saving…" : "Add"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={!!editSermon} onOpenChange={o => { if (!o) { setEditSermon(null); resetForm(); } }}>
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Edit Sermon</DialogTitle></DialogHeader>
-          <SermonForm />
+          {sermonFormJsx}
           <DialogFooter><Button variant="outline" onClick={() => setEditSermon(null)}>Cancel</Button><Button onClick={handleSave} disabled={saving} className="blue-gradient-bg text-white border-0">{saving ? "Saving…" : "Save"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>

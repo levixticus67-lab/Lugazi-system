@@ -6,8 +6,10 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
+import TestimonySlider from "@/components/TestimonySlider";
+import BirthdayCard from "@/components/BirthdayCard";
 import { leadershipNavItems } from "./navItems";
-import { Users, CalendarCheck, Heart, FileText, TrendingUp, CalendarDays } from "lucide-react";
+import { Users, CalendarCheck, Heart, TrendingUp, CalendarDays } from "lucide-react";
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -39,6 +41,13 @@ export default function LeadershipDashboard() {
       ) : stats ? (
         <div className="space-y-6">
           <BroadcastCard />
+
+          {/* Testimonies + Birthdays row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TestimonySlider />
+            <BirthdayCard />
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up">
             <StatCard title="Total Members" value={stats.totalMembers} icon={<Users className="h-5 w-5" />} />
             <StatCard title="This Week" value={stats.thisWeekAttendance} subtitle={`Last: ${stats.lastWeekAttendance}`} icon={<CalendarCheck className="h-5 w-5" />} />
@@ -106,7 +115,7 @@ export default function LeadershipDashboard() {
           </div>
         </div>
       ) : null}
-      <LiveChat scope="leadership" />
+      <LiveChat />
     </PortalLayout>
   );
 }
