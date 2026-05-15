@@ -19,6 +19,12 @@ import settingsRouter from "./settings";
 import chatRouter from "./chat";
 import prayerRequestsRouter from "./prayerRequests";
 import sermonsRouter from "./sermons";
+import meetingsRouter from "./meetings";
+import givingRouter from "./giving";
+import inductionRouter from "./induction";
+import testimoniesRouter from "./testimonies";
+import familyMembersRouter from "./familyMembers";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -42,5 +48,11 @@ router.use(settingsRouter);
 router.use(chatRouter);
 router.use(prayerRequestsRouter);
 router.use(sermonsRouter);
+router.use(meetingsRouter);
+router.use(givingRouter);
+router.use(inductionRouter);
+router.use(testimoniesRouter);
+router.use(familyMembersRouter);
+router.use(aiRouter);
 
 export default router;

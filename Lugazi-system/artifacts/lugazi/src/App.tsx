@@ -29,6 +29,10 @@ import AdminReports from "@/pages/admin/Reports";
 import AdminPipeline from "@/pages/admin/Pipeline";
 import AdminDocuments from "@/pages/admin/Documents";
 import AdminSettings from "@/pages/admin/Settings";
+import AdminCommunication from "@/pages/admin/Communication";
+import AdminCellFellowship from "@/pages/admin/CellFellowship";
+import AdminInduction from "@/pages/admin/Induction";
+import AdminGiving from "@/pages/admin/Giving";
 
 // Leadership pages
 import LeadershipDashboard from "@/pages/leadership/Dashboard";
@@ -42,6 +46,9 @@ import LeadershipPrayerRequests from "@/pages/leadership/PrayerRequests";
 import LeadershipSermons from "@/pages/leadership/Sermons";
 import LeadershipReports from "@/pages/leadership/Reports";
 import LeadershipPipeline from "@/pages/leadership/Pipeline";
+import LeadershipMeetings from "@/pages/leadership/Meetings";
+import LeadershipTeams from "@/pages/leadership/Teams";
+import LeadershipApprovals from "@/pages/leadership/Approvals";
 
 // Workforce pages
 import WorkforceDashboard from "@/pages/workforce/Dashboard";
@@ -51,6 +58,7 @@ import WorkforceEvents from "@/pages/workforce/Events";
 import WorkforceSermons from "@/pages/workforce/Sermons";
 import WorkforceReports from "@/pages/workforce/Reports";
 import WorkforceMedia from "@/pages/workforce/Media";
+import WorkforceMeetings from "@/pages/workforce/Meetings";
 
 // Member pages
 import MemberDashboard from "@/pages/member/Dashboard";
@@ -62,6 +70,9 @@ import MemberPrayerRequest from "@/pages/member/PrayerRequest";
 import MemberWelfare from "@/pages/member/Welfare";
 import MemberUpgrade from "@/pages/member/Upgrade";
 import MemberQrCode from "@/pages/member/QrCode";
+import MemberFamily from "@/pages/member/Family";
+import MemberGiving from "@/pages/member/Giving";
+import MemberTestimonies from "@/pages/member/Testimonies";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,9 +137,12 @@ function Router() {
       <Route path="/admin/role-requests"><RequireAuth roles={["admin"]}><AdminRoleRequests /></RequireAuth></Route>
       <Route path="/admin/branches"><RequireAuth roles={["admin"]}><AdminBranches /></RequireAuth></Route>
       <Route path="/admin/groups"><RequireAuth roles={["admin"]}><AdminGroups /></RequireAuth></Route>
+      <Route path="/admin/cell-fellowship"><RequireAuth roles={["admin"]}><AdminCellFellowship /></RequireAuth></Route>
+      <Route path="/admin/induction"><RequireAuth roles={["admin"]}><AdminInduction /></RequireAuth></Route>
       <Route path="/admin/attendance"><RequireAuth roles={["admin"]}><AdminAttendance /></RequireAuth></Route>
       <Route path="/admin/events"><RequireAuth roles={["admin"]}><AdminEvents /></RequireAuth></Route>
       <Route path="/admin/finance"><RequireAuth roles={["admin"]}><AdminFinance /></RequireAuth></Route>
+      <Route path="/admin/giving"><RequireAuth roles={["admin"]}><AdminGiving /></RequireAuth></Route>
       <Route path="/admin/media"><RequireAuth roles={["admin"]}><AdminMedia /></RequireAuth></Route>
       <Route path="/admin/welfare"><RequireAuth roles={["admin"]}><AdminWelfare /></RequireAuth></Route>
       <Route path="/admin/prayer-requests"><RequireAuth roles={["admin"]}><AdminPrayerRequests /></RequireAuth></Route>
@@ -136,6 +150,7 @@ function Router() {
       <Route path="/admin/birthdays"><RequireAuth roles={["admin"]}><AdminBirthdays /></RequireAuth></Route>
       <Route path="/admin/reports"><RequireAuth roles={["admin"]}><AdminReports /></RequireAuth></Route>
       <Route path="/admin/pipeline"><RequireAuth roles={["admin"]}><AdminPipeline /></RequireAuth></Route>
+      <Route path="/admin/communication"><RequireAuth roles={["admin"]}><AdminCommunication /></RequireAuth></Route>
       <Route path="/admin/documents"><RequireAuth roles={["admin"]}><AdminDocuments /></RequireAuth></Route>
       <Route path="/admin/settings"><RequireAuth roles={["admin"]}><AdminSettings /></RequireAuth></Route>
 
@@ -143,9 +158,12 @@ function Router() {
       <Route path="/leadership/dashboard"><RequireAuth roles={["admin", "leadership"]}><LeadershipDashboard /></RequireAuth></Route>
       <Route path="/leadership/profile"><RequireAuth roles={["admin", "leadership"]}><LeadershipProfile /></RequireAuth></Route>
       <Route path="/leadership/members"><RequireAuth roles={["admin", "leadership"]}><LeadershipMembers /></RequireAuth></Route>
+      <Route path="/leadership/teams"><RequireAuth roles={["admin", "leadership"]}><LeadershipTeams /></RequireAuth></Route>
       <Route path="/leadership/groups"><RequireAuth roles={["admin", "leadership"]}><LeadershipGroups /></RequireAuth></Route>
       <Route path="/leadership/attendance"><RequireAuth roles={["admin", "leadership"]}><LeadershipAttendance /></RequireAuth></Route>
       <Route path="/leadership/events"><RequireAuth roles={["admin", "leadership"]}><LeadershipEvents /></RequireAuth></Route>
+      <Route path="/leadership/meetings"><RequireAuth roles={["admin", "leadership"]}><LeadershipMeetings /></RequireAuth></Route>
+      <Route path="/leadership/approvals"><RequireAuth roles={["admin", "leadership"]}><LeadershipApprovals /></RequireAuth></Route>
       <Route path="/leadership/welfare"><RequireAuth roles={["admin", "leadership"]}><LeadershipWelfare /></RequireAuth></Route>
       <Route path="/leadership/prayer-requests"><RequireAuth roles={["admin", "leadership"]}><LeadershipPrayerRequests /></RequireAuth></Route>
       <Route path="/leadership/sermons"><RequireAuth roles={["admin", "leadership"]}><LeadershipSermons /></RequireAuth></Route>
@@ -157,6 +175,7 @@ function Router() {
       <Route path="/workforce/profile"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceProfile /></RequireAuth></Route>
       <Route path="/workforce/attendance"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceAttendance /></RequireAuth></Route>
       <Route path="/workforce/events"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceEvents /></RequireAuth></Route>
+      <Route path="/workforce/meetings"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceMeetings /></RequireAuth></Route>
       <Route path="/workforce/sermons"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceSermons /></RequireAuth></Route>
       <Route path="/workforce/reports"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceReports /></RequireAuth></Route>
       <Route path="/workforce/media"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceMedia /></RequireAuth></Route>
@@ -164,10 +183,13 @@ function Router() {
       {/* ── Member portal — all roles ── */}
       <Route path="/member/dashboard"><RequireAuth><MemberDashboard /></RequireAuth></Route>
       <Route path="/member/profile"><RequireAuth><MemberProfile /></RequireAuth></Route>
+      <Route path="/member/family"><RequireAuth><MemberFamily /></RequireAuth></Route>
       <Route path="/member/attendance"><RequireAuth><MemberAttendance /></RequireAuth></Route>
       <Route path="/member/events"><RequireAuth><MemberEvents /></RequireAuth></Route>
       <Route path="/member/sermons"><RequireAuth><MemberSermons /></RequireAuth></Route>
       <Route path="/member/prayer"><RequireAuth><MemberPrayerRequest /></RequireAuth></Route>
+      <Route path="/member/testimonies"><RequireAuth><MemberTestimonies /></RequireAuth></Route>
+      <Route path="/member/giving"><RequireAuth><MemberGiving /></RequireAuth></Route>
       <Route path="/member/welfare"><RequireAuth><MemberWelfare /></RequireAuth></Route>
       <Route path="/member/upgrade"><RequireAuth><MemberUpgrade /></RequireAuth></Route>
       <Route path="/member/qr"><RequireAuth><MemberQrCode /></RequireAuth></Route>
