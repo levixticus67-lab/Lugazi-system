@@ -7,6 +7,7 @@ const router = Router();
 
 const LIVE_LIMIT = 50;
 const ARCHIVE_THRESHOLD = 100;
+const GLOBAL = "global";
 
 router.get("/chat/statuses", requireAuth, async (_req, res): Promise<void> => {
   const statuses = await db.select().from(userStatusTable).orderBy(desc(userStatusTable.updatedAt));
@@ -94,19 +95,18 @@ router.delete("/chat/dm/:otherUserId/end-private", requireAuth, async (req: Auth
   res.json({ success: true });
 });
 
-router.get("/chat/:scope", requireAuth, async (req, res): Promise<void> => {
-  const scope = req.params.scope as string;
+router.get("/chat/:scope", requireAuth, async (_req, res): Promise<void> => {
   const messages = await db
     .select()
     .from(chatMessagesTable)
-    .where(and(eq(chatMessagesTable.portalScope, scope), eq(chatMessagesTable.isDeleted, false)))
+    .where(and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false)))
     .orderBy(desc(chatMessagesTable.createdAt))
     .limit(LIVE_LIMIT);
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(chatMessagesTable)
-    .where(and(eq(chatMessagesTable.portalScope, scope), eq(chatMessagesTable.isDeleted, false)));
+    .where(and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false)));
 
   const msgIds = messages.map(m => m.id);
   let reactions: typeof chatReactionsTable.$inferSelect[] = [];
@@ -125,21 +125,20 @@ router.get("/chat/:scope", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => {
-  const scope = req.params.scope as string;
   const search = (req.query.search as string) || "";
   const page = Math.max(0, Number(req.query.page ?? 0));
   const limit = 50;
 
   const condition = search.trim()
     ? and(
-        eq(chatMessagesTable.portalScope, scope),
+        eq(chatMessagesTable.portalScope, GLOBAL),
         eq(chatMessagesTable.isDeleted, false),
         or(
           ilike(chatMessagesTable.message, `%${search}%`),
           ilike(chatMessagesTable.displayName, `%${search}%`)
         )
       )
-    : and(eq(chatMessagesTable.portalScope, scope), eq(chatMessagesTable.isDeleted, false));
+    : and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false));
 
   const rows = await db.select().from(chatMessagesTable).where(condition)
     .orderBy(desc(chatMessagesTable.createdAt)).limit(limit).offset(page * limit);
@@ -151,12 +150,11 @@ router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => 
 });
 
 router.post("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const scope = req.params.scope as string;
   const { message, displayName, role, photoUrl, replyToId, replyToText, replyToName } = req.body;
   if (!message || !message.trim()) { res.status(400).json({ error: "Message is required" }); return; }
 
   const [record] = await db.insert(chatMessagesTable).values({
-    portalScope: scope,
+    portalScope: GLOBAL,
     userId: req.userId!,
     displayName: displayName || "User",
     role: role || "member",

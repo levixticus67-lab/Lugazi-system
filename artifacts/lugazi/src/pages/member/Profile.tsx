@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGetMe, useUpdateUser, getGetMeQueryKey, useChangePassword } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "@/lib/axios";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { memberNavItems } from "./navItems";
@@ -10,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { User, Cake } from "lucide-react";
+import { User, Cake, UsersRound } from "lucide-react";
+
+interface CellGroup { id: number; name: string; meetingDay: string | null; location: string | null; }
 
 export default function MemberProfile() {
   const { data: me, isLoading } = useGetMe();
@@ -27,6 +30,19 @@ export default function MemberProfile() {
   useEffect(() => {
     if (me) setForm({ displayName: me.displayName, phone: me.phone || "", birthday: (me as any).birthday || "" });
   }, [me]);
+
+  const { data: cellGroup } = useQuery<CellGroup | null>({
+    queryKey: ["my-member-cell-group", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await axios.get<{ cellGroupId: number | null; cellGroupName: string | null }>("/api/users/me/member-info").catch(() => null);
+      if (!res?.data?.cellGroupId) return null;
+      const grp = await axios.get<CellGroup>(`/api/groups/${res.data.cellGroupId}`).catch(() => null);
+      return grp?.data ?? null;
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
 
   function handleSave() {
     if (!user) return;
@@ -48,6 +64,8 @@ export default function MemberProfile() {
   }
 
   if (isLoading) return <PortalLayout navItems={memberNavItems} portalLabel="Member Portal"><div className="text-muted-foreground">Loading...</div></PortalLayout>;
+
+  const meAny = me as any;
 
   return (
     <PortalLayout navItems={memberNavItems} portalLabel="Member Portal">
@@ -71,6 +89,14 @@ export default function MemberProfile() {
               <p className="font-semibold text-foreground">{me?.displayName}</p>
               <p className="text-xs text-muted-foreground capitalize mt-0.5">{me?.role}</p>
               <p className="text-xs text-muted-foreground">{me?.email}</p>
+              {(meAny?.cellGroupName || cellGroup) && (
+                <div className="flex items-center gap-1 mt-1">
+                  <UsersRound className="h-3 w-3 text-sky-500" />
+                  <span className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                    {meAny?.cellGroupName ?? cellGroup?.name}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -99,6 +125,20 @@ export default function MemberProfile() {
           <div className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Role: </span><span className="capitalize">{me?.role}</span>
           </div>
+
+          {/* Cell group indicator */}
+          {(meAny?.cellGroupName || cellGroup) && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800">
+              <UsersRound className="h-4 w-4 text-sky-500 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-sky-700 dark:text-sky-300">Cell Group Member</p>
+                <p className="text-xs text-sky-600 dark:text-sky-400">{meAny?.cellGroupName ?? cellGroup?.name}
+                  {(cellGroup?.meetingDay) && ` · Meets ${cellGroup.meetingDay}`}
+                  {(cellGroup?.location) && ` at ${cellGroup.location}`}
+                </p>
+              </div>
+            </div>
+          )}
 
           <Button onClick={handleSave} disabled={updateMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
             {updateMutation.isPending ? "Saving…" : "Save Profile"}

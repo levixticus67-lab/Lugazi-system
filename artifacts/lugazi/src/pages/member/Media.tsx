@@ -1,20 +1,22 @@
+import { useState } from "react";
 import { useListMedia } from "@workspace/api-client-react";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { memberNavItems } from "./navItems";
-import { ExternalLink, Image, Video, Music, FileText, Play } from "lucide-react";
+import { MediaViewer } from "@/components/MediaViewer";
+import { Image, Video, Music, FileText, Play, ZoomIn } from "lucide-react";
 
 type MediaItem = { id: number; title: string; type: string; url: string; thumbnailUrl?: string; description?: string; createdAt: string };
 
-const typeIcon: Record<string, React.ReactNode> = {
-  image: <Image className="h-5 w-5 text-blue-400" />,
-  video: <Video className="h-5 w-5 text-purple-400" />,
-  audio: <Music className="h-5 w-5 text-green-400" />,
-  document: <FileText className="h-5 w-5 text-orange-400" />,
-};
-
 export default function MemberMedia() {
   const { data: items = [], isLoading } = useListMedia();
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewType, setViewType] = useState<string | undefined>();
+  const [viewTitle, setViewTitle] = useState<string | undefined>();
+
+  function openViewer(url: string, type?: string, title?: string) {
+    setViewUrl(url); setViewType(type); setViewTitle(title);
+  }
 
   const images = (items as MediaItem[]).filter(i => i.type === "image");
   const videos = (items as MediaItem[]).filter(i => i.type === "video");
@@ -44,16 +46,17 @@ export default function MemberMedia() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {images.map(item => (
-                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                    className="group glass-card overflow-hidden rounded-xl hover:shadow-lg transition-shadow">
+                  <button key={item.id} onClick={() => openViewer(item.url, "image", item.title)}
+                    className="group glass-card overflow-hidden rounded-xl hover:shadow-lg transition-shadow text-left relative">
                     <div className="aspect-square bg-muted overflow-hidden">
                       <img src={item.url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={e => { (e.target as HTMLImageElement).parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Failed to load</div>`; }} />
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
-                    <div className="p-2">
-                      <p className="text-xs font-medium truncate">{item.title}</p>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <ZoomIn className="h-6 w-6 text-white drop-shadow" />
                     </div>
-                  </a>
+                    <div className="p-2"><p className="text-xs font-medium truncate">{item.title}</p></div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -67,17 +70,22 @@ export default function MemberMedia() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {videos.map(item => (
-                  <div key={item.id} className="glass-card overflow-hidden rounded-xl">
-                    <div className="aspect-video bg-black overflow-hidden">
-                      <video src={item.url} controls className="w-full h-full" preload="metadata" poster={item.thumbnailUrl} />
+                  <button key={item.id} onClick={() => openViewer(item.url, "video", item.title)}
+                    className="glass-card overflow-hidden rounded-xl text-left hover:shadow-lg transition-shadow group w-full">
+                    <div className="aspect-video bg-black overflow-hidden flex items-center justify-center relative">
+                      {item.thumbnailUrl ? (
+                        <img src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Video className="h-12 w-12 text-white/30" />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition">
+                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                          <Play className="h-5 w-5 text-white ml-0.5" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="p-3 flex items-center justify-between">
-                      <p className="text-sm font-medium truncate">{item.title}</p>
-                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
-                  </div>
+                    <div className="p-3"><p className="text-sm font-medium truncate">{item.title}</p></div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -92,9 +100,10 @@ export default function MemberMedia() {
               <div className="space-y-3">
                 {audios.map(item => (
                   <div key={item.id} className="glass-card p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-950 flex items-center justify-center">
+                    <button onClick={() => openViewer(item.url, "audio", item.title)}
+                      className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-950 flex items-center justify-center hover:bg-green-200 transition shrink-0">
                       <Music className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.title}</p>
                       <audio controls src={item.url} className="w-full h-8 mt-1" />
@@ -113,18 +122,20 @@ export default function MemberMedia() {
               </div>
               <div className="space-y-2">
                 {others.map(item => (
-                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                    className="glass-card p-4 flex items-center gap-3 hover:shadow-md transition-shadow card-hover">
-                    {typeIcon[item.type] ?? <FileText className="h-5 w-5 text-muted-foreground" />}
+                  <button key={item.id} onClick={() => openViewer(item.url, item.type, item.title)}
+                    className="glass-card p-4 flex items-center gap-3 hover:shadow-md transition-shadow w-full text-left card-hover">
+                    <FileText className="h-5 w-5 text-orange-400 shrink-0" />
                     <span className="flex-1 text-sm font-medium truncate">{item.title}</span>
-                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                  </a>
+                    <Play className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
                 ))}
               </div>
             </div>
           )}
         </div>
       )}
+
+      {viewUrl && <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} onClose={() => setViewUrl(null)} />}
     </PortalLayout>
   );
 }

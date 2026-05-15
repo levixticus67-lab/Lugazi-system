@@ -8,6 +8,8 @@ import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
 import TestimonySlider from "@/components/TestimonySlider";
 import BirthdayCard from "@/components/BirthdayCard";
+import MeetingDashCard from "@/components/MeetingDashCard";
+import CellLeaderCard from "@/components/CellLeaderCard";
 import { adminNavItems } from "./navItems";
 import {
   Users, GitBranch, UsersRound, CalendarCheck, Wallet, Heart,
@@ -46,15 +48,11 @@ function LiveBadge({ updatedAt }: { updatedAt: Date | null }) {
 
 function ActivityIcon({ icon }: { icon: string }) {
   const cls = "h-4 w-4";
-  if (icon === "user") return <UserPlus className={cn(cls, "text-blue-500")} />;
-  if (icon === "wallet") return <Wallet className={cn(cls, "text-green-500")} />;
-  if (icon === "heart") return <Heart className={cn(cls, "text-rose-500")} />;
-  if (icon === "calendar") return <Calendar className={cn(cls, "text-purple-500")} />;
-  return <RefreshCw className={cn(cls, "text-muted-foreground")} />;
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
+  if (icon === "user") return <UserPlus className={`${cls} text-blue-500`} />;
+  if (icon === "wallet") return <Wallet className={`${cls} text-green-500`} />;
+  if (icon === "heart") return <Heart className={`${cls} text-rose-500`} />;
+  if (icon === "calendar") return <Calendar className={`${cls} text-purple-500`} />;
+  return <RefreshCw className={`${cls} text-muted-foreground`} />;
 }
 
 export default function AdminDashboard() {
@@ -95,6 +93,10 @@ export default function AdminDashboard() {
       ) : stats ? (
         <div className="space-y-6">
           <BroadcastCard />
+
+          {/* Meeting + Cell Leader cards */}
+          <MeetingDashCard portalTarget="leadership" />
+          <CellLeaderCard />
 
           {/* Testimonies + Birthdays row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

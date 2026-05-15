@@ -8,6 +8,8 @@ import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
 import TestimonySlider from "@/components/TestimonySlider";
 import BirthdayCard from "@/components/BirthdayCard";
+import MeetingDashCard from "@/components/MeetingDashCard";
+import CellLeaderCard from "@/components/CellLeaderCard";
 import { leadershipNavItems } from "./navItems";
 import { Users, CalendarCheck, Heart, TrendingUp, CalendarDays } from "lucide-react";
 import {
@@ -42,6 +44,10 @@ export default function LeadershipDashboard() {
         <div className="space-y-6">
           <BroadcastCard />
 
+          {/* Meeting card for leadership + Cell leader management */}
+          <MeetingDashCard portalTarget="leadership" />
+          <CellLeaderCard />
+
           {/* Testimonies + Birthdays row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <TestimonySlider />
@@ -62,7 +68,7 @@ export default function LeadershipDashboard() {
                   <CalendarCheck className="h-4 w-4 text-primary" />
                   <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="week" tick={{ fontSize: 10 }} />
@@ -72,47 +78,29 @@ export default function LeadershipDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-
               <div className="glass-card p-5 card-hover">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="h-4 w-4 text-sky-500" />
                   <h2 className="font-serif text-sm font-semibold">Member Growth</h2>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={charts.memberGrowth} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="lgGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(199,89%,58%)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(199,89%,58%)" stopOpacity={0} />
+                      <linearGradient id="memberGradL" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(217,91%,60%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                     <Tooltip formatter={(v: number) => [v, "Members"]} />
-                    <Area type="monotone" dataKey="members" stroke="hsl(199,89%,58%)" fill="url(#lgGrad)" strokeWidth={2} dot={{ r: 3 }} />
+                    <Area type="monotone" dataKey="members" stroke="hsl(217,91%,60%)" fill="url(#memberGradL)" strokeWidth={2} dot={{ r: 3 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
           )}
-
-          <div className="glass-card p-5 animate-slide-in-up stagger-3">
-            <h2 className="font-serif text-lg font-semibold mb-3">Quick Actions</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: "View Members", href: "/leadership/members" },
-                { label: "Attendance", href: "/leadership/attendance" },
-                { label: "Events", href: "/leadership/events" },
-                { label: "Reports", href: "/leadership/reports" },
-              ].map(a => (
-                <a key={a.href} href={a.href}
-                   className="block p-3 rounded-xl border border-primary/20 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm font-medium text-center card-hover">
-                  {a.label}
-                </a>
-              ))}
-            </div>
-          </div>
         </div>
       ) : null}
       <LiveChat />

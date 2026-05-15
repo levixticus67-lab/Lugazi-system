@@ -8,6 +8,8 @@ import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
 import TestimonySlider from "@/components/TestimonySlider";
 import BirthdayCard from "@/components/BirthdayCard";
+import MeetingDashCard from "@/components/MeetingDashCard";
+import CellLeaderCard from "@/components/CellLeaderCard";
 import { memberNavItems } from "./navItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarCheck, CalendarDays, Heart, Wallet, TrendingUp } from "lucide-react";
@@ -42,6 +44,11 @@ export default function MemberDashboard() {
       ) : stats ? (
         <div className="space-y-6">
           <BroadcastCard />
+
+          {/* Meeting card for congregation + Cell leader card (if leader) */}
+          <MeetingDashCard portalTarget="congregation" />
+          <MeetingDashCard portalTarget="all" />
+          <CellLeaderCard />
 
           {/* Testimonies + Birthdays row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

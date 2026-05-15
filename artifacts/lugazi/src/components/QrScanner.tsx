@@ -12,7 +12,7 @@ export default function QrScanner({ onScan, label = "Scan QR Code" }: QrScannerP
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -155,17 +155,18 @@ export default function QrScanner({ onScan, label = "Scan QR Code" }: QrScannerP
               variant="outline"
               size="sm"
               className="flex-1 border-primary/30 hover:border-primary/60 hover:bg-primary/5"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => galleryRef.current?.click()}
             >
               <Upload className="h-4 w-4 mr-1.5" />
               From Gallery
             </Button>
           </div>
 
+          {/* Gallery-only input: explicit file extensions force file picker (not camera) on Android */}
           <input
-            ref={fileRef}
+            ref={galleryRef}
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.heif"
             className="hidden"
             onChange={e => {
               const file = e.target.files?.[0];

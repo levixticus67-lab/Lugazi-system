@@ -8,6 +8,8 @@ import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
 import TestimonySlider from "@/components/TestimonySlider";
 import BirthdayCard from "@/components/BirthdayCard";
+import MeetingDashCard from "@/components/MeetingDashCard";
+import CellLeaderCard from "@/components/CellLeaderCard";
 import { workforceNavItems } from "./navItems";
 import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
 import {
@@ -41,6 +43,11 @@ export default function WorkforceDashboard() {
         <div className="space-y-6">
           <BroadcastCard />
 
+          {/* Meeting + cell leader cards */}
+          <MeetingDashCard portalTarget="congregation" />
+          <MeetingDashCard portalTarget="all" />
+          <CellLeaderCard />
+
           {/* Testimonies + Birthdays row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <TestimonySlider />
@@ -58,36 +65,19 @@ export default function WorkforceDashboard() {
             <div className="glass-card p-5 animate-slide-in-up stagger-2 card-hover">
               <div className="flex items-center gap-2 mb-4">
                 <CalendarCheck className="h-4 w-4 text-primary" />
-                <h2 className="font-serif text-sm font-semibold">Church Weekly Attendance</h2>
+                <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
               </div>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                   <Tooltip formatter={(v: number) => [v, "Attendance"]} />
-                  <Bar dataKey="count" fill="hsl(217,91%,45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-
-          <div className="glass-card p-5 animate-slide-in-up stagger-3">
-            <h2 className="font-serif text-base font-semibold mb-3">Quick Links</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Check In", href: "/workforce/attendance" },
-                { label: "Events", href: "/workforce/events" },
-                { label: "Upload Media", href: "/workforce/media" },
-                { label: "Reports", href: "/workforce/reports" },
-              ].map(a => (
-                <a key={a.href} href={a.href}
-                   className="block p-3 rounded-xl border border-primary/20 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm font-medium text-center card-hover">
-                  {a.label}
-                </a>
-              ))}
-            </div>
-          </div>
         </div>
       ) : null}
       <LiveChat />
