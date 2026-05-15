@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.mjs"
+  },
+  "scripts": {
+    "build": "node build.mjs"
   },
   "dependencies": {
-    "@tanstack/react-query": "catalog:"
+    "@tanstack/react-query": "catalog:",
+    "esbuild": "^0.23.0"
   },
   "peerDependencies": {
     "react": ">=18"

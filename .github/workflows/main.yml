@@ -20,6 +20,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build API client
+        run: pnpm --filter @workspace/api-client-react build
       - name: Build frontend
         run: pnpm --filter @workspace/lugazi build
       - name: Update database schema
