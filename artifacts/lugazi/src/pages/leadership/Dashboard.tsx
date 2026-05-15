@@ -5,6 +5,7 @@ import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
+import BroadcastCard from "@/components/BroadcastCard";
 import { leadershipNavItems } from "./navItems";
 import { Users, CalendarCheck, Heart, FileText, TrendingUp, CalendarDays } from "lucide-react";
 import {
@@ -37,6 +38,7 @@ export default function LeadershipDashboard() {
         </div>
       ) : stats ? (
         <div className="space-y-6">
+          <BroadcastCard />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up">
             <StatCard title="Total Members" value={stats.totalMembers} icon={<Users className="h-5 w-5" />} />
             <StatCard title="This Week" value={stats.thisWeekAttendance} subtitle={`Last: ${stats.lastWeekAttendance}`} icon={<CalendarCheck className="h-5 w-5" />} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, X, Send, Lightbulb, RefreshCw } from "lucide-react";
+import { X, Send, Lightbulb, RefreshCw } from "lucide-react";
 import axios from "@/lib/axios";
 
 interface AIAssistantProps {
@@ -14,6 +14,15 @@ const defaultSuggestions = [
   "Suggest follow-up actions for new visitors",
 ];
 
+function GeminiIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" fill="none" className={className} aria-hidden="true">
+      <path d="M14 2C14 2 16.5 9 21 11.5C16.5 14 14 21 14 21C14 21 11.5 14 7 11.5C11.5 9 14 2 14 2Z" fill="currentColor" opacity="0.9" />
+      <path d="M14 8C14 8 15.2 12 18 13.5C15.2 15 14 19 14 19C14 19 12.8 15 10 13.5C12.8 12 14 8 14 8Z" fill="white" opacity="0.5" />
+    </svg>
+  );
+}
+
 export default function AIAssistant({ context, suggestions }: AIAssistantProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([]);
@@ -22,17 +31,29 @@ export default function AIAssistant({ context, suggestions }: AIAssistantProps) 
 
   const prompts = suggestions ?? defaultSuggestions;
 
-  async function ask(prompt: string) {
+  async function ask(prompt: string, isRetry = false) {
     if (!prompt.trim() || loading) return;
     const userMsg = prompt.trim();
-    setMessages(prev => [...prev, { role: "user", text: userMsg }]);
-    setInput("");
+    if (!isRetry) {
+      setMessages(prev => [...prev, { role: "user", text: userMsg }]);
+      setInput("");
+    }
     setLoading(true);
     try {
       const res = await axios.post<{ response: string }>("/api/ai/assist", { prompt: userMsg, context });
       setMessages(prev => [...prev, { role: "ai", text: res.data.response }]);
     } catch {
-      setMessages(prev => [...prev, { role: "ai", text: "Unable to connect to AI assistant right now. Please try again later." }]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "ai",
+          text: "The AI is warming up — this happens on first use. Retrying in a moment…",
+        },
+      ]);
+      setTimeout(() => {
+        setMessages(prev => prev.filter(m => m.text !== "The AI is warming up — this happens on first use. Retrying in a moment…"));
+        ask(userMsg, true);
+      }, 4000);
     } finally {
       setLoading(false);
     }
@@ -44,9 +65,10 @@ export default function AIAssistant({ context, suggestions }: AIAssistantProps) 
         <div className="glass-card w-80 flex flex-col shadow-2xl" style={{ height: 460 }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b border-white/20 rounded-t-[calc(var(--radius)-1px)]"
                style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)" }}>
-            <Sparkles className="h-4 w-4 text-white" />
+            <GeminiIcon className="h-4 w-4 text-white" />
             <span className="text-white font-semibold text-sm flex-1">DCL AI Assistant</span>
-            <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white">
+            <span className="text-white/50 text-[9px] font-medium tracking-wide">Gemini</span>
+            <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white ml-1">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -80,8 +102,9 @@ export default function AIAssistant({ context, suggestions }: AIAssistantProps) 
             )}
             {loading && (
               <div className="flex items-start">
-                <div className="bg-muted px-3 py-2 rounded-2xl rounded-bl-sm">
+                <div className="bg-muted px-3 py-2 rounded-2xl rounded-bl-sm flex items-center gap-1.5">
                   <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Thinking…</span>
                 </div>
               </div>
             )}
@@ -106,9 +129,9 @@ export default function AIAssistant({ context, suggestions }: AIAssistantProps) 
         </div>
       ) : (
         <button onClick={() => setOpen(true)}
-          className="text-white rounded-full p-3.5 shadow-lg hover:scale-105 transition-transform"
+          className="text-white rounded-full p-3.5 shadow-lg hover:scale-105 transition-transform relative"
           style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)", boxShadow: "0 0 20px rgba(124,58,237,0.4)" }}>
-          <Sparkles className="h-5 w-5" />
+          <GeminiIcon className="h-5 w-5" />
         </button>
       )}
     </div>

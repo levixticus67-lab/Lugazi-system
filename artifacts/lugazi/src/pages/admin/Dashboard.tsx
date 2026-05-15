@@ -5,6 +5,7 @@ import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
+import BroadcastCard from "@/components/BroadcastCard";
 import { adminNavItems } from "./navItems";
 import {
   Users, GitBranch, UsersRound, CalendarCheck, Wallet, Heart,
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
         </div>
       ) : stats ? (
         <div className="space-y-6">
+          <BroadcastCard />
           {/* ── Stat Cards ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard title="Total Members" value={stats.totalMembers} subtitle={`${stats.activeMembers} active`} icon={<Users className="h-5 w-5" />} />

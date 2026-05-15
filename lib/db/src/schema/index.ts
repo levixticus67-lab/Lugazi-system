@@ -20,3 +20,4 @@ export * from "./giving";
 export * from "./induction";
 export * from "./testimonies";
 export * from "./familyMembers";
+export * from "./announcements";

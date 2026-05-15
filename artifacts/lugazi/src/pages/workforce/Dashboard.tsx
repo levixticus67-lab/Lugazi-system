@@ -5,6 +5,7 @@ import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
+import BroadcastCard from "@/components/BroadcastCard";
 import { workforceNavItems } from "./navItems";
 import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
 import {
@@ -36,6 +37,7 @@ export default function WorkforceDashboard() {
         </div>
       ) : stats ? (
         <div className="space-y-6">
+          <BroadcastCard />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up">
             <StatCard title="My Attendance" value={stats.myAttendanceCount} icon={<CalendarCheck className="h-5 w-5" />} />
             <StatCard title="My Giving (UGX)" value={Number(stats.myGivingTotal).toLocaleString()} icon={<Wallet className="h-5 w-5" />} />

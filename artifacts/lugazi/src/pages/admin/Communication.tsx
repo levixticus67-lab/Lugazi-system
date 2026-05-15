@@ -7,6 +7,7 @@ import LiveChat from "@/components/LiveChat";
 import AIAssistant from "@/components/AIAssistant";
 import { adminNavItems } from "./navItems";
 import { Send, Users, UsersRound, User, Bell, Megaphone, Clock, CheckCircle2, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Announcement {
   id: number;
@@ -26,35 +27,42 @@ const audienceOptions = [
 ];
 
 export default function AdminCommunication() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState("all");
-  const [sent, setSent] = useState(false);
 
   const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
     queryKey: ["announcements"],
-    queryFn: () => axios.get("/api/reports?type=announcement").then(r => r.data).catch(() => [] as Announcement[]),
+    queryFn: () => axios.get<Announcement[]>("/api/announcements").then(r => r.data).catch(() => [] as Announcement[]),
     staleTime: 30_000,
   });
 
-  const mock: Announcement[] = [
-    { id: 1, title: "Sunday Service Reminder", message: "Join us this Sunday at 9:00 AM for our regular worship service. Come ready to receive!", audience: "all", createdAt: new Date(Date.now() - 86400000).toISOString(), sentBy: "Admin" },
-    { id: 2, title: "Leadership Meeting — Friday", message: "All leaders are required to attend the leadership council meeting on Friday at 5 PM in the main hall.", audience: "leadership", createdAt: new Date(Date.now() - 172800000).toISOString(), sentBy: "Admin" },
-    { id: 3, title: "Welfare Support Available", message: "Members in need of welfare support can now submit requests through the Member Portal. All requests are handled confidentially.", audience: "member", createdAt: new Date(Date.now() - 259200000).toISOString(), sentBy: "Admin" },
-  ];
-
-  const displayAnnouncements = announcements.length > 0 ? announcements : mock;
-
-  function handleSend() {
-    if (!title.trim() || !message.trim()) return;
-    setSent(true);
-    setTimeout(() => {
-      setSent(false);
+  const sendBroadcast = useMutation({
+    mutationFn: (data: { title: string; message: string; audience: string; sentBy: string }) =>
+      axios.post<Announcement>("/api/announcements", data).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
       setTitle("");
       setMessage("");
       setAudience("all");
-    }, 2500);
+    },
+  });
+
+  const deleteBroadcast = useMutation({
+    mutationFn: (id: number) => axios.delete(`/api/announcements/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["announcements"] }),
+  });
+
+  function handleSend() {
+    if (!title.trim() || !message.trim() || sendBroadcast.isPending) return;
+    sendBroadcast.mutate({
+      title: title.trim(),
+      message: message.trim(),
+      audience,
+      sentBy: user?.displayName ?? "Admin",
+    });
   }
 
   function audienceLabel(val: string) {
@@ -62,7 +70,7 @@ export default function AdminCommunication() {
   }
 
   return (
-    <PortalLayout title="DCL Lugazi ERP" navItems={adminNavItems}>
+    <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
       <PageHeader title="Communication Hub" subtitle="Broadcast messages to the congregation" />
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -96,13 +104,22 @@ export default function AdminCommunication() {
                 rows={5} placeholder="Write your message here…" value={message} onChange={e => setMessage(e.target.value)} />
             </div>
 
-            <button onClick={handleSend} disabled={!title.trim() || !message.trim() || sent}
+            <button onClick={handleSend} disabled={!title.trim() || !message.trim() || sendBroadcast.isPending}
               className="w-full blue-gradient-bg text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 hover:opacity-90 transition">
-              {sent ? <><CheckCircle2 className="h-4 w-4" /> Sent!</> : <><Send className="h-4 w-4" /> Send Broadcast</>}
+              {sendBroadcast.isPending
+                ? <><CheckCircle2 className="h-4 w-4 animate-spin" /> Sending…</>
+                : sendBroadcast.isSuccess
+                  ? <><CheckCircle2 className="h-4 w-4" /> Sent!</>
+                  : <><Send className="h-4 w-4" /> Send Broadcast</>
+              }
             </button>
 
+            {sendBroadcast.isError && (
+              <p className="text-xs text-destructive text-center">Failed to send. Please try again.</p>
+            )}
+
             <p className="text-[10px] text-muted-foreground text-center">
-              To enable SMS/email delivery, configure your notification service in Settings.
+              Broadcasts appear on dashboards for the selected audience.
             </p>
           </div>
 
@@ -122,35 +139,44 @@ export default function AdminCommunication() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Sent Announcements</h2>
-            <span className="text-xs text-muted-foreground">{displayAnnouncements.length} messages</span>
+            <span className="text-xs text-muted-foreground">{announcements.length} messages</span>
           </div>
 
           {isLoading ? (
             <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="glass-card p-4 animate-pulse h-24" />)}</div>
-          ) : displayAnnouncements.map(ann => (
-            <div key={ann.id} className="glass-card p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Bell className="h-4 w-4 text-primary shrink-0" />
-                    <span className="font-semibold text-sm truncate">{ann.title}</span>
-                    <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-medium">
-                      {audienceLabel(ann.audience)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{ann.message}</p>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {new Date(ann.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    <span>· by {ann.sentBy ?? "Admin"}</span>
-                  </div>
-                </div>
-                <button className="text-muted-foreground hover:text-destructive transition-colors">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+          ) : announcements.length === 0 ? (
+            <div className="glass-card p-8 text-center text-muted-foreground text-sm">
+              No broadcasts sent yet. Compose one to get started.
             </div>
-          ))}
+          ) : (
+            announcements.map(ann => (
+              <div key={ann.id} className="glass-card p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Bell className="h-4 w-4 text-primary shrink-0" />
+                      <span className="font-semibold text-sm truncate">{ann.title}</span>
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-medium">
+                        {audienceLabel(ann.audience)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{ann.message}</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {new Date(ann.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      <span>· by {ann.sentBy ?? "Admin"}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteBroadcast.mutate(ann.id)}
+                    disabled={deleteBroadcast.isPending}
+                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -160,7 +186,7 @@ export default function AdminCommunication() {
         "Compose a welfare awareness announcement",
         "Create an invitation message for a new event",
       ]} />
-      <LiveChat />
+      <LiveChat scope="global" />
     </PortalLayout>
   );
 }

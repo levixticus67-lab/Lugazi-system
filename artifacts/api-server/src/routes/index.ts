@@ -25,6 +25,7 @@ import inductionRouter from "./induction";
 import testimoniesRouter from "./testimonies";
 import familyMembersRouter from "./familyMembers";
 import aiRouter from "./ai";
+import announcementsRouter from "./announcements";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(inductionRouter);
 router.use(testimoniesRouter);
 router.use(familyMembersRouter);
 router.use(aiRouter);
+router.use(announcementsRouter);
 
 export default router;
