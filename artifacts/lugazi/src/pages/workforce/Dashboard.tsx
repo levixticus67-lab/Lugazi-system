@@ -6,6 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import LiveChat from "@/components/LiveChat";
 import BroadcastCard from "@/components/BroadcastCard";
+import HeroBanner from "@/components/HeroBanner";
 import TestimonySlider from "@/components/TestimonySlider";
 import BirthdayCard from "@/components/BirthdayCard";
 import MeetingDashCard from "@/components/MeetingDashCard";
@@ -41,6 +42,7 @@ export default function WorkforceDashboard() {
         </div>
       ) : stats ? (
         <div className="space-y-6">
+          <HeroBanner />
           <BroadcastCard />
 
           {/* Meeting + cell leader cards */}
