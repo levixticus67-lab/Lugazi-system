@@ -33,6 +33,7 @@ import AdminCommunication from "@/pages/admin/Communication";
 import AdminCellFellowship from "@/pages/admin/CellFellowship";
 import AdminInduction from "@/pages/admin/Induction";
 import AdminGiving from "@/pages/admin/Giving";
+import AdminTestimonies from "@/pages/admin/Testimonies";
 
 // Leadership pages
 import LeadershipDashboard from "@/pages/leadership/Dashboard";
@@ -148,6 +149,7 @@ function Router() {
       <Route path="/admin/media"><RequireAuth roles={["admin"]}><AdminMedia /></RequireAuth></Route>
       <Route path="/admin/welfare"><RequireAuth roles={["admin"]}><AdminWelfare /></RequireAuth></Route>
       <Route path="/admin/prayer-requests"><RequireAuth roles={["admin"]}><AdminPrayerRequests /></RequireAuth></Route>
+      <Route path="/admin/testimonies"><RequireAuth roles={["admin"]}><AdminTestimonies /></RequireAuth></Route>
       <Route path="/admin/sermons"><RequireAuth roles={["admin"]}><AdminSermons /></RequireAuth></Route>
       <Route path="/admin/birthdays"><RequireAuth roles={["admin"]}><AdminBirthdays /></RequireAuth></Route>
       <Route path="/admin/reports"><RequireAuth roles={["admin"]}><AdminReports /></RequireAuth></Route>

@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { memberNavItems } from "./navItems";
-import { Mic2, Play, FileText } from "lucide-react";
+import { MediaViewer } from "@/components/MediaViewer";
+import { Mic2, Play, FileText, Video } from "lucide-react";
 
 type Sermon = {
   id: number; title: string; preacher: string; sermonDate: string; series?: string;
@@ -15,6 +17,9 @@ export default function MemberSermons() {
     queryKey: ["sermons-member"],
     queryFn: () => axios.get<Sermon[]>("/api/sermons").then(r => r.data),
   });
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewType, setViewType] = useState<string | undefined>();
+  const [viewTitle, setViewTitle] = useState<string | undefined>();
 
   return (
     <PortalLayout navItems={memberNavItems} portalLabel="Member Portal">
@@ -33,10 +38,14 @@ export default function MemberSermons() {
             <div key={s.id} className="glass-card p-5 card-hover">
               <div className="flex gap-3">
                 {s.thumbnailUrl ? (
-                  <img src={s.thumbnailUrl} alt={s.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                  <button onClick={() => { setViewUrl(s.thumbnailUrl!); setViewType("image"); setViewTitle(s.title); }} className="shrink-0">
+                    <img src={s.thumbnailUrl} alt={s.title} className="w-16 h-16 rounded-lg object-cover" />
+                  </button>
                 ) : (
                   <div className="w-16 h-16 rounded-lg blue-gradient-bg flex items-center justify-center flex-shrink-0">
-                    <Mic2 className="h-7 w-7 text-white" />
+                    {s.mediaType === "document" ? <FileText className="h-7 w-7 text-white" /> :
+                     s.mediaType === "video" ? <Video className="h-7 w-7 text-white" /> :
+                     <Mic2 className="h-7 w-7 text-white" />}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -51,16 +60,14 @@ export default function MemberSermons() {
                 <div className="mt-3">
                   {s.mediaType === "audio" ? (
                     <audio controls src={s.mediaUrl} className="w-full h-8 mt-1" />
-                  ) : s.mediaType === "video" ? (
-                    <a href={s.mediaUrl} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center gap-1.5 text-sm text-primary hover:underline font-medium mt-1">
-                      <Play className="h-4 w-4" /> Watch Sermon
-                    </a>
                   ) : (
-                    <a href={s.mediaUrl} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center gap-1.5 text-sm text-primary hover:underline font-medium mt-1">
-                      <FileText className="h-4 w-4" /> View Notes
-                    </a>
+                    <button
+                      onClick={() => { setViewUrl(s.mediaUrl!); setViewType(s.mediaType); setViewTitle(s.title); }}
+                      className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition text-sm font-medium text-primary"
+                    >
+                      <Play className="h-4 w-4" />
+                      {s.mediaType === "video" ? "Watch Video" : "View Document"}
+                    </button>
                   )}
                 </div>
               )}
@@ -68,6 +75,8 @@ export default function MemberSermons() {
           ))}
         </div>
       )}
+
+      {viewUrl && <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} onClose={() => setViewUrl(null)} />}
     </PortalLayout>
   );
 }

@@ -133,6 +133,7 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
   res.json({
     id: user.id, email: user.email, displayName: user.displayName, role: user.role,
     photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone,
+    birthday: user.birthday ?? null,
     isActive: user.isActive, createdAt: user.createdAt.toISOString(),
   });
 });
