@@ -123,24 +123,91 @@ router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership"]
   res.json({ weeklyAttendance, monthlyFinance, memberGrowth });
 });
 
-// Recent activity feed (last 8 actions across members, transactions, welfare, events)
-router.get("/dashboard/activity", requireAuth, requireRole(["admin", "leadership"]), async (_req, res): Promise<void> => {
-  const [recentMembers, recentTransactions, recentWelfare, recentEvents] = await Promise.all([
-    db.select({ id: membersTable.id, fullName: membersTable.fullName, createdAt: membersTable.createdAt }).from(membersTable).orderBy(desc(membersTable.createdAt)).limit(3),
-    db.select({ id: transactionsTable.id, type: transactionsTable.type, amount: transactionsTable.amount, description: transactionsTable.description, category: transactionsTable.category, createdAt: transactionsTable.createdAt }).from(transactionsTable).orderBy(desc(transactionsTable.createdAt)).limit(3),
-    db.select({ id: welfareTable.id, reason: welfareTable.reason, status: welfareTable.status, createdAt: welfareTable.createdAt }).from(welfareTable).orderBy(desc(welfareTable.createdAt)).limit(2),
-    db.select({ id: eventsTable.id, title: eventsTable.title, date: eventsTable.date, createdAt: eventsTable.createdAt }).from(eventsTable).orderBy(desc(eventsTable.createdAt)).limit(2),
+// Live recent activity feed — open to any authenticated admin/leadership user
+// Pulls from members, users, transactions, welfare, events, attendance
+router.get("/dashboard/activity", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const userRole = (req as any).userRole as string | undefined;
+  // Only admin and leadership should see full activity
+  if (userRole && !["admin", "leadership"].includes(userRole)) {
+    res.json([]);
+    return;
+  }
+
+  const [
+    recentMembers,
+    recentUsers,
+    recentTransactions,
+    recentWelfare,
+    recentEvents,
+    recentAttendance,
+    recentRoleRequests,
+  ] = await Promise.all([
+    db.select({ id: membersTable.id, fullName: membersTable.fullName, createdAt: membersTable.createdAt })
+      .from(membersTable).orderBy(desc(membersTable.createdAt)).limit(4),
+    db.select({ id: usersTable.id, displayName: usersTable.displayName, createdAt: usersTable.createdAt })
+      .from(usersTable).orderBy(desc(usersTable.createdAt)).limit(4),
+    db.select({ id: transactionsTable.id, type: transactionsTable.type, amount: transactionsTable.amount, description: transactionsTable.description, category: transactionsTable.category, createdAt: transactionsTable.createdAt })
+      .from(transactionsTable).orderBy(desc(transactionsTable.createdAt)).limit(4),
+    db.select({ id: welfareTable.id, reason: welfareTable.reason, status: welfareTable.status, createdAt: welfareTable.createdAt })
+      .from(welfareTable).orderBy(desc(welfareTable.createdAt)).limit(3),
+    db.select({ id: eventsTable.id, title: eventsTable.title, createdAt: eventsTable.createdAt })
+      .from(eventsTable).orderBy(desc(eventsTable.createdAt)).limit(3),
+    db.select({ id: attendanceTable.id, memberId: attendanceTable.memberId, checkedInAt: attendanceTable.checkedInAt })
+      .from(attendanceTable).orderBy(desc(attendanceTable.checkedInAt)).limit(3),
+    db.select({ id: roleRequestsTable.id, requestedRole: roleRequestsTable.requestedRole, status: roleRequestsTable.status, createdAt: roleRequestsTable.createdAt })
+      .from(roleRequestsTable).orderBy(desc(roleRequestsTable.createdAt)).limit(3),
   ]);
 
   type ActivityItem = { type: string; description: string; date: string; icon: string };
+
   const activities: ActivityItem[] = [
-    ...recentMembers.map((m) => ({ type: "member", description: `${m.fullName} joined as member`, date: m.createdAt.toISOString(), icon: "user" })),
-    ...recentTransactions.map((t) => ({ type: "transaction", description: `${t.type === "expense" ? "Expense" : "Income"}: UGX ${Number(t.amount).toLocaleString()} — ${t.description ?? t.category}`, date: t.createdAt.toISOString(), icon: "wallet" })),
-    ...recentWelfare.map((w) => ({ type: "welfare", description: `Welfare request (${w.status}): ${w.reason ?? ""}`, date: w.createdAt.toISOString(), icon: "heart" })),
-    ...recentEvents.map((e) => ({ type: "event", description: `Event: ${e.title}`, date: e.createdAt.toISOString(), icon: "calendar" })),
+    ...recentMembers.map((m) => ({
+      type: "member",
+      description: `${m.fullName} joined as a church member`,
+      date: m.createdAt.toISOString(),
+      icon: "user",
+    })),
+    ...recentUsers
+      .filter((u) => !recentMembers.some((m) => Math.abs(m.createdAt.getTime() - u.createdAt.getTime()) < 5000))
+      .map((u) => ({
+        type: "user",
+        description: `${u.displayName ?? "New user"} registered an account`,
+        date: u.createdAt.toISOString(),
+        icon: "user",
+      })),
+    ...recentTransactions.map((t) => ({
+      type: "transaction",
+      description: `${t.type === "expense" ? "Expense" : "Income"}: UGX ${Number(t.amount).toLocaleString()} — ${t.description ?? t.category ?? "Finance record"}`,
+      date: t.createdAt.toISOString(),
+      icon: "wallet",
+    })),
+    ...recentWelfare.map((w) => ({
+      type: "welfare",
+      description: `Welfare request (${w.status}): ${w.reason ?? "Support needed"}`,
+      date: w.createdAt.toISOString(),
+      icon: "heart",
+    })),
+    ...recentEvents.map((e) => ({
+      type: "event",
+      description: `Event created: ${e.title}`,
+      date: e.createdAt.toISOString(),
+      icon: "calendar",
+    })),
+    ...recentAttendance.map((a) => ({
+      type: "attendance",
+      description: `Attendance check-in recorded`,
+      date: a.checkedInAt.toISOString(),
+      icon: "calendar",
+    })),
+    ...recentRoleRequests.map((r) => ({
+      type: "role",
+      description: `Role upgrade request: ${r.requestedRole} (${r.status})`,
+      date: r.createdAt.toISOString(),
+      icon: "user",
+    })),
   ]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 8);
+    .slice(0, 10);
 
   res.json(activities);
 });

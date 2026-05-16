@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Plus, Trash2, ExternalLink, ImageIcon, Video, Music, FileText } from "lucide-react";
+import { MediaViewer } from "@/components/MediaViewer";
+import { Plus, Trash2, ExternalLink, ImageIcon, Video, Music, FileText, Expand } from "lucide-react";
 
 type MediaItem = {
   id: number; title: string; type: string; url: string;
@@ -29,18 +30,28 @@ function resolveMediaType(result: UploadResult): string {
   return "document";
 }
 
-function MediaPreview({ item }: { item: MediaItem }) {
+function MediaPreview({ item, onClick }: { item: MediaItem; onClick: () => void }) {
   if (item.type === "image") {
     return (
-      <div className="aspect-video bg-muted overflow-hidden">
-        <img src={item.url} alt={item.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+      <div className="aspect-video bg-muted overflow-hidden relative cursor-pointer group" onClick={onClick}>
+        <img src={item.url} alt={item.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+          <Expand className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
       </div>
     );
   }
   if (item.type === "video") {
     return (
-      <div className="aspect-video bg-black">
+      <div className="aspect-video bg-black relative group">
         <video src={item.url} controls className="w-full h-full" preload="metadata" />
+        <button
+          onClick={onClick}
+          className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+          title="Open in viewer"
+        >
+          <Expand className="h-3.5 w-3.5" />
+        </button>
       </div>
     );
   }
@@ -53,9 +64,10 @@ function MediaPreview({ item }: { item: MediaItem }) {
     );
   }
   return (
-    <div className="aspect-video bg-muted flex flex-col items-center justify-center gap-2">
+    <div className="aspect-video bg-muted flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/70 transition-colors" onClick={onClick}>
       <FileText className="h-10 w-10 text-orange-400" />
       <span className="text-xs font-medium text-muted-foreground uppercase">{item.type}</span>
+      <span className="text-[10px] text-muted-foreground">Click to view</span>
     </div>
   );
 }
@@ -79,6 +91,8 @@ export default function AdminMedia() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blank);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [viewerItem, setViewerItem] = useState<MediaItem | null>(null);
+
   const f = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   function resetDialog() {
@@ -148,7 +162,7 @@ export default function AdminMedia() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {(items as MediaItem[]).map((item) => (
             <div key={item.id} className="bg-card border border-card-border rounded-xl overflow-hidden shadow-sm group" data-testid={`media-item-${item.id}`}>
-              <MediaPreview item={item} />
+              <MediaPreview item={item} onClick={() => setViewerItem(item)} />
               <div className="p-3">
                 <div className="flex items-center gap-1.5 mb-1">
                   <TypeIcon type={item.type} />
@@ -156,6 +170,13 @@ export default function AdminMedia() {
                 </div>
                 {item.description && <p className="text-xs text-muted-foreground truncate">{item.description}</p>}
                 <div className="flex items-center gap-2 mt-2">
+                  <button
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setViewerItem(item)}
+                    title="View fullscreen"
+                  >
+                    <Expand className="h-3.5 w-3.5" />
+                  </button>
                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" data-testid={`link-media-${item.id}`}>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
@@ -167,6 +188,15 @@ export default function AdminMedia() {
             </div>
           ))}
         </div>
+      )}
+
+      {viewerItem && (
+        <MediaViewer
+          url={viewerItem.url}
+          title={viewerItem.title}
+          mediaType={viewerItem.type}
+          onClose={() => setViewerItem(null)}
+        />
       )}
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) resetDialog(); setShowAdd(o); }}>

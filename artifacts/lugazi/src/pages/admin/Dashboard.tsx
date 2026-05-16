@@ -13,7 +13,7 @@ import CellLeaderCard from "@/components/CellLeaderCard";
 import { adminNavItems } from "./navItems";
 import {
   Users, GitBranch, UsersRound, CalendarCheck, Wallet, Heart,
-  Bell, UserPlus, TrendingUp, Calendar, RefreshCw,
+  Bell, UserPlus, TrendingUp, Calendar, RefreshCw, Activity,
 } from "lucide-react";
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -29,6 +29,7 @@ type ChartData = {
 type ActivityItem = { type: string; description: string; date: string; icon: string };
 
 const REFETCH_MS = 30_000;
+const ACTIVITY_REFETCH_MS = 15_000;
 
 function formatUGX(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -52,7 +53,7 @@ function ActivityIcon({ icon }: { icon: string }) {
   if (icon === "wallet") return <Wallet className={`${cls} text-green-500`} />;
   if (icon === "heart") return <Heart className={`${cls} text-rose-500`} />;
   if (icon === "calendar") return <Calendar className={`${cls} text-purple-500`} />;
-  return <RefreshCw className={`${cls} text-muted-foreground`} />;
+  return <Activity className={`${cls} text-muted-foreground`} />;
 }
 
 export default function AdminDashboard() {
@@ -66,13 +67,16 @@ export default function AdminDashboard() {
     refetchInterval: REFETCH_MS,
   });
 
-  const { data: activity = [] } = useQuery<ActivityItem[]>({
+  const { data: activity = [], isLoading: activityLoading, dataUpdatedAt: activityUpdatedAt } = useQuery<ActivityItem[]>({
     queryKey: ["dashboard-activity"],
     queryFn: () => axios.get<ActivityItem[]>("/api/dashboard/activity").then((r) => r.data),
-    refetchInterval: REFETCH_MS,
+    refetchInterval: ACTIVITY_REFETCH_MS,
+    staleTime: 0,
+    retry: 2,
   });
 
   const updatedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const activityRefreshedAt = activityUpdatedAt ? new Date(activityUpdatedAt) : null;
 
   return (
     <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
@@ -185,12 +189,28 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="bg-card border border-card-border rounded-xl p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="font-serif text-sm font-semibold text-foreground">Recent Activity</h2>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                      <h2 className="font-serif text-sm font-semibold text-foreground">Recent Activity</h2>
+                    </div>
+                    {activityRefreshedAt && (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                        {activityRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
                   </div>
-                  {activity.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No recent activity</p>
+                  {activityLoading ? (
+                    <div className="space-y-3">
+                      {[1,2,3].map(i => <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />)}
+                    </div>
+                  ) : activity.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground gap-2">
+                      <RefreshCw className="h-6 w-6 opacity-30" />
+                      <p className="text-sm">No recorded activity yet.</p>
+                      <p className="text-xs">Activities will appear as members join, events are created, and transactions are recorded.</p>
+                    </div>
                   ) : (
                     <ul className="space-y-3 overflow-y-auto max-h-[200px] pr-1">
                       {activity.map((item, i) => (
