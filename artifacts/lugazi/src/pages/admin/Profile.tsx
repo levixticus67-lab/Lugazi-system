@@ -1,103 +1,110 @@
 import { useState, useEffect } from "react";
-import { useGetMe, useUpdateUser, getGetMeQueryKey, useChangePassword } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import PortalLayout from "@/components/PortalLayout";
-import PageHeader from "@/components/PageHeader";
-import { adminNavItems } from "./navItems";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Shield, User, Cake } from "lucide-react";
+  
+  import { useGetMe, useUpdateUser, getGetMeQueryKey, useChangePassword } from "@workspace/api-client-react";
+  import { useQueryClient } from "@tanstack/react-query";
+  import PortalLayout from "@/components/PortalLayout";
+  import PageHeader from "@/components/PageHeader";
+  import { adminNavItems } from "./navItems";
+  import { Button } from "@/components/ui/button";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+  import { useToast } from "@/hooks/use-toast";
+  import { useAuth } from "@/contexts/AuthContext";
+  import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
+  import { Cake } from "lucide-react";
+  
 
-export default function AdminProfile() {
-  const { data: me, isLoading } = useGetMe();
-  const updateMutation = useUpdateUser();
-  const changePasswordMutation = useChangePassword();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const { toast: showToast } = useToast();
-  const [form, setForm] = useState({ displayName: "", phone: "", birthday: "" });
-  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "" });
-  const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
+  export default function AdminProfile() {
+    const { data: me, isLoading } = useGetMe();
+    const updateMutation = useUpdateUser();
+    const changePasswordMutation = useChangePassword();
+    const queryClient = useQueryClient();
+    const { user, updateUser } = useAuth();
+    const { toast } = useToast();
+    const [form, setForm] = useState({ displayName: "", phone: "", birthday: "" });
+    const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
+  
 
-  useEffect(() => {
-    if (me) setForm({ displayName: me.displayName, phone: me.phone || "", birthday: (me as any).birthday || "" });
-  }, [me]);
+    useEffect(() => {
+      if (me) setForm({ displayName: me.displayName, phone: me.phone || "", birthday: (me as any).birthday || "" });
+    }, [me]);
 
-  function handleSave() {
-    if (!user) return;
-    updateMutation.mutate({
-      id: user.id,
-      data: { displayName: form.displayName, phone: form.phone || undefined, birthday: form.birthday || undefined, photoUrl: photoResult?.url ?? undefined } as any,
-    }, {
-      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() }); showToast({ title: "Profile updated" }); },
-      onError: () => showToast({ title: "Update failed", variant: "destructive" }),
-    });
-  }
+    function handleSave() {
+      if (!user) return;
+      if (!form.displayName.trim()) { toast({ title: "Display name is required", variant: "destructive" }); return; }
+      const newPhotoUrl = photoResult?.url ?? (me?.photoUrl ?? undefined);
+      updateMutation.mutate({
+        id: user.id,
+        data: { displayName: form.displayName, phone: form.phone || undefined, birthday: form.birthday || undefined, photoUrl: newPhotoUrl } as any,
+      }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+          updateUser({ displayName: form.displayName, photoUrl: newPhotoUrl ?? null });
+          toast({ title: "Profile updated successfully" });
+        },
+        onError: () => toast({ title: "Update failed", variant: "destructive" }),
+      });
+    }
 
-  function handlePasswordChange() {
-    if (!pwForm.currentPassword || !pwForm.newPassword) { showToast({ title: "Both passwords required", variant: "destructive" }); return; }
-    changePasswordMutation.mutate({ data: { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword } }, {
-      onSuccess: () => { showToast({ title: "Password changed" }); setPwForm({ currentPassword: "", newPassword: "" }); },
-      onError: () => showToast({ title: "Current password incorrect", variant: "destructive" }),
-    });
-  }
+    function handlePasswordChange() {
+      if (!pwForm.currentPassword || !pwForm.newPassword) { toast({ title: "All password fields are required", variant: "destructive" }); return; }
+      if (pwForm.newPassword.length < 8) { toast({ title: "New password must be at least 8 characters", variant: "destructive" }); return; }
+      if (pwForm.newPassword !== pwForm.confirmPassword) { toast({ title: "New passwords do not match", variant: "destructive" }); return; }
+      changePasswordMutation.mutate({ data: { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword } }, {
+        onSuccess: () => { toast({ title: "Password changed successfully" }); setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); },
+        onError: (err: any) => toast({ title: err?.response?.data?.error || "Current password is incorrect", variant: "destructive" }),
+      });
+    }
 
-  if (isLoading) return <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal"><div className="text-muted-foreground">Loading...</div></PortalLayout>;
+    if (isLoading) return <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal"><div className="text-muted-foreground p-6">Loading...</div></PortalLayout>;
 
-  return (
-    <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
-      <PageHeader title="My Profile" description="Manage your personal information and security" />
-      <div className="max-w-lg space-y-6 animate-slide-in-up">
-        <div className="glass-card p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 blue-gradient-bg rounded-xl"><User className="h-5 w-5 text-white" /></div>
+    return (
+      <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
+        <PageHeader title="My Profile" description="Manage your personal information and security" />
+        <div className="max-w-lg space-y-6 animate-slide-in-up">
+          <div className="glass-card p-6 space-y-4">
             <h2 className="font-serif text-lg font-semibold">Personal Information</h2>
-          </div>
-          <div className="flex items-center gap-3 py-2">
-            {me?.photoUrl || photoResult?.url ? (
-              <img src={photoResult?.url ?? me?.photoUrl!} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
-            ) : (
-              <div className="w-16 h-16 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-2xl">
-                {me?.displayName?.charAt(0).toUpperCase()}
+            <div className="flex items-center gap-3 py-2">
+              {photoResult?.url || me?.photoUrl ? (
+                <img src={photoResult?.url ?? me?.photoUrl!} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+              ) : (
+                <div className="w-16 h-16 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-2xl">
+                  {me?.displayName?.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="font-semibold text-foreground">{me?.displayName}</p>
+                <p className="text-xs text-primary font-medium capitalize mt-0.5">{me?.role}</p>
+                <p className="text-xs text-muted-foreground">{me?.email}</p>
               </div>
-            )}
-            <div>
-              <p className="font-semibold text-foreground">{me?.displayName}</p>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Shield className="h-3 w-3 text-primary" />
-                <span className="text-xs text-primary font-medium capitalize">{me?.role}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{me?.email}</p>
             </div>
+            <div><Label className="mb-2 block">Profile Photo</Label>
+              <CloudinaryUploader accept="image/*" label="Upload photo" onUpload={setPhotoResult} currentUrl={photoResult?.url ?? me?.photoUrl ?? undefined} />
+            </div>
+            <div><Label>Display Name</Label><Input value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} className="mt-1" /></div>
+            <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
+            <div>
+              <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-pink-500" />Birthday</Label>
+              <Input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} className="mt-1" />
+            </div>
+            
+            <Button onClick={handleSave} disabled={updateMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
+              {updateMutation.isPending ? "Saving…" : "Save Profile"}
+            </Button>
           </div>
-          <div>
-            <Label className="mb-2 block">Profile Photo</Label>
-            <CloudinaryUploader accept="image/*" label="Upload photo" onUpload={setPhotoResult} currentUrl={photoResult?.url ?? me?.photoUrl ?? undefined} />
-          </div>
-          <div><Label>Display Name</Label><Input value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} className="mt-1" /></div>
-          <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
-          <div>
-            <Label className="flex items-center gap-1.5"><Cake className="h-3.5 w-3.5 text-pink-500" />Birthday</Label>
-            <Input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} className="mt-1" />
-          </div>
-          <Button onClick={handleSave} disabled={updateMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
-            {updateMutation.isPending ? "Saving…" : "Save Profile"}
-          </Button>
-        </div>
 
-        <div className="glass-card p-6 space-y-4">
-          <h2 className="font-serif text-lg font-semibold">Change Password</h2>
-          <div><Label>Current Password</Label><Input type="password" value={pwForm.currentPassword} onChange={e => setPwForm(f => ({ ...f, currentPassword: e.target.value }))} className="mt-1" /></div>
-          <div><Label>New Password</Label><Input type="password" value={pwForm.newPassword} onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))} className="mt-1" /></div>
-          <Button onClick={handlePasswordChange} disabled={changePasswordMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
-            {changePasswordMutation.isPending ? "Updating…" : "Change Password"}
-          </Button>
+          <div className="glass-card p-6 space-y-4">
+            <h2 className="font-serif text-lg font-semibold">Change Password</h2>
+            <div><Label>Current Password</Label><Input type="password" value={pwForm.currentPassword} onChange={e => setPwForm(f => ({ ...f, currentPassword: e.target.value }))} className="mt-1" placeholder="Enter current password" /></div>
+            <div><Label>New Password</Label><Input type="password" value={pwForm.newPassword} onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))} className="mt-1" placeholder="Min. 8 characters" /></div>
+            <div><Label>Confirm New Password</Label><Input type="password" value={pwForm.confirmPassword} onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))} className="mt-1" placeholder="Repeat new password" /></div>
+            <Button onClick={handlePasswordChange} disabled={changePasswordMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
+              {changePasswordMutation.isPending ? "Updating…" : "Change Password"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </PortalLayout>
-  );
-}
+      </PortalLayout>
+    );
+  }
+  
