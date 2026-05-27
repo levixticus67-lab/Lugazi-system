@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+  import axios from "@/lib/axios";
 
   export interface AuthUser {
     id: number;
@@ -33,8 +34,22 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
       const storedUser = localStorage.getItem("dcl_user");
       if (storedToken && storedUser) {
         try {
+          const parsed: AuthUser = JSON.parse(storedUser);
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          setUser(parsed);
+          // Fetch fresh user data from server to get latest photoUrl etc.
+          axios.get<AuthUser>("/api/users/me", {
+            headers: { Authorization: `Bearer ${storedToken}` },
+          }).then(res => {
+            const fresh = res.data;
+            localStorage.setItem("dcl_user", JSON.stringify(fresh));
+            setUser(fresh);
+          }).catch(() => {
+            // Silently fail — keep using localStorage data
+          }).finally(() => {
+            setIsLoading(false);
+          });
+          return;
         } catch {
           localStorage.removeItem("dcl_token");
           localStorage.removeItem("dcl_user");

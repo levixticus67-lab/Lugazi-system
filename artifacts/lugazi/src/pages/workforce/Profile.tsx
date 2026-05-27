@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
   import { useToast } from "@/hooks/use-toast";
   import { useAuth } from "@/contexts/AuthContext";
   import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-  import { Cake } from "lucide-react";
+  import { Cake, Trash2 } from "lucide-react";
   
 
   export default function WorkforceProfile() {
@@ -24,23 +24,36 @@ import { useState, useEffect } from "react";
     const [form, setForm] = useState({ displayName: "", phone: "", birthday: "" });
     const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
     const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
+    const [removePhoto, setRemovePhoto] = useState(false);
   
 
     useEffect(() => {
       if (me) setForm({ displayName: me.displayName, phone: me.phone || "", birthday: (me as any).birthday || "" });
     }, [me]);
 
+    const effectivePhotoUrl = removePhoto ? null : (photoResult?.url ?? me?.photoUrl ?? null);
+
+    function handleRemovePhoto() {
+      setPhotoResult(null);
+      setRemovePhoto(true);
+    }
+
+    function handlePhotoUpload(result: UploadResult) {
+      setPhotoResult(result);
+      setRemovePhoto(false);
+    }
+
     function handleSave() {
       if (!user) return;
       if (!form.displayName.trim()) { toast({ title: "Display name is required", variant: "destructive" }); return; }
-      const newPhotoUrl = photoResult?.url ?? (me?.photoUrl ?? undefined);
       updateMutation.mutate({
         id: user.id,
-        data: { displayName: form.displayName, phone: form.phone || undefined, birthday: form.birthday || undefined, photoUrl: newPhotoUrl } as any,
+        data: { displayName: form.displayName, phone: form.phone || undefined, birthday: form.birthday || undefined, photoUrl: effectivePhotoUrl ?? undefined } as any,
       }, {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-          updateUser({ displayName: form.displayName, photoUrl: newPhotoUrl ?? null });
+          updateUser({ displayName: form.displayName, photoUrl: effectivePhotoUrl });
+          if (removePhoto) setRemovePhoto(false);
           toast({ title: "Profile updated successfully" });
         },
         onError: () => toast({ title: "Update failed", variant: "destructive" }),
@@ -66,8 +79,8 @@ import { useState, useEffect } from "react";
           <div className="glass-card p-6 space-y-4">
             <h2 className="font-serif text-lg font-semibold">Personal Information</h2>
             <div className="flex items-center gap-3 py-2">
-              {photoResult?.url || me?.photoUrl ? (
-                <img src={photoResult?.url ?? me?.photoUrl!} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+              {effectivePhotoUrl ? (
+                <img src={effectivePhotoUrl} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
               ) : (
                 <div className="w-16 h-16 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-2xl">
                   {me?.displayName?.charAt(0).toUpperCase()}
@@ -79,8 +92,23 @@ import { useState, useEffect } from "react";
                 <p className="text-xs text-muted-foreground">{me?.email}</p>
               </div>
             </div>
-            <div><Label className="mb-2 block">Profile Photo</Label>
-              <CloudinaryUploader accept="image/*" label="Upload photo" onUpload={setPhotoResult} currentUrl={photoResult?.url ?? me?.photoUrl ?? undefined} />
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Profile Photo</Label>
+                {effectivePhotoUrl && (
+                  <button onClick={handleRemovePhoto} className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 transition-colors">
+                    <Trash2 className="h-3 w-3" />Remove photo
+                  </button>
+                )}
+              </div>
+              {!removePhoto ? (
+                <CloudinaryUploader accept="image/*" label="Upload photo" onUpload={handlePhotoUpload} currentUrl={effectivePhotoUrl} />
+              ) : (
+                <div className="border-2 border-dashed border-border rounded-xl p-4 text-center text-sm text-muted-foreground">
+                  Photo will be removed on save.{" "}
+                  <button onClick={() => setRemovePhoto(false)} className="text-primary hover:underline">Undo</button>
+                </div>
+              )}
             </div>
             <div><Label>Display Name</Label><Input value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} className="mt-1" /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
