@@ -1,7 +1,7 @@
 import { NavItem } from "@/components/PortalLayout";
 import {
   LayoutDashboard, Users, CalendarCheck, CalendarDays, Heart,
-  FileText, TrendingUp, User, HandHeart, Mic2, Calendar, CheckCircle2, UserCheck, Image, Home
+  FileText, TrendingUp, User, HandHeart, Mic2, Calendar, CheckCircle2, UserCheck, Image, Home, HandCoins, QrCode
 } from "lucide-react";
 
 export const leadershipNavItems: NavItem[] = [
@@ -20,4 +20,6 @@ export const leadershipNavItems: NavItem[] = [
   { label: "Welfare", href: "/leadership/welfare", icon: <Heart className="h-4 w-4" /> },
   { label: "Reports", href: "/leadership/reports", icon: <FileText className="h-4 w-4" /> },
   { label: "Pipeline", href: "/leadership/pipeline", icon: <TrendingUp className="h-4 w-4" /> },
+  { label: "My Giving", href: "/leadership/giving", icon: <HandCoins className="h-4 w-4" /> },
+  { label: "My QR Code", href: "/leadership/qr", icon: <QrCode className="h-4 w-4" /> },
 ];

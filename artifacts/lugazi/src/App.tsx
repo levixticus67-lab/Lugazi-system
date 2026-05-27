@@ -51,6 +51,8 @@ import LeadershipMeetings from "@/pages/leadership/Meetings";
 import LeadershipTeams from "@/pages/leadership/Teams";
 import LeadershipApprovals from "@/pages/leadership/Approvals";
 import LeadershipMedia from "@/pages/leadership/Media";
+import LeadershipGiving from "@/pages/leadership/Giving";
+import LeadershipQrCode from "@/pages/leadership/QrCode";
 
 // Workforce pages
 import WorkforceDashboard from "@/pages/workforce/Dashboard";
@@ -61,6 +63,8 @@ import WorkforceSermons from "@/pages/workforce/Sermons";
 import WorkforceReports from "@/pages/workforce/Reports";
 import WorkforceMedia from "@/pages/workforce/Media";
 import WorkforceMeetings from "@/pages/workforce/Meetings";
+import WorkforceGiving from "@/pages/workforce/Giving";
+import WorkforceQrCode from "@/pages/workforce/QrCode";
 
 // Member pages
 import MemberDashboard from "@/pages/member/Dashboard";
@@ -174,6 +178,8 @@ function Router() {
       <Route path="/leadership/media"><RequireAuth roles={["admin", "leadership"]}><LeadershipMedia /></RequireAuth></Route>
       <Route path="/leadership/reports"><RequireAuth roles={["admin", "leadership"]}><LeadershipReports /></RequireAuth></Route>
       <Route path="/leadership/pipeline"><RequireAuth roles={["admin", "leadership"]}><LeadershipPipeline /></RequireAuth></Route>
+      <Route path="/leadership/giving"><RequireAuth roles={["admin", "leadership"]}><LeadershipGiving /></RequireAuth></Route>
+      <Route path="/leadership/qr"><RequireAuth roles={["admin", "leadership"]}><LeadershipQrCode /></RequireAuth></Route>
 
       {/* ── Workforce portal ── */}
       <Route path="/workforce/dashboard"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceDashboard /></RequireAuth></Route>
@@ -184,6 +190,8 @@ function Router() {
       <Route path="/workforce/sermons"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceSermons /></RequireAuth></Route>
       <Route path="/workforce/reports"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceReports /></RequireAuth></Route>
       <Route path="/workforce/media"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceMedia /></RequireAuth></Route>
+      <Route path="/workforce/giving"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceGiving /></RequireAuth></Route>
+      <Route path="/workforce/qr"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceQrCode /></RequireAuth></Route>
 
       {/* ── Member portal — all roles ── */}
       <Route path="/member/dashboard"><RequireAuth><MemberDashboard /></RequireAuth></Route>

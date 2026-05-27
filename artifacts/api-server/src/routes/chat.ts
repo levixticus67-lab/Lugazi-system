@@ -167,11 +167,26 @@ router.post("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
+router.patch("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const { message } = req.body;
+  if (!message?.trim()) { res.status(400).json({ error: "Message is required" }); return; }
+  const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
+  if (!msg) { res.status(404).json({ error: "Not found" }); return; }
+  if (msg.userId !== req.userId) { res.status(403).json({ error: "You can only edit your own messages" }); return; }
+  if (msg.isDeleted) { res.status(400).json({ error: "Cannot edit a deleted message" }); return; }
+  const [updated] = await db.update(chatMessagesTable)
+    .set({ message: message.trim(), isEdited: true })
+    .where(eq(chatMessagesTable.id, id))
+    .returning();
+  res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+});
+
 router.delete("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id);
   const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
   if (!msg) { res.status(404).json({ error: "Not found" }); return; }
-  if (msg.userId !== req.userId && req.userRole !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+  if (msg.userId !== req.userId && req.userRole !== "admin" && req.userRole !== "leadership") { res.status(403).json({ error: "Forbidden" }); return; }
   await db.update(chatMessagesTable).set({ isDeleted: true }).where(eq(chatMessagesTable.id, id));
   res.json({ success: true });
 });

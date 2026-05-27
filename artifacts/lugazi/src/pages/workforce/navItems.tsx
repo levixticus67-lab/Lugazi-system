@@ -1,5 +1,5 @@
 import { NavItem } from "@/components/PortalLayout";
-import { LayoutDashboard, CalendarCheck, CalendarDays, FileText, Image, User, Mic2, Calendar } from "lucide-react";
+import { LayoutDashboard, CalendarCheck, CalendarDays, FileText, Image, User, Mic2, Calendar, HandCoins, QrCode } from "lucide-react";
 
 export const workforceNavItems: NavItem[] = [
   { label: "Dashboard", href: "/workforce/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -10,4 +10,6 @@ export const workforceNavItems: NavItem[] = [
   { label: "Sermon Library", href: "/workforce/sermons", icon: <Mic2 className="h-4 w-4" /> },
   { label: "Reports", href: "/workforce/reports", icon: <FileText className="h-4 w-4" /> },
   { label: "Media", href: "/workforce/media", icon: <Image className="h-4 w-4" /> },
+  { label: "My Giving", href: "/workforce/giving", icon: <HandCoins className="h-4 w-4" /> },
+  { label: "My QR Code", href: "/workforce/qr", icon: <QrCode className="h-4 w-4" /> },
 ];

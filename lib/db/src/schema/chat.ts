@@ -12,6 +12,7 @@ export const chatMessagesTable = pgTable("chat_messages", {
   replyToText: text("reply_to_text"),
   replyToName: text("reply_to_name"),
   isDeleted: boolean("is_deleted").notNull().default(false),
+  isEdited: boolean("is_edited").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

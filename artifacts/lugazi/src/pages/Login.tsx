@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,10 +18,17 @@ export default function Login() {
   const [displayName, setDisplayName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pending, setPending] = useState(false);
+  const [missionText, setMissionText] = useState<string | null>(null);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
+
+  useEffect(() => {
+    axios.get<{ churchName: string; tagline: string; mission: string | null }>("/api/settings/public")
+      .then(r => { if (r.data.mission) setMissionText(r.data.mission); })
+      .catch(() => {});
+  }, []);
 
   function redirectByRole(role: string) {
     if (role === "admin") setLocation("/admin/dashboard");
@@ -111,7 +118,7 @@ export default function Login() {
 
         <div className="relative z-10">
           <blockquote className="text-white/90 font-serif text-2xl italic leading-relaxed">
-            "Raising kingdom giants who transform society through the power of the Gospel"
+            "{missionText || "Raising kingdom giants who transform society through the power of the Gospel"}"
           </blockquote>
           <p className="mt-4 text-white/50 text-sm">Mission Statement</p>
         </div>

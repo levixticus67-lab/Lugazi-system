@@ -4,6 +4,15 @@ import { requireAuth, requireRole } from "../middlewares/auth";
 
 const router = Router();
 
+router.get("/settings/public", async (_req, res): Promise<void> => {
+  const [settings] = await db.select().from(settingsTable).limit(1);
+  res.json({
+    churchName: settings?.churchName || "Deliverance Church Lugazi",
+    tagline: settings?.tagline || "The House of Kingdom Giants",
+    mission: settings?.mission || null,
+  });
+});
+
 router.get("/settings", requireAuth, async (_req, res): Promise<void> => {
   const [settings] = await db.select().from(settingsTable).limit(1);
   if (!settings) {

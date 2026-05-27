@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   MessageSquare, Send, X, Archive, Search, ChevronLeft, ChevronRight,
   Smile, Trash2, Reply, Lock, LockOpen, Users, Wifi, WifiOff,
-  Bell, BellOff, Sparkles, MoreHorizontal, Check, CheckCheck, AtSign,
+  Bell, BellOff, Sparkles, MoreHorizontal, Check, CheckCheck, AtSign, Pencil,
 } from "lucide-react";
 import axios from "@/lib/axios";
 
@@ -18,6 +18,7 @@ interface ChatMessage {
   replyToText?: string | null;
   replyToName?: string | null;
   isDeleted: boolean;
+  isEdited?: boolean;
   createdAt: string;
 }
 
@@ -136,6 +137,8 @@ export default function LiveChat() {
   const [myStatus, setMyStatus] = useState("online");
 
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [showEmojiFor, setShowEmojiFor] = useState<number | null>(null);
   const [showFullEmoji, setShowFullEmoji] = useState(false);
   const [showMsgMenu, setShowMsgMenu] = useState<number | null>(null);
@@ -272,6 +275,16 @@ export default function LiveChat() {
     setShowMsgMenu(null);
   }
 
+  async function editMessage(id: number, newText: string) {
+    if (!newText.trim()) return;
+    try {
+      const res = await axios.patch<ChatMessage>(`/api/chat/${SCOPE}/${id}`, { message: newText.trim() });
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, message: res.data.message, isEdited: true } : m));
+    } catch { }
+    setEditingId(null);
+    setEditingText("");
+  }
+
   async function toggleReaction(messageId: number, emoji: string) {
     if (!user) return;
     try {
@@ -358,8 +371,11 @@ export default function LiveChat() {
 
   function renderMessage(msg: ChatMessage, isPrivate = false) {
     const isMe = msg.userId === user?.id;
+    const canDelete = isMe || user?.role === "admin" || user?.role === "leadership";
     const msgReactions = getReactionsForMsg(msg.id);
     const hasReactions = Object.keys(msgReactions).length > 0;
+    const isEditing = editingId === msg.id;
+    const actionsVisible = showMsgMenu === msg.id;
 
     return (
       <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} group`}>
@@ -375,26 +391,55 @@ export default function LiveChat() {
             <div className="relative">
               {msg.isDeleted ? (
                 <div className="px-3 py-1.5 rounded-2xl text-xs italic text-muted-foreground bg-muted/50">Message deleted</div>
+              ) : isEditing ? (
+                <div className="flex flex-col gap-1.5 min-w-[180px]">
+                  <input
+                    autoFocus
+                    className="text-sm bg-muted rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/40"
+                    value={editingText}
+                    onChange={e => setEditingText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); editMessage(msg.id, editingText); }
+                      if (e.key === "Escape") { setEditingId(null); setEditingText(""); }
+                    }}
+                  />
+                  <div className="flex gap-1.5 justify-end">
+                    <button onClick={() => { setEditingId(null); setEditingText(""); }}
+                      className="text-[10px] px-2 py-0.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground">Cancel</button>
+                    <button onClick={() => editMessage(msg.id, editingText)}
+                      className="text-[10px] px-2 py-0.5 rounded-lg blue-gradient-bg text-white hover:opacity-90">Save</button>
+                  </div>
+                </div>
               ) : (
-                <div className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
+                <div
+                  className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed cursor-pointer select-text ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}
+                  onClick={() => setShowMsgMenu(prev => prev === msg.id ? null : msg.id)}
+                >
                   {msg.message.split(/(@\w+)/g).map((part, i) =>
                     part.startsWith("@") ? <span key={i} className={`font-semibold ${isMe ? "text-yellow-200" : "text-primary"}`}>{part}</span> : part
                   )}
+                  {msg.isEdited && <span className="text-[9px] opacity-60 ml-1.5">(edited)</span>}
                 </div>
               )}
-              {!msg.isDeleted && (
-                <div className={`absolute top-0 ${isMe ? "-left-14" : "-right-14"} hidden group-hover:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity`}>
+              {!msg.isDeleted && !isEditing && (
+                <div className={`absolute top-0 ${isMe ? "-left-[84px]" : "-right-[84px]"} ${actionsVisible ? "flex" : "hidden group-hover:flex"} items-center gap-0.5 z-10`}>
                   <button onClick={() => { setShowEmojiFor(msg.id); setShowMsgMenu(null); }}
-                    className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground" title="React">
+                    className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground bg-background/80 shadow-sm" title="React">
                     <Smile className="h-3 w-3" />
                   </button>
                   <button onClick={() => { setReplyTo(msg); setShowMsgMenu(null); inputRef.current?.focus(); }}
-                    className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Reply">
+                    className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground bg-background/80 shadow-sm" title="Reply">
                     <Reply className="h-3 w-3" />
                   </button>
                   {isMe && (
+                    <button onClick={() => { setEditingId(msg.id); setEditingText(msg.message); setShowMsgMenu(null); }}
+                      className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground bg-background/80 shadow-sm" title="Edit">
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  )}
+                  {canDelete && (
                     <button onClick={() => deleteMessage(msg.id)}
-                      className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-destructive" title="Delete">
+                      className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-destructive bg-background/80 shadow-sm" title="Delete">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   )}
