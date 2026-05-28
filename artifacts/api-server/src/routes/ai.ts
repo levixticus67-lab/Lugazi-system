@@ -4,7 +4,7 @@ import { Router } from "express";
 
   const router = Router();
 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
   interface GeminiResult { ok: boolean; text: string; status?: number; rawError?: string }
 
@@ -17,13 +17,12 @@ import { Router } from "express";
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
         }),
       });
 
       if (!response.ok) {
         const errBody = await response.text().catch(() => "");
-        // Extract meaningful message from Gemini error JSON
         let friendlyError = errBody.slice(0, 300);
         try {
           const parsed = JSON.parse(errBody) as { error?: { message?: string; status?: string } };
@@ -78,22 +77,23 @@ import { Router } from "express";
       logger.warn({ model, error: result.text, status: result.status }, "Gemini model failed");
     }
 
-    // Surface the ACTUAL Gemini errors so the user knows exactly what to fix
     const firstError = errors[0] ?? "Unknown error";
     let userMessage: string;
 
-    if (firstError.includes("API_KEY_INVALID") || firstError.includes("400") && firstError.includes("key")) {
+    if (firstError.includes("API_KEY_INVALID") || (firstError.includes("400") && firstError.includes("key"))) {
       userMessage = `⚠️ Your GEMINI_API_KEY is invalid. Get a fresh one at https://aistudio.google.com/app/apikey and update it on Render.`;
     } else if (firstError.includes("PERMISSION_DENIED") || firstError.includes("403")) {
-      userMessage = `⚠️ API key permission denied. Make sure "Generative Language API" is enabled in Google Cloud Console for your project (console.cloud.google.com → APIs & Services → Enable APIs).`;
+      userMessage = `⚠️ API key permission denied. Make sure "Generative Language API" is enabled at console.cloud.google.com → APIs & Services → Enable APIs.`;
     } else if (firstError.includes("429") || firstError.includes("RESOURCE_EXHAUSTED")) {
-      userMessage = `⚠️ Gemini quota exceeded. Your free tier limit may be reached — wait a minute and try again, or upgrade your Google AI plan.`;
+      userMessage = `⚠️ Gemini rate limit hit. Please wait a moment and try again.`;
+    } else if (firstError.includes("404") || firstError.includes("not found")) {
+      userMessage = `⚠️ Gemini model not available for your API key. Try regenerating your key at https://aistudio.google.com/app/apikey.`;
     } else {
-      userMessage = `⚠️ Gemini error: ${firstError.slice(0, 250)}`;
+      userMessage = `⚠️ AI error: ${firstError.slice(0, 250)}`;
     }
 
+    logger.error({ errors }, "All Gemini models failed");
     res.json({ response: userMessage, error: "all_models_failed", details: errors });
   });
 
   export default router;
-  
