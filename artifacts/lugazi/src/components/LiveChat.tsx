@@ -412,7 +412,7 @@ export default function LiveChat() {
                 </div>
               ) : (
                 <div
-                  className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed cursor-pointer select-text ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}
+                  className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed cursor-pointer ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}
                   onClick={() => setShowMsgMenu(prev => prev === msg.id ? null : msg.id)}
                 >
                   {msg.message.split(/(@\w+)/g).map((part, i) =>
