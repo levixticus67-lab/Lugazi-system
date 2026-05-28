@@ -142,6 +142,7 @@ export default function LiveChat() {
   const [showEmojiFor, setShowEmojiFor] = useState<number | null>(null);
   const [showFullEmoji, setShowFullEmoji] = useState(false);
   const [showMsgMenu, setShowMsgMenu] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const [logSearch, setLogSearch] = useState("");
   const [logPage, setLogPage] = useState(0);
@@ -272,6 +273,7 @@ export default function LiveChat() {
       await axios.delete(`/api/chat/${SCOPE}/${id}`);
       setMessages(prev => prev.map(m => m.id === id ? { ...m, isDeleted: true } : m));
     } catch { }
+    setConfirmDeleteId(null);
     setShowMsgMenu(null);
   }
 
@@ -375,96 +377,121 @@ export default function LiveChat() {
     const msgReactions = getReactionsForMsg(msg.id);
     const hasReactions = Object.keys(msgReactions).length > 0;
     const isEditing = editingId === msg.id;
-    const actionsVisible = showMsgMenu === msg.id;
+    const menuOpen = showMsgMenu === msg.id;
+    const confirmingDelete = confirmDeleteId === msg.id;
 
     return (
-      <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} group`}>
+      <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
         {msg.replyToId && msg.replyToText && (
           <div className={`max-w-[85%] mb-0.5 px-2 py-1 rounded-lg border-l-2 border-primary/40 bg-muted/60 text-[10px] text-muted-foreground ${isMe ? "self-end" : "self-start"}`}>
             <span className="font-medium">{msg.replyToName}</span>: {msg.replyToText.slice(0, 60)}{msg.replyToText.length > 60 ? "…" : ""}
           </div>
         )}
-        <div className="flex items-end gap-1.5">
-          {!isMe && <Avatar name={msg.displayName} photoUrl={msg.photoUrl} size="xs" />}
-          <div className="flex flex-col">
-            {!isMe && <span className="text-[10px] font-semibold mb-0.5 ml-0.5">{msg.displayName}</span>}
-            <div className="relative">
-              {msg.isDeleted ? (
-                <div className="px-3 py-1.5 rounded-2xl text-xs italic text-muted-foreground bg-muted/50">Message deleted</div>
-              ) : isEditing ? (
-                <div className="flex flex-col gap-1.5 min-w-[180px]">
-                  <input
-                    autoFocus
-                    className="text-sm bg-muted rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/40"
-                    value={editingText}
-                    onChange={e => setEditingText(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); editMessage(msg.id, editingText); }
-                      if (e.key === "Escape") { setEditingId(null); setEditingText(""); }
-                    }}
-                  />
-                  <div className="flex gap-1.5 justify-end">
-                    <button onClick={() => { setEditingId(null); setEditingText(""); }}
-                      className="text-[10px] px-2 py-0.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground">Cancel</button>
-                    <button onClick={() => editMessage(msg.id, editingText)}
-                      className="text-[10px] px-2 py-0.5 rounded-lg blue-gradient-bg text-white hover:opacity-90">Save</button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed cursor-pointer ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}
-                  onClick={() => setShowMsgMenu(prev => prev === msg.id ? null : msg.id)}
-                >
-                  {msg.message.split(/(@\w+)/g).map((part, i) =>
-                    part.startsWith("@") ? <span key={i} className={`font-semibold ${isMe ? "text-yellow-200" : "text-primary"}`}>{part}</span> : part
-                  )}
-                  {msg.isEdited && <span className="text-[9px] opacity-60 ml-1.5">(edited)</span>}
-                </div>
-              )}
-              {!msg.isDeleted && !isEditing && actionsVisible && (
-                <div className={`flex items-center gap-0.5 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                  <button onClick={() => { setShowEmojiFor(msg.id); setShowMsgMenu(null); }}
-                    className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-foreground shadow-sm" title="React">
-                    <Smile className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => { setReplyTo(msg); setShowMsgMenu(null); inputRef.current?.focus(); }}
-                    className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-foreground shadow-sm" title="Reply">
-                    <Reply className="h-3.5 w-3.5" />
-                  </button>
-                  {isMe && (
-                    <button onClick={() => { setEditingId(msg.id); setEditingText(msg.message); setShowMsgMenu(null); }}
-                      className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-foreground shadow-sm" title="Edit">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button onClick={() => deleteMessage(msg.id)}
-                      className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-destructive shadow-sm" title="Delete">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
 
+        <div className={`flex items-end gap-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+          <Avatar name={msg.displayName} photoUrl={msg.photoUrl} size="xs" />
+
+          {/* Always-visible ⋮ menu button */}
+          {!msg.isDeleted && !isEditing && (
+            <button
+              onPointerDown={e => { e.stopPropagation(); setShowMsgMenu(prev => prev === msg.id ? null : msg.id); setConfirmDeleteId(null); }}
+              className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition shrink-0 self-center"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          )}
+
+          <div className="flex flex-col" style={{ maxWidth: "72%" }}>
+            {!isMe && <span className="text-[10px] font-semibold mb-0.5 ml-0.5">{msg.displayName}</span>}
+
+            {/* Bubble */}
+            {msg.isDeleted ? (
+              <div className="px-3 py-1.5 rounded-2xl text-xs italic text-muted-foreground bg-muted/50">Message deleted</div>
+            ) : isEditing ? (
+              <div className="flex flex-col gap-1.5">
+                <input
+                  autoFocus
+                  className="text-sm bg-muted rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary/40 min-w-[180px]"
+                  value={editingText}
+                  onChange={e => setEditingText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); editMessage(msg.id, editingText); }
+                    if (e.key === "Escape") { setEditingId(null); setEditingText(""); }
+                  }}
+                />
+                <div className="flex gap-1.5 justify-end">
+                  <button onPointerDown={() => { setEditingId(null); setEditingText(""); }}
+                    className="text-[10px] px-2 py-1 rounded-lg bg-muted text-muted-foreground">Cancel</button>
+                  <button onPointerDown={() => editMessage(msg.id, editingText)}
+                    className="text-[10px] px-2 py-1 rounded-lg blue-gradient-bg text-white">Save</button>
+                </div>
+              </div>
+            ) : (
+              <div className={`px-3 py-1.5 rounded-2xl text-sm leading-relaxed ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
+                {msg.message.split(/(@\w+)/g).map((part, i) =>
+                  part.startsWith("@") ? <span key={i} className={`font-semibold ${isMe ? "text-yellow-200" : "text-primary"}`}>{part}</span> : part
+                )}
+                {msg.isEdited && <span className="text-[9px] opacity-60 ml-1.5">(edited)</span>}
+              </div>
+            )}
+
+            {/* Action menu — appears below bubble when ⋮ tapped */}
+            {!msg.isDeleted && !isEditing && menuOpen && (
+              <div className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end" : "self-start"}`}>
+                <button onPointerDown={() => { setShowEmojiFor(msg.id); setShowMsgMenu(null); }}
+                  className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="React">
+                  <Smile className="h-4 w-4" />
+                </button>
+                <button onPointerDown={() => { setReplyTo(msg); setShowMsgMenu(null); inputRef.current?.focus(); }}
+                  className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Reply">
+                  <Reply className="h-4 w-4" />
+                </button>
+                {isMe && (
+                  <button onPointerDown={() => { setEditingId(msg.id); setEditingText(msg.message); setShowMsgMenu(null); }}
+                    className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Edit">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+                {canDelete && (
+                  <button onPointerDown={() => { setConfirmDeleteId(msg.id); setShowMsgMenu(null); }}
+                    className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-destructive" title="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Delete confirmation */}
+            {confirmingDelete && (
+              <div className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end" : "self-start"}`}>
+                <span className="text-[11px] text-destructive font-medium">Delete this message?</span>
+                <button onPointerDown={() => deleteMessage(msg.id)}
+                  className="text-[10px] px-2 py-0.5 rounded-md bg-destructive text-white font-medium">Yes</button>
+                <button onPointerDown={() => setConfirmDeleteId(null)}
+                  className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground">No</button>
+              </div>
+            )}
+
+            {/* Emoji picker */}
             {showEmojiFor === msg.id && (
               <div className={`flex flex-wrap gap-1 mt-1 p-1.5 rounded-xl bg-popover border border-border shadow-lg ${isMe ? "self-end" : "self-start"}`}>
                 {QUICK_REACTIONS.map(e => (
-                  <button key={e} onClick={() => toggleReaction(msg.id, e)}
+                  <button key={e} onPointerDown={() => toggleReaction(msg.id, e)}
                     className="text-base hover:scale-125 transition-transform leading-none p-0.5 rounded">{e}</button>
                 ))}
-                <button onClick={() => { setShowEmojiFor(null); setShowFullEmoji(true); setShowMsgMenu(msg.id); }}
+                <button onPointerDown={() => { setShowEmojiFor(null); setShowFullEmoji(true); }}
                   className="text-[10px] text-muted-foreground hover:text-foreground px-1">+</button>
-                <button onClick={() => setShowEmojiFor(null)} className="text-muted-foreground hover:text-foreground">
+                <button onPointerDown={() => setShowEmojiFor(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="h-3 w-3" />
                 </button>
               </div>
             )}
 
+            {/* Reactions */}
             {hasReactions && !msg.isDeleted && (
               <div className={`flex flex-wrap gap-0.5 mt-0.5 ${isMe ? "self-end" : "self-start"}`}>
                 {Object.entries(msgReactions).map(([emoji, { count, mine }]) => (
-                  <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)}
+                  <button key={emoji} onPointerDown={() => toggleReaction(msg.id, emoji)}
                     className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border transition ${mine ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted border-border text-muted-foreground hover:border-primary/30"}`}>
                     {emoji} <span className="font-medium">{count}</span>
                   </button>
@@ -472,8 +499,8 @@ export default function LiveChat() {
               </div>
             )}
           </div>
-          {isMe && <Avatar name={msg.displayName} photoUrl={msg.photoUrl} size="xs" />}
         </div>
+
         <span className="text-[9px] text-muted-foreground mt-0.5 mx-8">{formatTime(msg.createdAt)}</span>
       </div>
     );
