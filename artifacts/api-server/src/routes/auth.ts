@@ -1,6 +1,5 @@
 import { Router } from "express";
   import bcrypt from "bcryptjs";
-  import { z } from "zod";
   import { eq } from "drizzle-orm";
   import { db, usersTable, membersTable } from "@workspace/db";
   import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
@@ -68,23 +67,44 @@ import { Router } from "express";
   }
 
   // ---------------------------------------------------------------------------
-  // Zod validation schemas (Zod 3 syntax)
+  // Lightweight validation helpers — no extra package needed
   // ---------------------------------------------------------------------------
-  const LoginSchema = z.object({
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(1, "Password is required"),
-  });
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const RegisterSchema = z.object({
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    displayName: z.string().min(1, "Display name is required").max(100, "Name too long"),
-  });
+  function validateLogin(body: unknown): { email: string; password: string } | string {
+    const b = body as Record<string, unknown>;
+    if (!b.email || typeof b.email !== "string" || !EMAIL_RE.test(b.email))
+      return "A valid email address is required";
+    if (!b.password || typeof b.password !== "string" || b.password.length < 1)
+      return "Password is required";
+    return { email: b.email.trim().toLowerCase(), password: b.password };
+  }
 
-  const ChangePasswordSchema = z.object({
-    currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(6, "New password must be at least 6 characters"),
-  });
+  function validateRegister(body: unknown): { email: string; password: string; displayName: string } | string {
+    const b = body as Record<string, unknown>;
+    if (!b.email || typeof b.email !== "string" || !EMAIL_RE.test(b.email))
+      return "A valid email address is required";
+    if (!b.password || typeof b.password !== "string" || b.password.length < 6)
+      return "Password must be at least 6 characters";
+    if (!b.displayName || typeof b.displayName !== "string" || b.displayName.trim().length < 1)
+      return "Display name is required";
+    if (b.displayName.toString().length > 100)
+      return "Display name must be 100 characters or fewer";
+    return {
+      email: b.email.trim().toLowerCase(),
+      password: b.password,
+      displayName: (b.displayName as string).trim(),
+    };
+  }
+
+  function validateChangePassword(body: unknown): { currentPassword: string; newPassword: string } | string {
+    const b = body as Record<string, unknown>;
+    if (!b.currentPassword || typeof b.currentPassword !== "string" || b.currentPassword.length < 1)
+      return "Current password is required";
+    if (!b.newPassword || typeof b.newPassword !== "string" || b.newPassword.length < 6)
+      return "New password must be at least 6 characters";
+    return { currentPassword: b.currentPassword, newPassword: b.newPassword };
+  }
 
   // ---------------------------------------------------------------------------
   // Routes
@@ -98,12 +118,12 @@ import { Router } from "express";
       return;
     }
 
-    const parsed = LoginSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+    const validated = validateLogin(req.body);
+    if (typeof validated === "string") {
+      res.status(400).json({ error: validated });
       return;
     }
-    const { email, password } = parsed.data;
+    const { email, password } = validated;
 
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (!user) {
@@ -146,12 +166,12 @@ import { Router } from "express";
   });
 
   router.post("/auth/register", async (req, res): Promise<void> => {
-    const parsed = RegisterSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+    const validated = validateRegister(req.body);
+    if (typeof validated === "string") {
+      res.status(400).json({ error: validated });
       return;
     }
-    const { email, password, displayName } = parsed.data;
+    const { email, password, displayName } = validated;
 
     const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (existing) {
@@ -189,7 +209,7 @@ import { Router } from "express";
     res.status(201).json({ token, user: userData });
   });
 
-  router.post("/auth/logout", (req, res): void => {
+  router.post("/auth/logout", (_req, res): void => {
     clearAuthCookie(res);
     res.json({ message: "Logged out successfully" });
   });
@@ -206,12 +226,12 @@ import { Router } from "express";
   });
 
   router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-    const parsed = ChangePasswordSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+    const validated = validateChangePassword(req.body);
+    if (typeof validated === "string") {
+      res.status(400).json({ error: validated });
       return;
     }
-    const { currentPassword, newPassword } = parsed.data;
+    const { currentPassword, newPassword } = validated;
 
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
