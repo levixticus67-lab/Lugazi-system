@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db, transactionsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -20,6 +21,18 @@ router.post("/finance", requireAuth, requireRole(["admin"]), async (req: AuthReq
     memberId, memberName, description, category,
     branchId, recordedBy: req.userId, date,
   }).returning();
+
+  await logActivity({
+    userId: req.userId,
+    displayName: (req as AuthRequest & { userDisplayName?: string }).userDisplayName ?? `User #${req.userId}`,
+    action: "create_transaction",
+    entityType: "transaction",
+    entityId: tx.id,
+    entityName: description,
+    details: `${type} — ${currency || "UGX"} ${amount}`,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.status(201).json({ ...tx, amount: Number(tx.amount), createdAt: tx.createdAt.toISOString() });
 });
 
@@ -36,8 +49,7 @@ router.get("/finance/summary", requireAuth, requireRole(["admin", "leadership"])
   const donations = all.filter(t => t.type === "donation");
 
   const sumAmount = (arr: typeof all) => arr.reduce((s, t) => s + Number(t.amount), 0);
-  const byMonth = (arr: typeof all, m: number) =>
-    arr.filter(t => new Date(t.date).getMonth() === m);
+  const byMonth = (arr: typeof all, m: number) => arr.filter(t => new Date(t.date).getMonth() === m);
 
   res.json({
     totalIncome: sumAmount(income),
@@ -51,11 +63,25 @@ router.get("/finance/summary", requireAuth, requireRole(["admin", "leadership"])
   });
 });
 
-router.delete("/finance/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.delete("/finance/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+  const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id)).limit(1);
   await db.delete(transactionsTable).where(eq(transactionsTable.id, id));
+
+  await logActivity({
+    userId: req.userId,
+    displayName: `User #${req.userId}`,
+    action: "delete_transaction",
+    entityType: "transaction",
+    entityId: id,
+    entityName: tx?.description ?? `Transaction #${id}`,
+    details: tx ? `${tx.type} — ${tx.currency} ${tx.amount}` : undefined,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.sendStatus(204);
 });
 
