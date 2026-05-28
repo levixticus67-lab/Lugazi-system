@@ -8,43 +8,42 @@ import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
 
-const HARDCODED_ADMIN_EMAIL = "levixticus67@gmail.com";
-const HARDCODED_ADMIN_PASSWORD = "*levi#ticus123";
+// Simple in-memory rate limiter — blocks after 10 failed attempts per IP for 15 mins
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_ATTEMPTS = 10;
+const WINDOW_MS = 15 * 60 * 1000;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= MAX_ATTEMPTS) return false;
+  entry.count++;
+  return true;
+}
+
+function clearRateLimit(ip: string) {
+  loginAttempts.delete(ip);
+}
 
 router.post("/auth/login", async (req, res): Promise<void> => {
+  const ip = req.ip ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    res.status(429).json({ error: "Too many login attempts. Please wait 15 minutes and try again." });
+    return;
+  }
+
   const { email, password } = req.body;
   if (!email || !password) {
     res.status(400).json({ error: "Email and password required" });
     return;
   }
 
-  // Special handling for hardcoded admin
-  if (email === HARDCODED_ADMIN_EMAIL && password === HARDCODED_ADMIN_PASSWORD) {
-    let adminUser = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-    if (adminUser.length === 0) {
-      const hash = await bcrypt.hash(password, 12);
-      const [created] = await db.insert(usersTable).values({
-        email, passwordHash: hash, displayName: "Levi (Admin)",
-        role: "admin", isActive: true,
-      }).returning();
-      adminUser = [created];
-      await db.insert(membersTable).values({
-        userId: created.id, fullName: "Levi (Admin)", email, role: "admin",
-        branchId: 1, qrToken: uuidv4(), isActive: true,
-      }).onConflictDoNothing();
-      logger.info({ userId: created.id }, "Admin user created on first login");
-    } else {
-      await db.update(usersTable).set({ role: "admin" }).where(eq(usersTable.id, adminUser[0].id));
-      adminUser[0].role = "admin";
-    }
-    const token = generateToken(adminUser[0].id, "admin");
-    res.json({ token, user: { id: adminUser[0].id, email: adminUser[0].email, displayName: adminUser[0].displayName, role: "admin", photoUrl: adminUser[0].photoUrl, branchId: adminUser[0].branchId, phone: adminUser[0].phone, isActive: adminUser[0].isActive, createdAt: adminUser[0].createdAt.toISOString() } });
-    return;
-  }
-
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!user) {
-    // Check if they exist as a pre-registered member (email in members but no user account)
     const [existingMember] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
     if (existingMember && !existingMember.userId) {
       res.status(401).json({
@@ -69,6 +68,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
+  clearRateLimit(ip);
   const token = generateToken(user.id, user.role);
   res.json({
     token,
@@ -100,14 +100,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     email, passwordHash: hash, displayName, role: "member", isActive: true,
   }).returning();
 
-  // Check if email is a pre-registered member — merge if found
   const [preRegistered] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
   if (preRegistered) {
-    // Merge: link the new userId to the existing member record
     await db.update(membersTable).set({ userId: user.id, fullName: displayName }).where(eq(membersTable.id, preRegistered.id));
     logger.info({ userId: user.id, memberId: preRegistered.id }, "Merged new user with pre-registered member");
   } else {
-    // Create a fresh member record
     await db.insert(membersTable).values({
       userId: user.id, fullName: displayName, email, role: "member",
       branchId: 1, qrToken: uuidv4(), isActive: true,
