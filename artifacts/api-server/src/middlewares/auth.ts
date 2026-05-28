@@ -1,7 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { logger } from "../lib/logger";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dcl-lugazi-secret-2025";
+if (!process.env.JWT_SECRET) {
+  logger.warn(
+    "JWT_SECRET environment variable is not set. " +
+    "Using an insecure fallback — set JWT_SECRET in your Render environment variables immediately."
+  );
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || "dcl-lugazi-INSECURE-fallback-set-JWT-SECRET-in-render-env";
 
 export interface AuthRequest extends Request {
   userId?: number;
@@ -40,5 +48,5 @@ export function requireRole(roles: string[]) {
 }
 
 export function generateToken(userId: number, role: string): string {
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "30d" });
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "7d" });
 }
