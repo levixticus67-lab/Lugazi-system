@@ -324,11 +324,11 @@ export default function LiveChat() {
     setAiLoading(true); setView("ai-summary");
     try {
       const recentMsgs = messages.slice(-20).map(m => `${m.displayName}: ${m.message}`).join("\n");
-      const res = await axios.post<{ reply: string }>("/api/ai", {
-        message: `Summarize these recent church chat messages in bullet points, highlighting key discussions and any action items:\n\n${recentMsgs}`,
+      const res = await axios.post<{ response: string }>("/api/ai/assist", {
+        prompt: `Summarize these recent church chat messages in bullet points, highlighting key discussions and any action items:\n\n${recentMsgs}`,
         context: "church live chat AI catch-up summarization",
       });
-      setAiSummary(res.data.reply);
+      setAiSummary(res.data.response);
     } catch { setAiSummary("Could not generate summary. Try again later."); } finally { setAiLoading(false); }
   }
 
