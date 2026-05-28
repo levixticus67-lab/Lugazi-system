@@ -2,11 +2,11 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, membersTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
 
-/** Merge photoUrl: prefer the linked user's photo, fall back to member's own photo */
 function mergePhoto(memberPhoto: string | null | undefined, userPhoto: string | null | undefined): string | null {
   return userPhoto ?? memberPhoto ?? null;
 }
@@ -39,16 +39,7 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
       updatedAt: m.updatedAt.toISOString(),
     };
     if (canSeeSensitive) {
-      return {
-        ...base,
-        email: m.email,
-        phone: m.phone,
-        address: m.address,
-        bio: m.bio,
-        birthday: m.birthday,
-        userId: m.userId,
-        qrToken: m.qrToken,
-      };
+      return { ...base, email: m.email, phone: m.phone, address: m.address, bio: m.bio, birthday: m.birthday, userId: m.userId, qrToken: m.qrToken };
     }
     return base;
   }));
@@ -57,15 +48,24 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
 router.post("/members", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address } = req.body;
   if (!fullName || !email || !branchId) {
-    res.status(400).json({ error: "fullName, email, and branchId are required" });
-    return;
+    res.status(400).json({ error: "fullName, email, and branchId are required" }); return;
   }
   const [member] = await db.insert(membersTable).values({
     fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address,
-    role: "member",
-    qrToken: uuidv4(),
-    isActive: true,
+    role: "member", qrToken: uuidv4(), isActive: true,
   }).returning();
+
+  await logActivity({
+    userId: req.userId,
+    displayName: `User #${req.userId}`,
+    action: "create_member",
+    entityType: "member",
+    entityId: member.id,
+    entityName: fullName,
+    details: email,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.status(201).json({ ...member, createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() });
 });
 
@@ -80,15 +80,9 @@ router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<v
     const [u] = await db.select({ photoUrl: usersTable.photoUrl }).from(usersTable).where(eq(usersTable.id, member.userId)).limit(1);
     userPhoto = u?.photoUrl ?? null;
   }
-  res.json({
-    ...member,
-    photoUrl: mergePhoto(member.photoUrl, userPhoto),
-    createdAt: member.createdAt.toISOString(),
-    updatedAt: member.updatedAt.toISOString(),
-  });
+  res.json({ ...member, photoUrl: mergePhoto(member.photoUrl, userPhoto), createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() });
 });
 
-// Only admin and leadership can edit member records
 router.patch("/members/:id", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -113,18 +107,41 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "leadership"]), 
   if (birthday !== undefined) {
     await db.update(membersTable).set({ birthday }).where(eq(membersTable.id, id)).catch(() => {});
   }
+
+  await logActivity({
+    userId: req.userId,
+    displayName: `User #${req.userId}`,
+    action: "update_member",
+    entityType: "member",
+    entityId: id,
+    entityName: updated.fullName,
+    details: `Updated: ${Object.keys(updateData).join(", ")}`,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/members/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.delete("/members/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [member] = await db.select({ fullName: membersTable.fullName }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
   await db.delete(membersTable).where(eq(membersTable.id, id));
+
+  await logActivity({
+    userId: req.userId,
+    displayName: `User #${req.userId}`,
+    action: "delete_member",
+    entityType: "member",
+    entityId: id,
+    entityName: member?.fullName ?? `Member #${id}`,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.sendStatus(204);
 });
 
-// QR code value for printing
 router.get("/members/:id/qr", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
