@@ -394,7 +394,8 @@ export default function LiveChat() {
           {/* Always-visible ⋮ menu button */}
           {!msg.isDeleted && !isEditing && (
             <button
-              onPointerDown={e => { e.stopPropagation(); setShowMsgMenu(prev => prev === msg.id ? null : msg.id); setConfirmDeleteId(null); }}
+              onPointerDown={e => { e.stopPropagation(); e.preventDefault(); setShowMsgMenu(prev => prev === msg.id ? null : msg.id); setConfirmDeleteId(null); }}
+              onClick={e => e.stopPropagation()}
               className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition shrink-0 self-center"
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -437,7 +438,7 @@ export default function LiveChat() {
 
             {/* Action menu — appears below bubble when ⋮ tapped */}
             {!msg.isDeleted && !isEditing && menuOpen && (
-              <div className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end" : "self-start"}`}>
+              <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end" : "self-start"}`}>
                 <button onPointerDown={() => { setShowEmojiFor(msg.id); setShowMsgMenu(null); }}
                   className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="React">
                   <Smile className="h-4 w-4" />
@@ -463,7 +464,7 @@ export default function LiveChat() {
 
             {/* Delete confirmation */}
             {confirmingDelete && (
-              <div className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end" : "self-start"}`}>
+              <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end" : "self-start"}`}>
                 <span className="text-[11px] text-destructive font-medium">Delete this message?</span>
                 <button onPointerDown={() => deleteMessage(msg.id)}
                   className="text-[10px] px-2 py-0.5 rounded-md bg-destructive text-white font-medium">Yes</button>
