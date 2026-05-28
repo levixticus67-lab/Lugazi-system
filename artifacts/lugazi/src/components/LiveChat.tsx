@@ -168,10 +168,6 @@ export default function LiveChat() {
   const dmPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const menuOpenRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    menuOpenRef.current = showMsgMenu;
-  }, [showMsgMenu]);
-
   const SCOPE = "global";
 
   const fetchMessages = useCallback(async () => {
@@ -400,8 +396,7 @@ export default function LiveChat() {
           {/* Always-visible ⋮ menu button */}
           {!msg.isDeleted && !isEditing && (
             <button
-              onPointerDown={e => { e.stopPropagation(); e.preventDefault(); setShowMsgMenu(prev => prev === msg.id ? null : msg.id); setConfirmDeleteId(null); }}
-              onClick={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); const next = showMsgMenu === msg.id ? null : msg.id; menuOpenRef.current = next; setShowMsgMenu(next); setConfirmDeleteId(null); }}
               className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition shrink-0 self-center"
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -445,22 +440,22 @@ export default function LiveChat() {
             {/* Action menu — appears below bubble when ⋮ tapped */}
             {!msg.isDeleted && !isEditing && menuOpen && (
               <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end" : "self-start"}`}>
-                <button onPointerDown={() => { setShowEmojiFor(msg.id); setShowMsgMenu(null); }}
+                <button onClick={e => { e.stopPropagation(); setShowEmojiFor(msg.id); menuOpenRef.current = null; setShowMsgMenu(null); }}
                   className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="React">
                   <Smile className="h-4 w-4" />
                 </button>
-                <button onPointerDown={() => { setReplyTo(msg); setShowMsgMenu(null); inputRef.current?.focus(); }}
+                <button onClick={e => { e.stopPropagation(); setReplyTo(msg); menuOpenRef.current = null; setShowMsgMenu(null); inputRef.current?.focus(); }}
                   className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Reply">
                   <Reply className="h-4 w-4" />
                 </button>
                 {isMe && (
-                  <button onPointerDown={() => { setEditingId(msg.id); setEditingText(msg.message); setShowMsgMenu(null); }}
+                  <button onClick={e => { e.stopPropagation(); setEditingId(msg.id); setEditingText(msg.message); menuOpenRef.current = null; setShowMsgMenu(null); }}
                     className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Edit">
                     <Pencil className="h-4 w-4" />
                   </button>
                 )}
                 {canDelete && (
-                  <button onPointerDown={() => { setConfirmDeleteId(msg.id); setShowMsgMenu(null); }}
+                  <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(msg.id); menuOpenRef.current = null; setShowMsgMenu(null); }}
                     className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-destructive" title="Delete">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -615,7 +610,7 @@ export default function LiveChat() {
           {/* Chat view */}
           {view === "chat" && (
             <>
-              <div className="flex-1 overflow-y-auto p-3 space-y-2.5" onClick={() => { setShowEmojiFor(null); setShowMsgMenu(null); }}>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2.5" onClick={() => { setShowEmojiFor(null); menuOpenRef.current = null; setShowMsgMenu(null); }}>
                 {total > messages.length && (
                   <div className="text-center">
                     <button onClick={openLogs} className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-primary">
