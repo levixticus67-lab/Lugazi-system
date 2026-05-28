@@ -360,7 +360,10 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // For cookie-based auth (web): send credentials on cross-origin requests.
+    // For token-based auth (Expo): _authTokenGetter is set, so keep "same-origin".
+    const credentialsPolicy: RequestCredentials = _authTokenGetter ? "same-origin" : "include";
+    const response = await fetch(input, { credentials: credentialsPolicy, ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
