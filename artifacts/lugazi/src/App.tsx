@@ -4,6 +4,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { TooltipProvider } from "@/components/ui/tooltip";
   import { AuthProvider, useAuth } from "@/contexts/AuthContext";
   import { ReactNode } from "react";
+  import { useKeepAlive } from "@/hooks/use-keep-alive";
 
   // Pages
   import Login from "@/pages/Login";
@@ -240,6 +241,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   }
 
   function App() {
+    useKeepAlive();
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
