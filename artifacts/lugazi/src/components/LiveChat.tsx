@@ -166,6 +166,11 @@ export default function LiveChat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dmPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const menuOpenRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    menuOpenRef.current = showMsgMenu;
+  }, [showMsgMenu]);
 
   const SCOPE = "global";
 
@@ -173,6 +178,7 @@ export default function LiveChat() {
     if (!token) return;
     try {
       const res = await axios.get<ChatResponse>(`/api/chat/${SCOPE}`);
+      if (menuOpenRef.current !== null) return;
       setMessages(res.data.messages);
       setReactions(res.data.reactions || []);
       setHasLogs(res.data.hasLogs);
@@ -193,11 +199,11 @@ export default function LiveChat() {
   }, [token, open]);
 
   useEffect(() => {
-    if (open && view === "chat") {
+    if (open && view === "chat" && showMsgMenu === null && confirmDeleteId === null) {
       setSeenCount(messages.length);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     }
-  }, [messages, open, view]);
+  }, [messages, open, view, showMsgMenu, confirmDeleteId]);
 
   useEffect(() => {
     if (!token || !user) return;
