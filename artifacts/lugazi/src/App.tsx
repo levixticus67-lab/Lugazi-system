@@ -176,6 +176,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
         <Route path="/admin/tasks"><RequireAuth roles={["admin"]}><AdminTasks /></RequireAuth></Route>
         <Route path="/admin/ministry-teams"><RequireAuth roles={["admin"]}><AdminMinistryTeams /></RequireAuth></Route>
         <Route path="/admin/duty-roster"><RequireAuth roles={["admin"]}><AdminDutyRoster /></RequireAuth></Route>
+        <Route path="/admin/activity-logs"><RequireAuth roles={["admin"]}><AdminActivityLogs /></RequireAuth></Route>
 
         {/* ── Leadership portal ── */}
         <Route path="/leadership/dashboard"><RequireAuth roles={["admin", "leadership"]}><LeadershipDashboard /></RequireAuth></Route>
