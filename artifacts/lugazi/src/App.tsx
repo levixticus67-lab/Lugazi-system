@@ -37,6 +37,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import AdminTasks from "@/pages/admin/Tasks";
   import AdminMinistryTeams from "@/pages/admin/MinistryTeams";
   import AdminDutyRoster from "@/pages/admin/DutyRoster";
+  import AdminActivityLogs from "@/pages/admin/ActivityLogs";
 
   // Leadership pages
   import LeadershipDashboard from "@/pages/leadership/Dashboard";
