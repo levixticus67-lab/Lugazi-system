@@ -4,11 +4,11 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, membersTable } from "@workspace/db";
 import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { logActivity } from "../lib/activityLog";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
 
-// Simple in-memory rate limiter — blocks after 10 failed attempts per IP for 15 mins
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 15 * 60 * 1000;
@@ -69,6 +69,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   clearRateLimit(ip);
+  await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
+
   const token = generateToken(user.id, user.role);
   res.json({
     token,
@@ -80,8 +82,6 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   });
 });
 
-// Register — allows new users to self-register with member role
-// If the email is already in membersTable, links the userId for merging
 router.post("/auth/register", async (req, res): Promise<void> => {
   const { email, password, displayName } = req.body;
   if (!email || !password || !displayName) {
@@ -112,6 +112,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
 
   logger.info({ userId: user.id, email }, "New user registered");
+  await logActivity({ userId: user.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: req.ip ?? "unknown" });
 
   const token = generateToken(user.id, "member");
   res.status(201).json({
@@ -147,6 +148,7 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
   if (!valid) { res.status(401).json({ error: "Current password is incorrect" }); return; }
   const hash = await bcrypt.hash(newPassword, 12);
   await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.id, req.userId!));
+  await logActivity({ userId: user.id, displayName: user.displayName, action: "change_password", ipAddress: req.ip ?? "unknown" });
   res.json({ message: "Password changed successfully" });
 });
 
