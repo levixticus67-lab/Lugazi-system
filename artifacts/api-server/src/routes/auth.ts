@@ -1,6 +1,6 @@
 import { Router } from "express";
   import bcrypt from "bcryptjs";
-  import { z } from "zod/v4";
+  import { z } from "zod";
   import { eq } from "drizzle-orm";
   import { db, usersTable, membersTable } from "@workspace/db";
   import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
@@ -12,14 +12,11 @@ import { Router } from "express";
 
   // ---------------------------------------------------------------------------
   // Rate limiter — in-memory with periodic cleanup to prevent memory leaks
-  // NOTE: resets on server restart; acceptable for Render free tier with the
-  // keep-alive ping in place. A DB-backed store is the next step if needed.
   // ---------------------------------------------------------------------------
   const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-  const MAX_ATTEMPTS = 5;          // reduced from 10
+  const MAX_ATTEMPTS = 5;
   const WINDOW_MS = 15 * 60 * 1000;
 
-  // Clean up expired entries every 10 minutes
   setInterval(() => {
     const now = Date.now();
     for (const [ip, entry] of loginAttempts) {
@@ -47,14 +44,14 @@ import { Router } from "express";
   // Cookie helper — sets an HttpOnly session cookie
   // ---------------------------------------------------------------------------
   const COOKIE_NAME = "dcl_token";
-  const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+  const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
   function setAuthCookie(res: import("express").Response, token: string): void {
     const isProd = process.env.NODE_ENV === "production";
     res.cookie(COOKIE_NAME, token, {
-      httpOnly: true,            // JS cannot read this cookie
-      secure: isProd,            // HTTPS only in production
-      sameSite: isProd ? "none" : "lax", // "none" required for cross-site (Firebase → Render)
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       maxAge: COOKIE_MAX_AGE,
       path: "/",
     });
@@ -71,15 +68,15 @@ import { Router } from "express";
   }
 
   // ---------------------------------------------------------------------------
-  // Zod validation schemas
+  // Zod validation schemas (Zod 3 syntax)
   // ---------------------------------------------------------------------------
   const LoginSchema = z.object({
-    email: z.email("Invalid email address"),
+    email: z.string().email("Invalid email address"),
     password: z.string().min(1, "Password is required"),
   });
 
   const RegisterSchema = z.object({
-    email: z.email("Invalid email address"),
+    email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     displayName: z.string().min(1, "Display name is required").max(100, "Name too long"),
   });
@@ -101,7 +98,6 @@ import { Router } from "express";
       return;
     }
 
-    // Zod validation
     const parsed = LoginSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
@@ -139,7 +135,6 @@ import { Router } from "express";
     await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
 
     const token = generateToken(user.id, user.role);
-    // Set HttpOnly cookie — JS cannot read or steal this
     setAuthCookie(res, token);
 
     const userData = {
@@ -147,13 +142,10 @@ import { Router } from "express";
       photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone,
       isActive: user.isActive, createdAt: user.createdAt.toISOString(),
     };
-
-    // Return token in body too for backward compat with any API clients
     res.json({ token, user: userData });
   });
 
   router.post("/auth/register", async (req, res): Promise<void> => {
-    // Zod validation
     const parsed = RegisterSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
@@ -194,11 +186,9 @@ import { Router } from "express";
       photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone,
       isActive: user.isActive, createdAt: user.createdAt.toISOString(),
     };
-
     res.status(201).json({ token, user: userData });
   });
 
-  // Logout — clears the HttpOnly auth cookie server-side
   router.post("/auth/logout", (req, res): void => {
     clearAuthCookie(res);
     res.json({ message: "Logged out successfully" });
