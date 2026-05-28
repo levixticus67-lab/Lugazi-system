@@ -421,26 +421,26 @@ export default function LiveChat() {
                   {msg.isEdited && <span className="text-[9px] opacity-60 ml-1.5">(edited)</span>}
                 </div>
               )}
-              {!msg.isDeleted && !isEditing && (
-                <div className={`absolute top-0 ${isMe ? "-left-[84px]" : "-right-[84px]"} ${actionsVisible ? "flex" : "hidden group-hover:flex"} items-center gap-0.5 z-10`}>
+              {!msg.isDeleted && !isEditing && actionsVisible && (
+                <div className={`flex items-center gap-0.5 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
                   <button onClick={() => { setShowEmojiFor(msg.id); setShowMsgMenu(null); }}
-                    className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground bg-background/80 shadow-sm" title="React">
-                    <Smile className="h-3 w-3" />
+                    className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-foreground shadow-sm" title="React">
+                    <Smile className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={() => { setReplyTo(msg); setShowMsgMenu(null); inputRef.current?.focus(); }}
-                    className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground bg-background/80 shadow-sm" title="Reply">
-                    <Reply className="h-3 w-3" />
+                    className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-foreground shadow-sm" title="Reply">
+                    <Reply className="h-3.5 w-3.5" />
                   </button>
                   {isMe && (
                     <button onClick={() => { setEditingId(msg.id); setEditingText(msg.message); setShowMsgMenu(null); }}
-                      className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-foreground bg-background/80 shadow-sm" title="Edit">
-                      <Pencil className="h-3 w-3" />
+                      className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-foreground shadow-sm" title="Edit">
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
                   {canDelete && (
                     <button onClick={() => deleteMessage(msg.id)}
-                      className="p-1 rounded-full hover:bg-muted transition text-muted-foreground hover:text-destructive bg-background/80 shadow-sm" title="Delete">
-                      <Trash2 className="h-3 w-3" />
+                      className="p-1.5 rounded-full bg-muted/80 hover:bg-muted transition text-muted-foreground hover:text-destructive shadow-sm" title="Delete">
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
