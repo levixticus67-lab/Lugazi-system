@@ -26,25 +26,34 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
   export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
-    // token is a truthy marker only — the real JWT lives in the HttpOnly cookie.
-    // Components that check `if (!token)` continue to work without change.
+    // token is a truthy session marker — the real JWT lives in the HttpOnly cookie.
+    // Components that check `if (!token)` continue to work unchanged.
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-      // Pre-populate from cached user for instant render while we verify the session
       const storedUser = localStorage.getItem("dcl_user");
-      if (storedUser) {
-        try {
-          const parsed: AuthUser = JSON.parse(storedUser);
-          setUser(parsed);
-          setToken(String(parsed.id));
-        } catch {
-          localStorage.removeItem("dcl_user");
-        }
+
+      // No cached session — skip the cookie check entirely so there is no
+      // background request racing with a fast login submission.
+      if (!storedUser) {
+        setIsLoading(false);
+        return;
       }
 
-      // Verify / refresh session via the HttpOnly cookie (withCredentials is set globally)
+      // Pre-populate immediately for instant render on page refresh
+      let cached: AuthUser | null = null;
+      try {
+        cached = JSON.parse(storedUser) as AuthUser;
+        setUser(cached);
+        setToken(String(cached.id));
+      } catch {
+        localStorage.removeItem("dcl_user");
+        setIsLoading(false);
+        return;
+      }
+
+      // Verify the session cookie is still valid and refresh user data
       axios
         .get<AuthUser>("/api/auth/me")
         .then((res) => {
@@ -54,7 +63,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
           setToken(String(fresh.id));
         })
         .catch(() => {
-          // Cookie missing or expired — clear local state and let user re-login
+          // Cookie expired or missing — force re-login
           localStorage.removeItem("dcl_user");
           setUser(null);
           setToken(null);
@@ -66,7 +75,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
     function login(_newToken: string, newUser: AuthUser) {
       // The real JWT is now in the HttpOnly cookie set by the server.
-      // We only cache user data locally for fast subsequent renders.
+      // We only cache user data locally for fast re-renders on page refresh.
       localStorage.setItem("dcl_user", JSON.stringify(newUser));
       setUser(newUser);
       setToken(String(newUser.id));
@@ -74,7 +83,6 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
     async function logout() {
       try {
-        // Ask the server to clear the HttpOnly cookie
         await axios.post("/api/auth/logout");
       } catch {
         // Proceed with local cleanup even if the server call fails
