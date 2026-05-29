@@ -360,10 +360,10 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  // For cookie-based auth (web): send credentials on cross-origin requests.
-    // For token-based auth (Expo): _authTokenGetter is set, so keep "same-origin".
-    const credentialsPolicy: RequestCredentials = _authTokenGetter ? "same-origin" : "include";
-    const response = await fetch(input, { credentials: credentialsPolicy, ...init, method, headers });
+  // Always include credentials so HttpOnly cookies are sent on cross-origin requests.
+    // For Expo/native builds that use the token getter, credentials are ignored by the
+    // native fetch polyfill anyway, so this is safe across all platforms.
+    const response = await fetch(input, { credentials: "include", ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
