@@ -1,99 +1,135 @@
 import { Router } from "express";
-  import { requireAuth, AuthRequest } from "../middlewares/auth";
-  import { logger } from "../lib/logger";
+import { requireAuth, AuthRequest } from "../middlewares/auth";
+import { logger } from "../lib/logger";
 
-  const router = Router();
+const router = Router();
 
-  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
-  interface GeminiResult { ok: boolean; text: string; status?: number; rawError?: string }
+// FIX: per-user rate limiter — prevents API cost abuse on the AI endpoint
+const aiRateLimiter = new Map<number, { count: number; resetAt: number }>();
+const AI_MAX_PER_MINUTE = 10;
+const AI_WINDOW_MS = 60 * 1000;
 
-  async function callGemini(apiKey: string, model: string, systemInstruction: string, prompt: string): Promise<GeminiResult> {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
-        }),
-      });
+function checkAiRateLimit(userId: number): boolean {
+  const now = Date.now();
+  const entry = aiRateLimiter.get(userId);
+  if (!entry || now > entry.resetAt) {
+    aiRateLimiter.set(userId, { count: 1, resetAt: now + AI_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= AI_MAX_PER_MINUTE) return false;
+  entry.count++;
+  return true;
+}
 
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => "");
-        let friendlyError = errBody.slice(0, 300);
-        try {
-          const parsed = JSON.parse(errBody) as { error?: { message?: string; status?: string } };
-          if (parsed.error?.message) friendlyError = `${parsed.error.status ?? ""} — ${parsed.error.message}`;
-        } catch { /* keep raw */ }
-        return { ok: false, status: response.status, text: friendlyError, rawError: errBody };
-      }
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of aiRateLimiter) {
+    if (now > entry.resetAt) aiRateLimiter.delete(id);
+  }
+}, 5 * 60 * 1000).unref();
 
-      const data = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      if (!reply) return { ok: false, text: "Gemini returned an empty response." };
-      return { ok: true, text: reply };
-    } catch (err) {
-      return { ok: false, text: `Network error calling Gemini: ${String(err)}` };
+interface GeminiResult { ok: boolean; text: string; status?: number; rawError?: string }
+
+async function callGemini(apiKey: string, model: string, systemInstruction: string, prompt: string): Promise<GeminiResult> {
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => "");
+      let friendlyError = errBody.slice(0, 300);
+      try {
+        const parsed = JSON.parse(errBody) as { error?: { message?: string; status?: string } };
+        if (parsed.error?.message) friendlyError = `${parsed.error.status ?? ""} — ${parsed.error.message}`;
+      } catch { /* keep raw */ }
+      return { ok: false, status: response.status, text: friendlyError, rawError: errBody };
     }
+
+    const data = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    if (!reply) return { ok: false, text: "Gemini returned an empty response." };
+    return { ok: true, text: reply };
+  } catch (err) {
+    return { ok: false, text: `Network error calling Gemini: ${String(err)}` };
+  }
+}
+
+router.post("/ai/assist", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  // FIX: enforce per-user rate limit to prevent API cost abuse
+  if (!checkAiRateLimit(req.userId!)) {
+    res.status(429).json({
+      response: "⚠️ Too many requests. Please wait a moment before asking another question.",
+      error: "rate_limited",
+    });
+    return;
   }
 
-  router.post("/ai/assist", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-    const { prompt, context } = req.body;
-    if (!prompt) { res.json({ response: "Please provide a question.", error: "no_prompt" }); return; }
+  const { prompt, context } = req.body;
+  if (!prompt) { res.json({ response: "Please provide a question.", error: "no_prompt" }); return; }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      res.json({
-        response: "⚠️ GEMINI_API_KEY is not set on the server. Go to your Render dashboard → your API service → Environment tab → add GEMINI_API_KEY.",
-        error: "no_api_key",
-      });
+  // FIX: cap prompt length to avoid runaway token costs
+  const trimmedPrompt = typeof prompt === "string" ? prompt.slice(0, 2000) : String(prompt).slice(0, 2000);
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    res.json({
+      response: "⚠️ GEMINI_API_KEY is not set on the server. Go to your Render dashboard → your API service → Environment tab → add GEMINI_API_KEY.",
+      error: "no_api_key",
+    });
+    return;
+  }
+
+  const systemInstruction = `You are an intelligent assistant for DCL Lugazi ERP — the digital management system for Deliverance Church Lugazi (The House of Kingdom Giants) in Uganda.
+You assist church administrators, leaders, workforce, and members with insights and guidance on:
+- Member management and spiritual growth tracking
+- Attendance patterns and service planning  
+- Financial stewardship, tithes, and offerings
+- Welfare coordination and community support
+- Prayer requests, sermons, and spiritual development
+- Cell fellowship and group management
+- Pipeline follow-up and member engagement
+Keep responses concise (max 3-4 sentences), practical, faith-based, and relevant to Uganda context.
+Current context: ${context || "General church administration"}`;
+
+  const errors: string[] = [];
+  for (const model of MODELS) {
+    const result = await callGemini(apiKey, model, systemInstruction, trimmedPrompt);
+    if (result.ok) {
+      res.json({ response: result.text, model });
       return;
     }
+    const errMsg = `[${model}] HTTP ${result.status ?? "?"}: ${result.text}`;
+    errors.push(errMsg);
+    logger.warn({ model, error: result.text, status: result.status }, "Gemini model failed");
+  }
 
-    const systemInstruction = `You are an intelligent assistant for DCL Lugazi ERP — the digital management system for Deliverance Church Lugazi (The House of Kingdom Giants) in Uganda.
-  You assist church administrators, leaders, workforce, and members with insights and guidance on:
-  - Member management and spiritual growth tracking
-  - Attendance patterns and service planning  
-  - Financial stewardship, tithes, and offerings
-  - Welfare coordination and community support
-  - Prayer requests, sermons, and spiritual development
-  - Cell fellowship and group management
-  - Pipeline follow-up and member engagement
-  Keep responses concise (max 3-4 sentences), practical, faith-based, and relevant to Uganda context.
-  Current context: ${context || "General church administration"}`;
+  const firstError = errors[0] ?? "Unknown error";
+  let userMessage: string;
 
-    const errors: string[] = [];
-    for (const model of MODELS) {
-      const result = await callGemini(apiKey, model, systemInstruction, prompt);
-      if (result.ok) {
-        res.json({ response: result.text, model });
-        return;
-      }
-      const errMsg = `[${model}] HTTP ${result.status ?? "?"}: ${result.text}`;
-      errors.push(errMsg);
-      logger.warn({ model, error: result.text, status: result.status }, "Gemini model failed");
-    }
+  if (firstError.includes("API_KEY_INVALID") || (firstError.includes("400") && firstError.includes("key"))) {
+    userMessage = `⚠️ Your GEMINI_API_KEY is invalid. Get a fresh one at https://aistudio.google.com/app/apikey and update it on Render.`;
+  } else if (firstError.includes("PERMISSION_DENIED") || firstError.includes("403")) {
+    userMessage = `⚠️ API key permission denied. Make sure "Generative Language API" is enabled at console.cloud.google.com → APIs & Services → Enable APIs.`;
+  } else if (firstError.includes("429") || firstError.includes("RESOURCE_EXHAUSTED")) {
+    userMessage = `⚠️ Gemini rate limit hit. Please wait a moment and try again.`;
+  } else if (firstError.includes("404") || firstError.includes("not found")) {
+    userMessage = `⚠️ Gemini model not available for your API key. Try regenerating your key at https://aistudio.google.com/app/apikey.`;
+  } else {
+    userMessage = `⚠️ AI error: ${firstError.slice(0, 250)}`;
+  }
 
-    const firstError = errors[0] ?? "Unknown error";
-    let userMessage: string;
+  logger.error({ errors }, "All Gemini models failed");
+  res.json({ response: userMessage, error: "all_models_failed", details: errors });
+});
 
-    if (firstError.includes("API_KEY_INVALID") || (firstError.includes("400") && firstError.includes("key"))) {
-      userMessage = `⚠️ Your GEMINI_API_KEY is invalid. Get a fresh one at https://aistudio.google.com/app/apikey and update it on Render.`;
-    } else if (firstError.includes("PERMISSION_DENIED") || firstError.includes("403")) {
-      userMessage = `⚠️ API key permission denied. Make sure "Generative Language API" is enabled at console.cloud.google.com → APIs & Services → Enable APIs.`;
-    } else if (firstError.includes("429") || firstError.includes("RESOURCE_EXHAUSTED")) {
-      userMessage = `⚠️ Gemini rate limit hit. Please wait a moment and try again.`;
-    } else if (firstError.includes("404") || firstError.includes("not found")) {
-      userMessage = `⚠️ Gemini model not available for your API key. Try regenerating your key at https://aistudio.google.com/app/apikey.`;
-    } else {
-      userMessage = `⚠️ AI error: ${firstError.slice(0, 250)}`;
-    }
-
-    logger.error({ errors }, "All Gemini models failed");
-    res.json({ response: userMessage, error: "all_models_failed", details: errors });
-  });
-
-  export default router;
+export default router;

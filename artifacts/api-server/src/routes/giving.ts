@@ -1,19 +1,21 @@
 import { Router } from "express";
-import { desc, eq, and, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db, contributionsTable } from "@workspace/db";
-import { requireAuth, AuthRequest } from "../middlewares/auth";
+import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-router.get("/giving", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+// FIX: restricted to leadership+ — regular members must not see all financial contributions
+router.get("/giving", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const memberId = req.query.memberId ? Number(req.query.memberId) : undefined;
-  let query = db.select().from(contributionsTable).orderBy(desc(contributionsTable.createdAt)).$dynamic();
+  let query = db.select().from(contributionsTable).orderBy(desc(contributionsTable.createdAt)).limit(500).$dynamic();
   if (memberId) query = query.where(eq(contributionsTable.memberId, memberId));
   const records = await query;
   res.json(records.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
-router.get("/giving/summary", requireAuth, async (_req, res): Promise<void> => {
+// FIX: restricted to leadership+ — financial summary is sensitive
+router.get("/giving/summary", requireAuth, requireRole(["admin", "leadership"]), async (_req, res): Promise<void> => {
   const rows = await db.select({
     type: contributionsTable.type,
     total: sql<number>`SUM(${contributionsTable.amount})`,
@@ -22,7 +24,8 @@ router.get("/giving/summary", requireAuth, async (_req, res): Promise<void> => {
   res.json(rows);
 });
 
-router.post("/giving", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+// FIX: restricted to leadership+ — only authorised staff may record contributions
+router.post("/giving", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { memberId, memberName, email, type, amount, currency, reference, notes } = req.body;
   if (!memberName || !amount || !type) { res.status(400).json({ error: "memberName, amount, and type required" }); return; }
   const [record] = await db.insert(contributionsTable).values({
@@ -35,8 +38,11 @@ router.post("/giving", requireAuth, async (req: AuthRequest, res): Promise<void>
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
-router.delete("/giving/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  await db.delete(contributionsTable).where(eq(contributionsTable.id, Number(req.params.id)));
+// FIX: restricted to admin only — deleting financial records is a destructive admin action
+router.delete("/giving/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  await db.delete(contributionsTable).where(eq(contributionsTable.id, id));
   res.json({ success: true });
 });
 

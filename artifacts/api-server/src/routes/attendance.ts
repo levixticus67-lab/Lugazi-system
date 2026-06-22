@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, attendanceTable, membersTable, eventsTable } from "@workspace/db";
+import { eq, desc, sql } from "drizzle-orm";
+import { db, attendanceTable, membersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-router.get("/attendance", requireAuth, async (_req, res): Promise<void> => {
+// FIX: restricted to staff roles — regular members must not browse all attendance records
+router.get("/attendance", requireAuth, requireRole(["admin", "leadership", "workforce"]), async (_req, res): Promise<void> => {
   const records = await db.select().from(attendanceTable).orderBy(desc(attendanceTable.checkedInAt)).limit(500);
   res.json(records.map(r => ({ ...r, checkedInAt: r.checkedInAt.toISOString() })));
 });
@@ -29,9 +30,12 @@ router.post("/attendance", requireAuth, requireRole(["admin", "leadership", "wor
     method,
   }).returning();
 
-  // Increment event attendee count if eventId provided
+  // FIX: use parameterised sql tag — prevents SQL injection via eventId
   if (eventId) {
-    await db.execute(`UPDATE events SET attendee_count = attendee_count + 1 WHERE id = ${eventId}`);
+    const safeId = Number(eventId);
+    if (!isNaN(safeId) && safeId > 0) {
+      await db.execute(sql`UPDATE events SET attendee_count = attendee_count + 1 WHERE id = ${safeId}`);
+    }
   }
 
   res.status(201).json({ ...record, checkedInAt: record.checkedInAt.toISOString() });
@@ -45,7 +49,6 @@ router.post("/attendance/qr-scan", requireAuth, requireRole(["admin", "leadershi
     return;
   }
 
-  // Look up member by QR token
   const [member] = await db.select().from(membersTable).where(eq(membersTable.qrToken, qrToken)).limit(1);
   if (!member) {
     res.status(404).json({ error: "No member found for this QR code" });
@@ -62,9 +65,12 @@ router.post("/attendance/qr-scan", requireAuth, requireRole(["admin", "leadershi
     method: "qr",
   }).returning();
 
-  // Increment event attendee count if eventId provided
+  // FIX: use parameterised sql tag — prevents SQL injection via eventId
   if (eventId) {
-    await db.execute(`UPDATE events SET attendee_count = attendee_count + 1 WHERE id = ${eventId}`);
+    const safeId = Number(eventId);
+    if (!isNaN(safeId) && safeId > 0) {
+      await db.execute(sql`UPDATE events SET attendee_count = attendee_count + 1 WHERE id = ${safeId}`);
+    }
   }
 
   res.status(201).json({ ...record, checkedInAt: record.checkedInAt.toISOString() });

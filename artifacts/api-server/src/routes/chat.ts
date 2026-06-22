@@ -8,6 +8,31 @@ const router = Router();
 const LIVE_LIMIT = 50;
 const ARCHIVE_THRESHOLD = 100;
 const GLOBAL = "global";
+const MAX_MESSAGE_LENGTH = 2000;
+
+// FIX: per-user rate limiter for chat to prevent message flooding
+const chatRateLimiter = new Map<number, { count: number; resetAt: number }>();
+const CHAT_MAX = 20;
+const CHAT_WINDOW_MS = 60 * 1000;
+
+function checkChatRateLimit(userId: number): boolean {
+  const now = Date.now();
+  const entry = chatRateLimiter.get(userId);
+  if (!entry || now > entry.resetAt) {
+    chatRateLimiter.set(userId, { count: 1, resetAt: now + CHAT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= CHAT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of chatRateLimiter) {
+    if (now > entry.resetAt) chatRateLimiter.delete(id);
+  }
+}, 5 * 60 * 1000).unref();
 
 router.get("/chat/statuses", requireAuth, async (_req, res): Promise<void> => {
   const statuses = await db.select().from(userStatusTable).orderBy(desc(userStatusTable.updatedAt));
@@ -60,6 +85,11 @@ router.post("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res):
   const otherId = Number(req.params.otherUserId);
   const { message, fromName, toName, fromPhotoUrl, replyToId, replyToText, isPrivateMode } = req.body;
   if (!message?.trim()) { res.status(400).json({ error: "Message required" }); return; }
+
+  // FIX: enforce message length cap
+  if (message.trim().length > MAX_MESSAGE_LENGTH) {
+    res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }); return;
+  }
 
   const autoDeleteAt = isPrivateMode ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
 
@@ -150,14 +180,27 @@ router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => 
 });
 
 router.post("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const { message, displayName, role, photoUrl, replyToId, replyToText, replyToName } = req.body;
+  // FIX: rate limit chat posts per user — prevents message flooding
+  if (!checkChatRateLimit(req.userId!)) {
+    res.status(429).json({ error: "Too many messages — please slow down." }); return;
+  }
+
+  const { message, displayName, photoUrl, replyToId, replyToText, replyToName } = req.body;
   if (!message || !message.trim()) { res.status(400).json({ error: "Message is required" }); return; }
+
+  // FIX: enforce message length cap
+  if (message.trim().length > MAX_MESSAGE_LENGTH) {
+    res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }); return;
+  }
+
+  // FIX: role comes from the verified JWT — never trust the client-supplied role field
+  const verifiedRole = req.userRole ?? "member";
 
   const [record] = await db.insert(chatMessagesTable).values({
     portalScope: GLOBAL,
     userId: req.userId!,
     displayName: displayName || "User",
-    role: role || "member",
+    role: verifiedRole,
     photoUrl: photoUrl ?? null,
     message: message.trim(),
     replyToId: replyToId ?? null,
@@ -171,6 +214,12 @@ router.patch("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Pro
   const id = Number(req.params.id);
   const { message } = req.body;
   if (!message?.trim()) { res.status(400).json({ error: "Message is required" }); return; }
+
+  // FIX: enforce message length cap on edits too
+  if (message.trim().length > MAX_MESSAGE_LENGTH) {
+    res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }); return;
+  }
+
   const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
   if (!msg) { res.status(404).json({ error: "Not found" }); return; }
   if (msg.userId !== req.userId) { res.status(403).json({ error: "You can only edit your own messages" }); return; }

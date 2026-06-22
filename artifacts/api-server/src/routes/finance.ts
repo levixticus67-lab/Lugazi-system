@@ -6,8 +6,14 @@ import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
-router.get("/finance", requireAuth, requireRole(["admin"]), async (_req, res): Promise<void> => {
-  const transactions = await db.select().from(transactionsTable).orderBy(desc(transactionsTable.date));
+// FIX: added pagination limit — unbounded query degrades at scale
+router.get("/finance", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+  const page = Math.max(0, Number((req.query.page as string) ?? 0));
+  const limit = 200;
+  const transactions = await db.select().from(transactionsTable)
+    .orderBy(desc(transactionsTable.date))
+    .limit(limit)
+    .offset(page * limit);
   res.json(transactions.map(t => ({ ...t, amount: Number(t.amount), createdAt: t.createdAt.toISOString() })));
 });
 
@@ -24,7 +30,7 @@ router.post("/finance", requireAuth, requireRole(["admin"]), async (req: AuthReq
 
   await logActivity({
     userId: req.userId,
-    displayName: (req as AuthRequest & { userDisplayName?: string }).userDisplayName ?? `User #${req.userId}`,
+    displayName: `User #${req.userId}`,
     action: "create_transaction",
     entityType: "transaction",
     entityId: tx.id,

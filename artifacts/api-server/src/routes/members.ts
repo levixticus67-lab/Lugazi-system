@@ -75,12 +75,34 @@ router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<v
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id)).limit(1);
   if (!member) { res.status(404).json({ error: "Member not found" }); return; }
+
   let userPhoto: string | null = null;
   if (member.userId) {
     const [u] = await db.select({ photoUrl: usersTable.photoUrl }).from(usersTable).where(eq(usersTable.id, member.userId)).limit(1);
     userPhoto = u?.photoUrl ?? null;
   }
-  res.json({ ...member, photoUrl: mergePhoto(member.photoUrl, userPhoto), createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() });
+
+  // FIX: apply the same role-based filter as the list endpoint —
+  // regular members must not see PII (email, phone, address, qrToken) of other members
+  const canSeeSensitive = SENSITIVE_ROLES.includes(req.userRole ?? "member");
+  const base = {
+    id: member.id,
+    fullName: member.fullName,
+    department: member.department,
+    profession: member.profession,
+    branchId: member.branchId,
+    role: member.role,
+    isActive: member.isActive,
+    photoUrl: mergePhoto(member.photoUrl, userPhoto),
+    createdAt: member.createdAt.toISOString(),
+    updatedAt: member.updatedAt.toISOString(),
+  };
+
+  if (canSeeSensitive) {
+    res.json({ ...base, email: member.email, phone: member.phone, address: member.address, bio: member.bio, birthday: member.birthday, userId: member.userId, qrToken: member.qrToken });
+  } else {
+    res.json(base);
+  }
 });
 
 router.patch("/members/:id", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
