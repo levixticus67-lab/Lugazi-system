@@ -5,6 +5,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { AuthProvider, useAuth } from "@/contexts/AuthContext";
   import { ReactNode } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
+import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
 
   // Pages
   import Login from "@/pages/Login";
@@ -251,6 +252,8 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
             </WouterRouter>
           </AuthProvider>
           <Toaster />
+          <PwaUpdateBanner />
+          <PwaInstallBanner />
         </TooltipProvider>
       </QueryClientProvider>
     );
