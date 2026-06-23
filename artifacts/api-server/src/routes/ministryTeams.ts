@@ -26,6 +26,7 @@ import { Router } from "express";
         ...team,
         createdAt: team.createdAt.toISOString(),
         myRole: m.role || "Member",
+        isLeader: team.leaderId === req.userId,
         members: allMembers.filter(x => x.teamId === team.id).map(x => ({ ...x, joinedAt: x.joinedAt.toISOString() })),
       });
     }
@@ -65,25 +66,45 @@ import { Router } from "express";
     res.sendStatus(204);
   });
 
-  router.post("/ministry-teams/:id/members", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  router.post("/ministry-teams/:id/members", requireAuth, async (req: AuthRequest, res): Promise<void> => {
     const teamId = Number(req.params.id as string);
     const { userId, memberName, role } = req.body;
     if (!userId || !memberName) { res.status(400).json({ error: "userId and memberName required" }); return; }
+
+    // Fetch team to check leader
+    const [team] = await db.select().from(ministryTeamsTable).where(eq(ministryTeamsTable.id, teamId)).limit(1);
+    if (!team) { res.status(404).json({ error: "Team not found" }); return; }
+
+    // Allow team leader or admin/pastor/leadership
+    const isLeader = req.userId != null && team.leaderId === req.userId;
+    const hasRole = ["admin", "pastor", "leadership"].includes(req.userRole ?? "");
+    if (!isLeader && !hasRole) { res.status(403).json({ error: "Forbidden: only the team leader or admin can add members" }); return; }
+
     const existing = await db.select().from(ministryTeamMembersTable)
       .where(and(eq(ministryTeamMembersTable.teamId, teamId), eq(ministryTeamMembersTable.userId, Number(userId)))).limit(1);
     if (existing.length > 0) { res.status(400).json({ error: "Member already in this team" }); return; }
+
     const [record] = await db.insert(ministryTeamMembersTable).values({
       teamId, userId: Number(userId), memberName, role: role || "Member",
     }).returning();
     res.status(201).json({ ...record, joinedAt: record.joinedAt.toISOString() });
   });
 
-  router.delete("/ministry-teams/:id/members/:userId", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+  router.delete("/ministry-teams/:id/members/:userId", requireAuth, async (req: AuthRequest, res): Promise<void> => {
     const teamId = Number(req.params.id as string);
     const userId = Number(req.params.userId as string);
+
+    // Fetch team to check leader
+    const [team] = await db.select().from(ministryTeamsTable).where(eq(ministryTeamsTable.id, teamId)).limit(1);
+    if (!team) { res.status(404).json({ error: "Team not found" }); return; }
+
+    // Allow team leader or admin/pastor/leadership
+    const isLeader = req.userId != null && team.leaderId === req.userId;
+    const hasRole = ["admin", "pastor", "leadership"].includes(req.userRole ?? "");
+    if (!isLeader && !hasRole) { res.status(403).json({ error: "Forbidden: only the team leader or admin can remove members" }); return; }
+
     await db.delete(ministryTeamMembersTable).where(and(eq(ministryTeamMembersTable.teamId, teamId), eq(ministryTeamMembersTable.userId, userId)));
     res.sendStatus(204);
   });
 
   export default router;
-  
