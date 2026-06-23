@@ -22,26 +22,29 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
     isLoading: boolean;
   }
 
+  const PORTAL_MAP: Record<string, string> = {
+    admin: "/admin/dashboard",
+    pastor: "/pastor/dashboard",
+    leadership: "/leadership/dashboard",
+    workforce: "/workforce/dashboard",
+    member: "/member/dashboard",
+  };
+
   const AuthContext = createContext<AuthContextValue | null>(null);
 
   export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
-    // token is a truthy session marker — the real JWT lives in the HttpOnly cookie.
-    // Components that check `if (!token)` continue to work unchanged.
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
       const storedUser = localStorage.getItem("dcl_user");
 
-      // No cached session — skip the cookie check entirely so there is no
-      // background request racing with a fast login submission.
       if (!storedUser) {
         setIsLoading(false);
         return;
       }
 
-      // Pre-populate immediately for instant render on page refresh
       let cached: AuthUser | null = null;
       try {
         cached = JSON.parse(storedUser) as AuthUser;
@@ -53,7 +56,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
         return;
       }
 
-      // Verify the session cookie is still valid and refresh user data
+      const cachedRole = cached?.role;
+
       axios
         .get<AuthUser>("/api/auth/me")
         .then((res) => {
@@ -61,9 +65,15 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
           localStorage.setItem("dcl_user", JSON.stringify(fresh));
           setUser(fresh);
           setToken(String(fresh.id));
+
+          // Role changed since last session — redirect to the correct portal immediately.
+          // This handles the case where an admin upgraded/downgraded this user's role.
+          if (cachedRole && cachedRole !== fresh.role) {
+            const destination = PORTAL_MAP[fresh.role] ?? "/login";
+            window.location.href = destination;
+          }
         })
         .catch(() => {
-          // Cookie expired or missing — force re-login
           localStorage.removeItem("dcl_user");
           setUser(null);
           setToken(null);
@@ -74,8 +84,6 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
     }, []);
 
     function login(_newToken: string, newUser: AuthUser) {
-      // The real JWT is now in the HttpOnly cookie set by the server.
-      // We only cache user data locally for fast re-renders on page refresh.
       localStorage.setItem("dcl_user", JSON.stringify(newUser));
       setUser(newUser);
       setToken(String(newUser.id));
@@ -112,4 +120,3 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
     if (!ctx) throw new Error("useAuth must be used within AuthProvider");
     return ctx;
   }
-  
