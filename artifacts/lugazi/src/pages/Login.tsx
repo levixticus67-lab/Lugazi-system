@@ -33,7 +33,8 @@ import { useState, useEffect } from "react";
       if (role === "admin") setLocation("/admin/dashboard");
       else if (role === "leadership") setLocation("/leadership/dashboard");
       else if (role === "workforce") setLocation("/workforce/dashboard");
-      else setLocation("/member/dashboard");
+      else if (role === "pastor")   setLocation("/pastor/dashboard");
+      else                             setLocation("/member/dashboard");
     }
 
     // Sign-in uses axios directly (same as registration) so withCredentials and
