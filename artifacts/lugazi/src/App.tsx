@@ -19,11 +19,9 @@ import Privacy from "@/pages/Privacy";
   import AdminMembers from "@/pages/admin/Members";
   import AdminUsers from "@/pages/admin/Users";
   import AdminRoleRequests from "@/pages/admin/RoleRequests";
-  import AdminBranches from "@/pages/admin/Branches";
   import AdminGroups from "@/pages/admin/Groups";
   import AdminAttendance from "@/pages/admin/Attendance";
   import AdminEvents from "@/pages/admin/Events";
-  import AdminFinance from "@/pages/admin/Finance";
   import AdminMedia from "@/pages/admin/Media";
   import AdminWelfare from "@/pages/admin/Welfare";
   import AdminPrayerRequests from "@/pages/admin/PrayerRequests";
@@ -161,13 +159,11 @@ import Privacy from "@/pages/Privacy";
         <Route path="/admin/members"><RequireAuth roles={["admin"]}><AdminMembers /></RequireAuth></Route>
         <Route path="/admin/users"><RequireAuth roles={["admin"]}><AdminUsers /></RequireAuth></Route>
         <Route path="/admin/role-requests"><RequireAuth roles={["admin"]}><AdminRoleRequests /></RequireAuth></Route>
-        <Route path="/admin/branches"><RequireAuth roles={["admin"]}><AdminBranches /></RequireAuth></Route>
         <Route path="/admin/groups"><RequireAuth roles={["admin"]}><AdminGroups /></RequireAuth></Route>
         <Route path="/admin/cell-fellowship"><RequireAuth roles={["admin"]}><AdminCellFellowship /></RequireAuth></Route>
         <Route path="/admin/induction"><RequireAuth roles={["admin"]}><AdminInduction /></RequireAuth></Route>
         <Route path="/admin/attendance"><RequireAuth roles={["admin"]}><AdminAttendance /></RequireAuth></Route>
         <Route path="/admin/events"><RequireAuth roles={["admin"]}><AdminEvents /></RequireAuth></Route>
-        <Route path="/admin/finance"><RequireAuth roles={["admin"]}><AdminFinance /></RequireAuth></Route>
         <Route path="/admin/giving"><RequireAuth roles={["admin"]}><AdminGiving /></RequireAuth></Route>
         <Route path="/admin/media"><RequireAuth roles={["admin"]}><AdminMedia /></RequireAuth></Route>
         <Route path="/admin/welfare"><RequireAuth roles={["admin"]}><AdminWelfare /></RequireAuth></Route>
@@ -189,7 +185,6 @@ import Privacy from "@/pages/Privacy";
         <Route path="/pastor/dashboard"><RequireAuth roles={["admin", "pastor"]}><AdminDashboard /></RequireAuth></Route>
         <Route path="/pastor/profile"><RequireAuth roles={["admin", "pastor"]}><AdminProfile /></RequireAuth></Route>
         <Route path="/pastor/members"><RequireAuth roles={["admin", "pastor"]}><AdminMembers /></RequireAuth></Route>
-        <Route path="/pastor/branches"><RequireAuth roles={["admin", "pastor"]}><AdminBranches /></RequireAuth></Route>
         <Route path="/pastor/cell-fellowship"><RequireAuth roles={["admin", "pastor"]}><AdminCellFellowship /></RequireAuth></Route>
         <Route path="/pastor/ministry-teams"><RequireAuth roles={["admin", "pastor"]}><AdminMinistryTeams /></RequireAuth></Route>
         <Route path="/pastor/tasks"><RequireAuth roles={["admin", "pastor"]}><AdminTasks /></RequireAuth></Route>
@@ -197,7 +192,6 @@ import Privacy from "@/pages/Privacy";
         <Route path="/pastor/induction"><RequireAuth roles={["admin", "pastor"]}><AdminInduction /></RequireAuth></Route>
         <Route path="/pastor/attendance"><RequireAuth roles={["admin", "pastor"]}><AdminAttendance /></RequireAuth></Route>
         <Route path="/pastor/events"><RequireAuth roles={["admin", "pastor"]}><AdminEvents /></RequireAuth></Route>
-        <Route path="/pastor/finance"><RequireAuth roles={["admin", "pastor"]}><AdminFinance /></RequireAuth></Route>
         <Route path="/pastor/giving"><RequireAuth roles={["admin", "pastor"]}><AdminGiving /></RequireAuth></Route>
         <Route path="/pastor/welfare"><RequireAuth roles={["admin", "pastor"]}><AdminWelfare /></RequireAuth></Route>
         <Route path="/pastor/prayer-requests"><RequireAuth roles={["admin", "pastor"]}><AdminPrayerRequests /></RequireAuth></Route>
