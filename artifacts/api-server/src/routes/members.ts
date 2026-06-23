@@ -11,7 +11,7 @@ function mergePhoto(memberPhoto: string | null | undefined, userPhoto: string | 
   return userPhoto ?? memberPhoto ?? null;
 }
 
-const SENSITIVE_ROLES = ["admin", "leadership", "workforce"];
+const SENSITIVE_ROLES = ["admin", "leadership", "workforce", "pastor"];
 
 router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const members = await db.select().from(membersTable).orderBy(membersTable.fullName);
