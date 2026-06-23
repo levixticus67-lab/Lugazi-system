@@ -8,7 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISSED_KEY = 'pwa_install_dismissed_until';
-const DISMISS_DAYS = 30;
+const DISMISS_DAYS = 4;
 
 function isDismissed() {
   const until = localStorage.getItem(DISMISSED_KEY);
