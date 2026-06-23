@@ -42,6 +42,7 @@ import Privacy from "@/pages/Privacy";
   import AdminActivityLogs from "@/pages/admin/ActivityLogs";
 
   // Pastor pages
+  import PastorDashboard from "@/pages/pastor/Dashboard";
   import PastorAttendance from "@/pages/pastor/Attendance";
 
   // Leadership pages
@@ -185,7 +186,7 @@ import Privacy from "@/pages/Privacy";
         <Route path="/admin/activity-logs"><RequireAuth roles={["admin"]}><AdminActivityLogs /></RequireAuth></Route>
 
         {/* ── Pastor portal ── */}
-        <Route path="/pastor/dashboard"><RequireAuth roles={["admin", "pastor"]}><AdminDashboard /></RequireAuth></Route>
+        <Route path="/pastor/dashboard"><RequireAuth roles={["admin", "pastor"]}><PastorDashboard /></RequireAuth></Route>
         <Route path="/pastor/profile"><RequireAuth roles={["admin", "pastor"]}><AdminProfile /></RequireAuth></Route>
         <Route path="/pastor/members"><RequireAuth roles={["admin", "pastor"]}><AdminMembers /></RequireAuth></Route>
         <Route path="/pastor/cell-fellowship"><RequireAuth roles={["admin", "pastor"]}><AdminCellFellowship /></RequireAuth></Route>
