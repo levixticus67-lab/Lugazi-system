@@ -181,7 +181,6 @@ export function PwaUpdateBanner() {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-    if (!isStandaloneMode()) return;
 
     // Capture BEFORE the event fires — if there was no existing controller
     // this is a first-time SW install, not an update. Don't show the banner.
