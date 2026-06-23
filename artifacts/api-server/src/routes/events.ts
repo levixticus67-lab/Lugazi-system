@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, eventsTable } from "@workspace/db";
+import { db, eventsTable, attendanceTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -40,6 +40,8 @@ router.delete("/events/:id", requireAuth, requireRole(["admin", "pastor", "leade
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  // Auto-delete attendance records for this event first
+  await db.delete(attendanceTable).where(eq(attendanceTable.eventId, id));
   await db.delete(eventsTable).where(eq(eventsTable.id, id));
   res.sendStatus(204);
 });
