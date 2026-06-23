@@ -14,26 +14,24 @@ import { useGetMemberStats } from "@workspace/api-client-react";
   import ChurchValuesCard from "@/components/ChurchValuesCard";
   import { memberNavItems } from "./navItems";
   import { useAuth } from "@/contexts/AuthContext";
-  import { CalendarCheck, CalendarDays, Heart, Wallet, TrendingUp } from "lucide-react";
+  import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
   import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
   } from "recharts";
 
-  type ChartData = {
-    memberGrowth: { month: string; members: number }[];
-  };
+  type MyAttendance = { month: string; count: number };
 
   const REFETCH_MS = 60_000;
 
   export default function MemberDashboard() {
     const { user } = useAuth();
     const { data: stats, isLoading } = useGetMemberStats({ query: { refetchInterval: REFETCH_MS } } as any);
-    const { data: charts } = useQuery<ChartData>({
-      queryKey: ["member-charts"],
-      queryFn: () => axios.get<ChartData>("/api/dashboard/charts").then(r => r.data),
-      refetchInterval: REFETCH_MS,
-    });
+    const { data: attendance = [] } = useQuery<MyAttendance[]>({
+    queryKey: ["my-attendance"],
+    queryFn: () => axios.get<MyAttendance[]>("/api/dashboard/my-attendance").then(r => r.data),
+    refetchInterval: REFETCH_MS,
+  });
 
     return (
       <PortalLayout navItems={memberNavItems} portalLabel="Member Portal">
@@ -64,23 +62,27 @@ import { useGetMemberStats } from "@workspace/api-client-react";
               <StatCard title="Upcoming Events" value={stats.upcomingEvents} icon={<CalendarDays className="h-5 w-5" />} />
             </div>
 
-            {charts?.memberGrowth && (
-              <div className="glass-card p-5 animate-slide-in-up card-hover">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  <h2 className="font-serif text-sm font-semibold">Church Growth</h2>
-                </div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={charts.memberGrowth} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="members" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.1)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <div className="glass-card p-5 animate-slide-in-up card-hover">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarCheck className="h-4 w-4 text-primary" />
+              <h2 className="font-serif text-sm font-semibold">My Attendance</h2>
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={attendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad-member" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-member)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
 
             <ChurchValuesCard />
           </div>
