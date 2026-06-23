@@ -43,7 +43,7 @@ function clearRateLimit(ip: string) {
 // Cookie helper — sets an HttpOnly session cookie
 // ---------------------------------------------------------------------------
 const COOKIE_NAME = "dcl_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const COOKIE_MAX_AGE = 2 * 24 * 60 * 60 * 1000;
 
 function setAuthCookie(res: import("express").Response, token: string): void {
   const isProd = process.env.NODE_ENV === "production";
