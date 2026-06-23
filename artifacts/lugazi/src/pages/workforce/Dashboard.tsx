@@ -15,7 +15,7 @@ import { useGetMemberStats } from "@workspace/api-client-react";
   import { workforceNavItems } from "./navItems";
   import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
   import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid,
+    AreaChart, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
   } from "recharts";
 
@@ -69,13 +69,19 @@ import { useGetMemberStats } from "@workspace/api-client-react";
                   <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
                 </div>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                    <Tooltip formatter={(v: number) => [v, "Attendance"]} />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                  <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="grad-work" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(v: number) => [v, "Attendance"]} />
+                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-work)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+                </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
