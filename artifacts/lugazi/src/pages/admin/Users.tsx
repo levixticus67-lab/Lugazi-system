@@ -68,6 +68,7 @@ export default function AdminUsers() {
               <SelectTrigger data-testid="select-role"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="pastor">Pastor</SelectItem>
                 <SelectItem value="leadership">Leadership</SelectItem>
                 <SelectItem value="workforce">Workforce</SelectItem>
                 <SelectItem value="member">Member</SelectItem>
