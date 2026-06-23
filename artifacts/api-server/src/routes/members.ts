@@ -35,6 +35,7 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
       role: m.role,
       isActive: m.isActive,
       photoUrl: mergePhoto(m.photoUrl, m.userId ? userPhotoMap[m.userId] : undefined),
+      birthday: m.birthday ?? null,
       createdAt: m.createdAt.toISOString(),
       updatedAt: m.updatedAt.toISOString(),
     };
