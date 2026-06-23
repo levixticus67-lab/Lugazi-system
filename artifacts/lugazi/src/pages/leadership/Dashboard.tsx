@@ -15,7 +15,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   import { leadershipNavItems } from "./navItems";
   import { Users, CalendarCheck, Heart, CalendarDays } from "lucide-react";
   import {
-    BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+    AreaChart, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
   } from "recharts";
 
@@ -70,13 +70,19 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                     <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
                   </div>
                   <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip formatter={(v: number) => [v, "Attendance"]} />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                    <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="grad-lead-attend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(v: number) => [v, "Attendance"]} />
+                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-lead-attend)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+                </AreaChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="glass-card p-5 card-hover">
@@ -86,12 +92,18 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                   </div>
                   <ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={charts.memberGrowth} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="members" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.1)" strokeWidth={2} />
-                    </AreaChart>
+                  <defs>
+                    <linearGradient id="grad-lead-growth" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="members" stroke="#10b981" strokeWidth={2.5} fill="url(#grad-lead-growth)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+                </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
