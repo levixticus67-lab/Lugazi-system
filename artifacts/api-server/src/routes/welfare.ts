@@ -44,5 +44,14 @@ import { Router } from "express";
     res.json({ ...updated, amountRequested: updated.amountRequested ? Number(updated.amountRequested) : null, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   });
 
+  router.delete("/welfare/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(raw, 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+    const [existing] = await db.select().from(welfareTable).where(eq(welfareTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Request not found" }); return; }
+    await db.delete(welfareTable).where(eq(welfareTable.id, id));
+    res.sendStatus(204);
+  });
+
   export default router;
-  
