@@ -8,7 +8,7 @@ import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-router.get("/dashboard/stats", requireAuth, requireRole(["admin", "leadership"]), async (_req, res): Promise<void> => {
+router.get("/dashboard/stats", requireAuth, requireRole(["admin", "leadership", "pastor"]), async (_req, res): Promise<void> => {
   const [totalMembersResult] = await db.select({ count: sql<number>`count(*)` }).from(membersTable);
   const [activeMembersResult] = await db.select({ count: sql<number>`count(*)` }).from(membersTable).where(eq(membersTable.isActive, true));
   const [branchesResult] = await db.select({ count: sql<number>`count(*)` }).from(branchesTable);
@@ -75,11 +75,9 @@ router.get("/dashboard/member-stats", requireAuth, async (req: AuthRequest, res)
   res.json({ myAttendanceCount, myGivingTotal, pendingWelfareRequests, upcomingEvents });
 });
 
-// Live chart data — weekly attendance (8 weeks) + monthly finance (6 months) + member growth (6 months)
-router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership"]), async (_req, res): Promise<void> => {
+router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership", "pastor"]), async (_req, res): Promise<void> => {
   const now = new Date();
 
-  // ── Weekly attendance (last 8 full weeks) ─────────────────────────────────
   const allAttendance = await db.select({ checkedInAt: attendanceTable.checkedInAt }).from(attendanceTable);
   const weeklyAttendance: { week: string; count: number }[] = [];
   for (let i = 7; i >= 0; i--) {
@@ -93,7 +91,6 @@ router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership"]
     weeklyAttendance.push({ week: label, count });
   }
 
-  // ── Monthly finance (last 6 months) ──────────────────────────────────────
   const allTransactions = await db.select({ type: transactionsTable.type, amount: transactionsTable.amount, date: transactionsTable.date }).from(transactionsTable);
   const monthlyFinance: { month: string; income: number; expenses: number }[] = [];
   for (let i = 5; i >= 0; i--) {
@@ -110,11 +107,10 @@ router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership"]
     monthlyFinance.push({ month: label, income, expenses });
   }
 
-  // ── Member growth (cumulative, last 6 months) ─────────────────────────────
   const allMembers = await db.select({ createdAt: membersTable.createdAt }).from(membersTable);
   const memberGrowth: { month: string; members: number }[] = [];
   for (let i = 5; i >= 0; i--) {
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - i + 1, 0); // last day of that month
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
     const count = allMembers.filter((m) => m.createdAt <= cutoff).length;
     const label = new Date(now.getFullYear(), now.getMonth() - i, 1).toLocaleDateString("en-UG", { month: "short" });
     memberGrowth.push({ month: label, members: count });
@@ -123,12 +119,9 @@ router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership"]
   res.json({ weeklyAttendance, monthlyFinance, memberGrowth });
 });
 
-// Live recent activity feed — open to any authenticated admin/leadership user
-// Pulls from members, users, transactions, welfare, events, attendance
 router.get("/dashboard/activity", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const userRole = (req as any).userRole as string | undefined;
-  // Only admin and leadership should see full activity
-  if (userRole && !["admin", "leadership"].includes(userRole)) {
+  if (userRole && !["admin", "leadership", "pastor"].includes(userRole)) {
     res.json([]);
     return;
   }
