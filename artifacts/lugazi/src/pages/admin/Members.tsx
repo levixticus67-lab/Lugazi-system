@@ -1,210 +1,198 @@
 import { useState } from "react";
-  import axios from "@/lib/axios";
-  import { useListMembers, useCreateMember, useDeleteMember, getListMembersQueryKey } from "@workspace/api-client-react";
-  import { useQueryClient } from "@tanstack/react-query";
-  import PortalLayout from "@/components/PortalLayout";
-  import PageHeader from "@/components/PageHeader";
-  import DataTable from "@/components/DataTable";
-  import { adminNavItems } from "./navItems";
-  import { Button } from "@/components/ui/button";
-  import { Input } from "@/components/ui/input";
-  import { Label } from "@/components/ui/label";
-  import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-  import { useToast } from "@/hooks/use-toast";
-  import { Badge } from "@/components/Badge";
-  import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-  import { Plus, Pencil, Trash2, UserCircle, Info } from "lucide-react";
+import axios from "@/lib/axios";
+import { useListMembers, useCreateMember, useDeleteMember, getListMembersQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import PortalLayout from "@/components/PortalLayout";
+import PageHeader from "@/components/PageHeader";
+import { adminNavItems } from "./navItems";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
+import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search } from "lucide-react";
 
-  type Member = {
-    id: number; fullName: string; email: string; phone?: string | null;
-    role: string; branchId: number; department?: string | null;
-    isActive: boolean; photoUrl?: string | null; createdAt: string; qrToken: string;
-  };
+type Member = {
+  id: number; fullName: string; email: string; phone?: string | null;
+  role: string; branchId: number; department?: string | null;
+  isActive: boolean; photoUrl?: string | null; createdAt: string; qrToken: string;
+};
 
-  const blankForm = { fullName: "", email: "", phone: "", branchId: "1", department: "" };
+const blankForm = { fullName: "", email: "", phone: "", branchId: "1", department: "" };
 
-  export default function AdminMembers() {
-    const { data: members = [], isLoading } = useListMembers();
-    const createMutation = useCreateMember();
-    const deleteMutation = useDeleteMember();
-    const queryClient = useQueryClient();
-    const { toast } = useToast();
+const ROLE_COLORS: Record<string, string> = {
+  admin:      "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  pastor:     "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+  leadership: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  workforce:  "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  member:     "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+};
 
-    const [showAdd, setShowAdd] = useState(false);
-    const [editMember, setEditMember] = useState<Member | null>(null);
-    const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState(blankForm);
-    const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
-    const [editPhotoResult, setEditPhotoResult] = useState<UploadResult | null>(null);
+export default function AdminMembers() {
+  const { data: members = [], isLoading } = useListMembers();
+  const createMutation = useCreateMember();
+  const deleteMutation = useDeleteMember();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-    function resetForm() { setForm(blankForm); setPhotoResult(null); }
+  const [showAdd, setShowAdd] = useState(false);
+  const [editMember, setEditMember] = useState<Member | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(blankForm);
+  const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
+  const [editPhotoResult, setEditPhotoResult] = useState<UploadResult | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
 
-    function handleAdd() {
-      if (!form.fullName || !form.email) { toast({ title: "Name and email are required", variant: "destructive" }); return; }
-      createMutation.mutate({
-        data: {
-          fullName: form.fullName, email: form.email,
-          phone: form.phone || undefined, branchId: Number(form.branchId),
-          department: form.department || undefined,
-          photoUrl: photoResult?.url ?? undefined,
-        },
-      }, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
-          toast({ title: "Member added" });
-          setShowAdd(false); resetForm();
-        },
-        onError: () => toast({ title: "Error adding member", variant: "destructive" }),
-      });
-    }
+  function resetForm() { setForm(blankForm); setPhotoResult(null); }
 
-    async function handleUpdate() {
-      if (!editMember) return;
-      setSaving(true);
-      try {
-        // Use the unified photo: new upload > existing member photo (which is already merged from usersTable)
-        const photoUrl = editPhotoResult?.url ?? editMember.photoUrl ?? null;
-        await axios.patch(`/api/members/${editMember.id}`, {
-          fullName: form.fullName,
-          phone: form.phone || null,
-          department: form.department || null,
-          photoUrl,   // server will sync this to usersTable automatically
-        });
-        queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
-        toast({ title: "Member updated — photo synced to their account" });
-        setEditMember(null); resetForm(); setEditPhotoResult(null);
-      } catch {
-        toast({ title: "Error updating member", variant: "destructive" });
-      } finally {
-        setSaving(false);
-      }
-    }
+  function handleAdd() {
+    if (!form.fullName || !form.email) { toast({ title: "Name and email are required", variant: "destructive" }); return; }
+    createMutation.mutate({
+      data: { fullName: form.fullName, email: form.email, phone: form.phone || undefined, branchId: Number(form.branchId), department: form.department || undefined, photoUrl: photoResult?.url ?? undefined },
+    }, {
+      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() }); toast({ title: "Member added" }); setShowAdd(false); resetForm(); },
+      onError: () => toast({ title: "Error adding member", variant: "destructive" }),
+    });
+  }
 
-    function handleDelete(id: number) {
-      if (!confirm("Delete this member?")) return;
-      deleteMutation.mutate({ id }, {
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() }),
-      });
-    }
+  async function handleUpdate() {
+    if (!editMember) return;
+    setSaving(true);
+    try {
+      const photoUrl = editPhotoResult?.url ?? editMember.photoUrl ?? null;
+      await axios.patch(`/api/members/${editMember.id}`, { fullName: form.fullName, phone: form.phone || null, department: form.department || null, photoUrl });
+      queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+      toast({ title: "Member updated" });
+      setEditMember(null); resetForm(); setEditPhotoResult(null);
+    } catch { toast({ title: "Error updating member", variant: "destructive" }); }
+    finally { setSaving(false); }
+  }
 
-    function openEdit(r: Member) {
-      setEditMember(r);
-      setForm({ fullName: r.fullName, email: r.email, phone: r.phone || "", branchId: String(r.branchId), department: r.department || "" });
-      setEditPhotoResult(null);
-    }
+  function handleDelete(id: number) {
+    if (!confirm("Delete this member?")) return;
+    deleteMutation.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() }) });
+  }
 
-    // The photo shown in the edit dialog: new upload > member's current unified photo
-    const editCurrentPhoto = editPhotoResult?.url ?? editMember?.photoUrl ?? null;
+  function openEdit(r: Member) {
+    setEditMember(r);
+    setForm({ fullName: r.fullName, email: r.email, phone: r.phone ?? "", branchId: String(r.branchId), department: r.department ?? "" });
+    setEditPhotoResult(null);
+  }
 
-    return (
-      <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
-        <PageHeader
-          title="Members"
-          description={`${(members as Member[]).length} total members`}
-          actions={
-            <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }} data-testid="button-add-member">
-              <Plus className="h-4 w-4 mr-1" /> Add Member
-            </Button>
-          }
-        />
-        <DataTable
-          columns={[
-            {
-              header: "Member", key: "fullName", render: (r) => (
-                <div className="flex items-center gap-2">
-                  {r.photoUrl ? (
-                    <img src={r.photoUrl} alt={r.fullName} className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
-                  ) : (
-                    <UserCircle className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <div>
-                    <p className="font-medium text-sm">{r.fullName}</p>
-                    <p className="text-xs text-muted-foreground">{r.email}</p>
-                  </div>
-                </div>
-              ),
-            },
-            { header: "Phone", key: "phone", render: (r) => r.phone || "-" },
-            { header: "Department", key: "department", render: (r) => r.department || "-" },
-            { header: "Role", key: "role", render: (r) => <Badge variant="default">{r.role}</Badge> },
-            { header: "Status", key: "isActive", render: (r) => <Badge variant={r.isActive ? "success" : "danger"}>{r.isActive ? "Active" : "Inactive"}</Badge> },
-            {
-              header: "Actions", key: "actions",
-              render: (r) => (
-                <div className="flex gap-2">
-                  <button className="text-muted-foreground hover:text-foreground transition-colors" onClick={() => openEdit(r as Member)} data-testid={`button-edit-member-${r.id}`}>
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button className="text-muted-foreground hover:text-destructive transition-colors" onClick={() => handleDelete(r.id)} data-testid={`button-delete-member-${r.id}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ),
-            },
-          ]}
-          data={members as Member[]}
-          keyField="id"
-          isLoading={isLoading}
-          emptyMessage="No members found. Add your first member."
-        />
-
-        {/* ── Add Dialog ── */}
-        <Dialog open={showAdd} onOpenChange={(o) => { if (!o) resetForm(); setShowAdd(o); }}>
-          <DialogContent className="max-w-md" data-testid="dialog-add-member">
-            <DialogHeader><DialogTitle>Add Member</DialogTitle></DialogHeader>
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div>
-                <Label className="mb-2 block">Profile Photo <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                <CloudinaryUploader accept="image/*" label="Upload member photo" onUpload={setPhotoResult} currentUrl={photoResult?.url} />
-              </div>
-              <div><Label>Full Name <span className="text-destructive">*</span></Label><Input value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} className="mt-1" data-testid="input-fullName" /></div>
-              <div><Label>Email <span className="text-destructive">*</span></Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="mt-1" data-testid="input-email" /></div>
-              <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="mt-1" data-testid="input-phone" /></div>
-              <div><Label>Department</Label><Input value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} className="mt-1" data-testid="input-department" /></div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setShowAdd(false); resetForm(); }}>Cancel</Button>
-              <Button onClick={handleAdd} disabled={createMutation.isPending} data-testid="button-save-member">
-                {createMutation.isPending ? "Saving…" : "Add Member"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* ── Edit Dialog ── */}
-        <Dialog open={!!editMember} onOpenChange={(o) => { if (!o) { setEditMember(null); setEditPhotoResult(null); } }}>
-          <DialogContent className="max-w-md" data-testid="dialog-edit-member">
-            <DialogHeader><DialogTitle>Edit Member</DialogTitle></DialogHeader>
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div>
-                <Label className="mb-2 block">Profile Photo</Label>
-                {/* Show info note when member already has a photo (set by the account owner) */}
-                {editMember?.photoUrl && (
-                  <div className="flex items-start gap-2 mb-2 p-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-xs text-sky-700 dark:text-sky-300">
-                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <span>This photo was set by the account owner. Uploading a new one will update it for both you and them.</span>
-                  </div>
-                )}
-                <CloudinaryUploader
-                  accept="image/*"
-                  label="Upload new photo"
-                  onUpload={setEditPhotoResult}
-                  currentUrl={editCurrentPhoto}
-                />
-              </div>
-              <div><Label>Full Name</Label><Input value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} className="mt-1" /></div>
-              <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="mt-1" /></div>
-              <div><Label>Department</Label><Input value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} className="mt-1" /></div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setEditMember(null); setEditPhotoResult(null); }}>Cancel</Button>
-              <Button onClick={handleUpdate} disabled={saving} data-testid="button-save-edit-member">
-                {saving ? "Saving…" : "Save Changes"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </PortalLayout>
+  const all = members as Member[];
+  const roles = Array.from(new Set(all.map(m => m.role)));
+  let displayed = all;
+  if (filterRole !== "all") displayed = displayed.filter(m => m.role === filterRole);
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    displayed = displayed.filter(m =>
+      m.fullName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.department ?? "").toLowerCase().includes(q)
     );
   }
-  
+  const active = all.filter(m => m.isActive).length;
+
+  return (
+    <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
+      <PageHeader title="Members" description={`${active} active · ${all.length} total`}
+        actions={<Button size="sm" onClick={() => { setForm(blankForm); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Add Member</Button>} />
+
+      {/* Search + filter */}
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder="Search by name, email, department…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+        <button onClick={() => setFilterRole("all")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterRole === "all" ? "blue-gradient-bg text-white shadow" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>All ({all.length})</button>
+        {roles.map(r => (
+          <button key={r} onClick={() => setFilterRole(r)} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${filterRole === r ? `${ROLE_COLORS[r] ?? "bg-muted text-foreground"} ring-1 ring-current/30 shadow` : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
+            {r} ({all.filter(m=>m.role===r).length})
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{Array.from({length:6}).map((_,i) => <div key={i} className="glass-card h-24 animate-pulse" />)}</div>
+      ) : displayed.length === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <Users className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-muted-foreground font-medium">No members found</p>
+          <p className="text-sm text-muted-foreground mt-1">{search ? "Try a different search." : "Add your first church member to get started."}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {displayed.map(m => (
+            <div key={m.id} className={`glass-card p-4 flex gap-3 hover:shadow-md transition-all ${!m.isActive ? "opacity-60" : ""}`}>
+              {/* Avatar */}
+              {m.photoUrl ? (
+                <img src={m.photoUrl} alt={m.fullName} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-background shadow" />
+              ) : (
+                <div className="w-12 h-12 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-base shrink-0 shadow">
+                  {m.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-1">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{m.fullName}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize ${ROLE_COLORS[m.role] ?? "bg-muted text-muted-foreground"}`}>{m.role}</span>
+                      {!m.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Inactive</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => handleDelete(m.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                </div>
+                <div className="mt-1.5 space-y-0.5">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><Mail className="h-3 w-3 shrink-0"/>{m.email}</p>
+                  {m.phone && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3 shrink-0"/>{m.phone}</p>}
+                  {m.department && <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><Building2 className="h-3 w-3 shrink-0"/>{m.department}</p>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Dialog */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Member</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-1">
+            <CloudinaryUploader onUpload={r => setPhotoResult(r)} label="Photo (optional)" />
+            <div><Label>Full Name *</Label><Input className="mt-1" placeholder="Jane Doe" value={form.fullName} onChange={e=>setForm(p=>({...p,fullName:e.target.value}))} /></div>
+            <div><Label>Email *</Label><Input className="mt-1" type="email" placeholder="jane@example.com" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} /></div>
+            <div><Label>Phone</Label><Input className="mt-1" placeholder="+256 700 000 000" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} /></div>
+            <div><Label>Department</Label><Input className="mt-1" placeholder="e.g. Worship, Youth" value={form.department} onChange={e=>setForm(p=>({...p,department:e.target.value}))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Button>
+            <Button onClick={handleAdd} disabled={createMutation.isPending}>{createMutation.isPending?"Adding…":"Add Member"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editMember} onOpenChange={v => { if(!v) setEditMember(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Member</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-1">
+            <CloudinaryUploader onUpload={r => setEditPhotoResult(r)} label="Change Photo" currentUrl={editMember?.photoUrl ?? undefined} />
+            <div><Label>Full Name</Label><Input className="mt-1" value={form.fullName} onChange={e=>setForm(p=>({...p,fullName:e.target.value}))} /></div>
+            <div><Label>Phone</Label><Input className="mt-1" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} /></div>
+            <div><Label>Department</Label><Input className="mt-1" value={form.department} onChange={e=>setForm(p=>({...p,department:e.target.value}))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setEditMember(null)}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={saving}>{saving?"Saving…":"Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PortalLayout>
+  );
+}
