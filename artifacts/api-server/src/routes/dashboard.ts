@@ -205,4 +205,26 @@ router.get("/dashboard/activity", requireAuth, async (req: AuthRequest, res): Pr
   res.json(activities);
 });
 
+
+router.get("/dashboard/my-attendance", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const [member] = await db.select({ id: membersTable.id })
+    .from(membersTable).where(eq(membersTable.userId, req.userId!)).limit(1);
+  if (!member) { res.json([]); return; }
+  const records = await db.select({ checkedInAt: attendanceTable.checkedInAt })
+    .from(attendanceTable).where(eq(attendanceTable.memberId, member.id));
+  const now = new Date();
+  const result: { month: string; count: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mNum = d.getMonth();
+    const yNum = d.getFullYear();
+    const count = records.filter(a => {
+      const date = new Date(a.checkedInAt);
+      return date.getMonth() === mNum && date.getFullYear() === yNum;
+    }).length;
+    result.push({ month: d.toLocaleDateString("en-UG", { month: "short" }), count });
+  }
+  res.json(result);
+});
+
 export default router;
