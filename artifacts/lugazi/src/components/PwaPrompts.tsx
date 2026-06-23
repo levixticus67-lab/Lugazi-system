@@ -182,7 +182,12 @@ export function PwaUpdateBanner() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
+    // Capture BEFORE the event fires — if there was no existing controller
+    // this is a first-time SW install, not an update. Don't show the banner.
+    const hadController = Boolean(navigator.serviceWorker.controller);
+
     const handleControllerChange = () => {
+      if (!hadController) return; // first install — skip
       setVisible(true);
     };
 
