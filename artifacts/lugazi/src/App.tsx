@@ -6,6 +6,8 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { ReactNode } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 
   // Pages
   import Login from "@/pages/Login";
@@ -236,6 +238,8 @@ import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
         <Route path="/member/media"><RequireAuth><MemberMedia /></RequireAuth></Route>
         <Route path="/member/qr"><RequireAuth><MemberQrCode /></RequireAuth></Route>
 
+        <Route path="/terms" component={Terms} />
+        <Route path="/privacy" component={Privacy} />
         <Route component={NotFound} />
       </Switch>
     );

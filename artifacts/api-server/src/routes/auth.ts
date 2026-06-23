@@ -45,13 +45,15 @@ function clearRateLimit(ip: string) {
 const COOKIE_NAME = "dcl_token";
 const COOKIE_MAX_AGE = 2 * 24 * 60 * 60 * 1000;
 
-function setAuthCookie(res: import("express").Response, token: string): void {
+const REMEMBER_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
+
+function setAuthCookie(res: import("express").Response, token: string, maxAge: number = COOKIE_MAX_AGE): void {
   const isProd = process.env.NODE_ENV === "production";
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
-    maxAge: COOKIE_MAX_AGE,
+    maxAge,
     path: "/",
   });
 }
@@ -71,13 +73,13 @@ function clearAuthCookie(res: import("express").Response): void {
 // ---------------------------------------------------------------------------
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function validateLogin(body: unknown): { email: string; password: string } | string {
+function validateLogin(body: unknown): { email: string; password: string; rememberMe: boolean } | string {
   const b = body as Record<string, unknown>;
   if (!b.email || typeof b.email !== "string" || !EMAIL_RE.test(b.email))
     return "A valid email address is required";
   if (!b.password || typeof b.password !== "string" || b.password.length < 1)
     return "Password is required";
-  return { email: b.email.trim().toLowerCase(), password: b.password };
+  return { email: b.email.trim().toLowerCase(), password: b.password, rememberMe: b.rememberMe === true };
 }
 
 function validateRegister(body: unknown): { email: string; password: string; displayName: string } | string {
@@ -128,7 +130,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(400).json({ error: validated });
     return;
   }
-  const { email, password } = validated;
+  const { email, password, rememberMe } = validated;
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!user) {
@@ -159,8 +161,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   clearRateLimit(ip);
   await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
 
-  const token = generateToken(user.id, user.role);
-  setAuthCookie(res, token);
+  const token = generateToken(user.id, user.role, rememberMe ? "14d" : "2d");
+  setAuthCookie(res, token, rememberMe ? REMEMBER_MAX_AGE : COOKIE_MAX_AGE);
 
   const userData = {
     id: user.id, email: user.email, displayName: user.displayName, role: user.role,

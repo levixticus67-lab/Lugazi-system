@@ -87,6 +87,6 @@ export function requireRole(roles: string[]) {
   };
 }
 
-export function generateToken(userId: number, role: string): string {
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "2d" });
+export function generateToken(userId: number, role: string, expiresIn: string = "2d"): string {
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn });
 }

@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
     const [displayName, setDisplayName] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [pending, setPending] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
     const [missionText, setMissionText] = useState<string | null>(null);
     const { login } = useAuth();
     const [, setLocation] = useLocation();
@@ -41,7 +42,7 @@ import { useState, useEffect } from "react";
       e.preventDefault();
       setPending(true);
       try {
-        const res = await axios.post<{ token: string; user: any }>("/api/auth/login", { email, password });
+        const res = await axios.post<{ token: string; user: any }>("/api/auth/login", { email, password, rememberMe });
         login(res.data.token, res.data.user);
         redirectByRole(res.data.user.role);
       } catch (err: any) {
@@ -182,13 +183,30 @@ import { useState, useEffect } from "react";
                         onChange={e => setPassword(e.target.value)} required data-testid="input-password"
                         className="bg-white/70 border-blue-200 focus:border-primary" />
                     </div>
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={e => setRememberMe(e.target.checked)}
+                          className="w-4 h-4 rounded border-blue-300 accent-primary cursor-pointer"
+                        />
+                        <span className="text-sm text-muted-foreground">Remember me for 14 days</span>
+                      </label>
+                    </div>
                     <Button type="submit" className="w-full blue-gradient-bg text-white border-0 hover:opacity-90 glow-blue mt-1"
                       disabled={pending} data-testid="button-submit">
                       {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                       Sign In
                     </Button>
                   </form>
-                  <p className="mt-5 text-center text-sm text-muted-foreground">
+                  <p className="mt-4 text-center text-xs text-muted-foreground/70 leading-relaxed">
+                    By signing in you agree to our{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
+                    {" "}and{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>.
+                  </p>
+                  <p className="mt-3 text-center text-sm text-muted-foreground">
                     New here?{" "}
                     <button onClick={() => setTab("register")} className="text-primary font-medium hover:underline">
                       Create your account
