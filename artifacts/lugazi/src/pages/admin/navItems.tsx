@@ -1,7 +1,6 @@
 import { NavItem } from "@/components/PortalLayout";
 import {
-  LayoutDashboard, Users, UserCog, Bell, GitBranch,
-  CalendarCheck, CalendarDays, Wallet, Image, Heart,
+  CalendarCheck, CalendarDays, Image, Heart,
   FileText, TrendingUp, FolderOpen, Settings, User, Mic2, HandHeart, Cake,
   Megaphone, Home, BookOpen, HandCoins, Star, ClipboardList, CalendarRange, UsersRound,
   Activity,
@@ -13,7 +12,6 @@ export const adminNavItems: NavItem[] = [
   { label: "Members", href: "/admin/members", icon: <Users className="h-4 w-4" /> },
   { label: "Users & Roles", href: "/admin/users", icon: <UserCog className="h-4 w-4" /> },
   { label: "Role Requests", href: "/admin/role-requests", icon: <Bell className="h-4 w-4" /> },
-  { label: "Branches", href: "/admin/branches", icon: <GitBranch className="h-4 w-4" /> },
   { label: "Cell Fellowship", href: "/admin/cell-fellowship", icon: <Home className="h-4 w-4" /> },
   { label: "Ministry Teams", href: "/admin/ministry-teams", icon: <UsersRound className="h-4 w-4" /> },
   { label: "Task Assignments", href: "/admin/tasks", icon: <ClipboardList className="h-4 w-4" /> },
@@ -21,7 +19,6 @@ export const adminNavItems: NavItem[] = [
   { label: "Induction & Growth", href: "/admin/induction", icon: <BookOpen className="h-4 w-4" /> },
   { label: "Attendance", href: "/admin/attendance", icon: <CalendarCheck className="h-4 w-4" /> },
   { label: "Events", href: "/admin/events", icon: <CalendarDays className="h-4 w-4" /> },
-  { label: "Finance", href: "/admin/finance", icon: <Wallet className="h-4 w-4" /> },
   { label: "Giving & Payments", href: "/admin/giving", icon: <HandCoins className="h-4 w-4" /> },
   { label: "Welfare", href: "/admin/welfare", icon: <Heart className="h-4 w-4" /> },
   { label: "Prayer Requests", href: "/admin/prayer-requests", icon: <HandHeart className="h-4 w-4" /> },
