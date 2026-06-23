@@ -193,7 +193,7 @@ import Privacy from "@/pages/Privacy";
         <Route path="/pastor/tasks"><RequireAuth roles={["admin", "pastor"]}><AdminTasks /></RequireAuth></Route>
         <Route path="/pastor/duty-roster"><RequireAuth roles={["admin", "pastor"]}><AdminDutyRoster /></RequireAuth></Route>
         <Route path="/pastor/induction"><RequireAuth roles={["admin", "pastor"]}><AdminInduction /></RequireAuth></Route>
-        <Route path="/pastor/attendance"><RequireAuth roles={["pastor"]}><PastorAttendance /></RequireAuth></Route>
+        <Route path="/pastor/attendance"><RequireAuth roles={["admin", "pastor"]}><PastorAttendance /></RequireAuth></Route>
         <Route path="/pastor/events"><RequireAuth roles={["admin", "pastor"]}><AdminEvents /></RequireAuth></Route>
         <Route path="/pastor/giving"><RequireAuth roles={["admin", "pastor"]}><AdminGiving /></RequireAuth></Route>
         <Route path="/pastor/welfare"><RequireAuth roles={["admin", "pastor"]}><AdminWelfare /></RequireAuth></Route>
