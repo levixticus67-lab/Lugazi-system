@@ -9,9 +9,6 @@ import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
 
-// ---------------------------------------------------------------------------
-// Rate limiter — shared for login and register, in-memory with periodic cleanup
-// ---------------------------------------------------------------------------
 const authAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
@@ -39,12 +36,8 @@ function clearRateLimit(ip: string) {
   authAttempts.delete(ip);
 }
 
-// ---------------------------------------------------------------------------
-// Cookie helper — sets an HttpOnly session cookie
-// ---------------------------------------------------------------------------
 const COOKIE_NAME = "dcl_token";
 const COOKIE_MAX_AGE = 2 * 24 * 60 * 60 * 1000;
-
 const REMEMBER_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
 
 function setAuthCookie(res: import("express").Response, token: string, maxAge: number = COOKIE_MAX_AGE): void {
@@ -68,9 +61,6 @@ function clearAuthCookie(res: import("express").Response): void {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Lightweight validation helpers
-// ---------------------------------------------------------------------------
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateLogin(body: unknown): { email: string; password: string; rememberMe: boolean } | string {
@@ -86,7 +76,6 @@ function validateRegister(body: unknown): { email: string; password: string; dis
   const b = body as Record<string, unknown>;
   if (!b.email || typeof b.email !== "string" || !EMAIL_RE.test(b.email))
     return "A valid email address is required";
-  // FIX: minimum 8 chars and at least one number for stronger passwords
   if (!b.password || typeof b.password !== "string" || b.password.length < 8)
     return "Password must be at least 8 characters";
   if (!/\d/.test(b.password as string))
@@ -112,10 +101,6 @@ function validateChangePassword(body: unknown): { currentPassword: string; newPa
     return "New password must contain at least one number";
   return { currentPassword: b.currentPassword, newPassword: b.newPassword };
 }
-
-// ---------------------------------------------------------------------------
-// Routes
-// ---------------------------------------------------------------------------
 
 router.post("/auth/login", async (req, res): Promise<void> => {
   const ip = req.ip ?? "unknown";
@@ -172,7 +157,6 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   res.json({ token, user: userData });
 });
 
-// FIX: apply the same rate limiter to register — prevents account-creation flooding
 router.post("/auth/register", async (req, res): Promise<void> => {
   const ip = req.ip ?? "unknown";
 
@@ -229,9 +213,20 @@ router.post("/auth/logout", (_req, res): void => {
   res.json({ message: "Logged out successfully" });
 });
 
+// /auth/me — always reads role from DB. If JWT role is stale, re-issues the cookie
+// so the client's next requests carry the correct role without requiring a re-login.
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  // Role in JWT is stale — silently re-issue a fresh cookie with the correct role.
+  // This covers the case where an admin changed the user's role between logins.
+  if (req.userRole !== user.role) {
+    logger.info({ userId: user.id, oldRole: req.userRole, newRole: user.role }, "Role mismatch — re-issuing auth cookie");
+    const freshToken = generateToken(user.id, user.role);
+    setAuthCookie(res, freshToken);
+  }
+
   res.json({
     id: user.id, email: user.email, displayName: user.displayName, role: user.role,
     photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone,
