@@ -45,7 +45,7 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
   }));
 });
 
-router.post("/members", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/members", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address } = req.body;
   if (!fullName || !email || !branchId) {
     res.status(400).json({ error: "fullName, email, and branchId are required" }); return;
@@ -105,7 +105,7 @@ router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<v
   }
 });
 
-router.patch("/members/:id", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+router.patch("/members/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -144,7 +144,7 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "leadership"]), 
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/members/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+router.delete("/members/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -164,7 +164,7 @@ router.delete("/members/:id", requireAuth, requireRole(["admin"]), async (req: A
   res.sendStatus(204);
 });
 
-router.get("/members/:id/qr", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.get("/members/:id/qr", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

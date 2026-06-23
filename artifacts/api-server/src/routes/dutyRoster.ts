@@ -17,7 +17,7 @@ import { Router } from "express";
     res.json(records.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
   });
 
-  router.post("/duty-roster", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  router.post("/duty-roster", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
     const { assignedToUserId, assignedToName, serviceDate, serviceType, dutyRole, location, notes } = req.body;
     if (!assignedToName || !serviceDate || !serviceType || !dutyRole) {
       res.status(400).json({ error: "assignedToName, serviceDate, serviceType and dutyRole are required" }); return;
@@ -35,7 +35,7 @@ import { Router } from "express";
     res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
   });
 
-  router.delete("/duty-roster/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+  router.delete("/duty-roster/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
     const id = Number(req.params.id as string);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     await db.delete(dutyRosterTable).where(eq(dutyRosterTable.id, id));

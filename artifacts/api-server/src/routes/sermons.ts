@@ -10,7 +10,7 @@ router.get("/sermons", requireAuth, async (_req, res): Promise<void> => {
   res.json(sermons.map(s => ({ ...s, createdAt: s.createdAt.toISOString(), updatedAt: s.updatedAt.toISOString() })));
 });
 
-router.post("/sermons", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/sermons", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { title, preacher, sermonDate, series, description, mediaUrl, mediaType, thumbnailUrl, scriptureRef, branchId } = req.body;
   if (!title || !preacher || !sermonDate) {
     res.status(400).json({ error: "title, preacher, and sermonDate are required" });
@@ -23,7 +23,7 @@ router.post("/sermons", requireAuth, requireRole(["admin", "leadership"]), async
   res.status(201).json({ ...sermon, createdAt: sermon.createdAt.toISOString(), updatedAt: sermon.updatedAt.toISOString() });
 });
 
-router.patch("/sermons/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const { title, preacher, sermonDate, series, description, mediaUrl, mediaType, thumbnailUrl, scriptureRef } = req.body;
@@ -42,7 +42,7 @@ router.patch("/sermons/:id", requireAuth, requireRole(["admin", "leadership"]), 
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/sermons/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.delete("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   await db.delete(sermonsTable).where(eq(sermonsTable.id, id));

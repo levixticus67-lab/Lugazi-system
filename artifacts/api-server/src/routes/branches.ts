@@ -10,14 +10,14 @@ router.get("/branches", requireAuth, async (_req, res): Promise<void> => {
   res.json(branches.map(b => ({ ...b, createdAt: b.createdAt.toISOString(), updatedAt: b.updatedAt.toISOString() })));
 });
 
-router.post("/branches", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.post("/branches", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const { name, location, leaderName } = req.body;
   if (!name || !location) { res.status(400).json({ error: "name and location required" }); return; }
   const [branch] = await db.insert(branchesTable).values({ name, location, leaderName }).returning();
   res.status(201).json({ ...branch, createdAt: branch.createdAt.toISOString(), updatedAt: branch.updatedAt.toISOString() });
 });
 
-router.patch("/branches/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.patch("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -31,7 +31,7 @@ router.patch("/branches/:id", requireAuth, requireRole(["admin"]), async (req, r
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/branches/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.delete("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

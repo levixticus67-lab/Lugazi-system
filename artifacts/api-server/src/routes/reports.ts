@@ -24,7 +24,7 @@ router.post("/reports", requireAuth, requireRole(["admin", "leadership", "workfo
   res.status(201).json({ ...report, createdAt: report.createdAt.toISOString(), updatedAt: report.updatedAt.toISOString() });
 });
 
-router.patch("/reports/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
     id: number;
     email: string;
     displayName: string;
-    role: "admin" | "leadership" | "workforce" | "member";
+    role: "admin" | "pastor" | "leadership" | "workforce" | "member";
     photoUrl?: string | null;
     branchId?: number | null;
     phone?: string | null;

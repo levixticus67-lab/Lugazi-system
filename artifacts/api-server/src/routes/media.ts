@@ -39,7 +39,7 @@ router.post("/media", requireAuth, requireRole(["admin", "leadership", "workforc
   res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
-router.delete("/media/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.delete("/media/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

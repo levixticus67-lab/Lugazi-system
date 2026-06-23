@@ -13,7 +13,7 @@ router.get("/documents", requireAuth, async (req: AuthRequest, res): Promise<voi
   res.json(filtered.map(d => ({ ...d, createdAt: d.createdAt.toISOString() })));
 });
 
-router.post("/documents", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/documents", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const { title, description, category, fileUrl, fileType, fileSize, accessRoles } = req.body;
   if (!title || !category || !fileUrl || !fileType) {
     res.status(400).json({ error: "title, category, fileUrl, fileType required" }); return;
@@ -28,7 +28,7 @@ router.post("/documents", requireAuth, requireRole(["admin"]), async (req: AuthR
   res.status(201).json({ ...doc, createdAt: doc.createdAt.toISOString() });
 });
 
-router.delete("/documents/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.delete("/documents/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

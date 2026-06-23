@@ -5,12 +5,12 @@ import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-router.get("/pipeline", requireAuth, requireRole(["admin", "leadership"]), async (_req, res): Promise<void> => {
+router.get("/pipeline", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (_req, res): Promise<void> => {
   const contacts = await db.select().from(pipelineTable).orderBy(desc(pipelineTable.createdAt));
   res.json(contacts.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString(), lastContactedAt: c.lastContactedAt?.toISOString() ?? null })));
 });
 
-router.post("/pipeline", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/pipeline", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { name, phone, email, stage, notes, source, branchId } = req.body;
   if (!name || !phone || !stage || !source || !branchId) {
     res.status(400).json({ error: "name, phone, stage, source, branchId required" }); return;
@@ -20,7 +20,7 @@ router.post("/pipeline", requireAuth, requireRole(["admin", "leadership"]), asyn
   res.status(201).json({ ...contact, createdAt: contact.createdAt.toISOString(), updatedAt: contact.updatedAt.toISOString(), lastContactedAt: contact.lastContactedAt?.toISOString() ?? null });
 });
 
-router.patch("/pipeline/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/pipeline/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -34,7 +34,7 @@ router.patch("/pipeline/:id", requireAuth, requireRole(["admin", "leadership"]),
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString(), lastContactedAt: updated.lastContactedAt?.toISOString() ?? null });
 });
 
-router.delete("/pipeline/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.delete("/pipeline/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

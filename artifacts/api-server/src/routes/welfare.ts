@@ -33,7 +33,7 @@ import { Router } from "express";
     res.status(201).json({ ...record, amountRequested: record.amountRequested ? Number(record.amountRequested) : null, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() });
   });
 
-  router.patch("/welfare/:id", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  router.patch("/welfare/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

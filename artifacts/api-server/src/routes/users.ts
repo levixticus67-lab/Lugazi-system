@@ -81,7 +81,7 @@ router.patch("/users/:id/role", requireAuth, requireRole(["admin"]), async (req:
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const { role } = req.body;
   if (!role) { res.status(400).json({ error: "Role is required" }); return; }
-  const validRoles = ["admin", "leadership", "workforce", "member"];
+  const validRoles = ["admin", "pastor", "leadership", "workforce", "member"];
   if (!validRoles.includes(role)) { res.status(400).json({ error: "Invalid role" }); return; }
 
   const [updated] = await db.update(usersTable).set({ role }).where(eq(usersTable.id, id)).returning();

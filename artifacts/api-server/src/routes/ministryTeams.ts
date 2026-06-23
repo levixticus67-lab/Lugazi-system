@@ -32,7 +32,7 @@ import { Router } from "express";
     res.json(result);
   });
 
-  router.post("/ministry-teams", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+  router.post("/ministry-teams", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
     const { name, description, leaderId, leaderName } = req.body;
     if (!name?.trim()) { res.status(400).json({ error: "Name required" }); return; }
     const [record] = await db.insert(ministryTeamsTable).values({
@@ -42,7 +42,7 @@ import { Router } from "express";
     res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), members: [] });
   });
 
-  router.patch("/ministry-teams/:id", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  router.patch("/ministry-teams/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
     const id = Number(req.params.id as string);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const { name, description, leaderId, leaderName, isActive } = req.body;
@@ -57,7 +57,7 @@ import { Router } from "express";
     res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
   });
 
-  router.delete("/ministry-teams/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+  router.delete("/ministry-teams/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
     const id = Number(req.params.id as string);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     await db.delete(ministryTeamMembersTable).where(eq(ministryTeamMembersTable.teamId, id));
@@ -65,7 +65,7 @@ import { Router } from "express";
     res.sendStatus(204);
   });
 
-  router.post("/ministry-teams/:id/members", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  router.post("/ministry-teams/:id/members", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
     const teamId = Number(req.params.id as string);
     const { userId, memberName, role } = req.body;
     if (!userId || !memberName) { res.status(400).json({ error: "userId and memberName required" }); return; }
@@ -78,7 +78,7 @@ import { Router } from "express";
     res.status(201).json({ ...record, joinedAt: record.joinedAt.toISOString() });
   });
 
-  router.delete("/ministry-teams/:id/members/:userId", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+  router.delete("/ministry-teams/:id/members/:userId", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
     const teamId = Number(req.params.id as string);
     const userId = Number(req.params.userId as string);
     await db.delete(ministryTeamMembersTable).where(and(eq(ministryTeamMembersTable.teamId, teamId), eq(ministryTeamMembersTable.userId, userId)));

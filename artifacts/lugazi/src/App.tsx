@@ -124,6 +124,7 @@ import Privacy from "@/pages/Privacy";
     if (roles && !roles.includes(user.role)) {
       const portalMap: Record<string, string> = {
         admin: "/admin/dashboard",
+        pastor: "/pastor/dashboard",
         leadership: "/leadership/dashboard",
         workforce: "/workforce/dashboard",
         member: "/member/dashboard",
@@ -140,6 +141,7 @@ import Privacy from "@/pages/Privacy";
     if (!user) return <Redirect to="/login" />;
     const map: Record<string, string> = {
       admin: "/admin/dashboard",
+      pastor: "/pastor/dashboard",
       leadership: "/leadership/dashboard",
       workforce: "/workforce/dashboard",
       member: "/member/dashboard",
@@ -182,6 +184,31 @@ import Privacy from "@/pages/Privacy";
         <Route path="/admin/ministry-teams"><RequireAuth roles={["admin"]}><AdminMinistryTeams /></RequireAuth></Route>
         <Route path="/admin/duty-roster"><RequireAuth roles={["admin"]}><AdminDutyRoster /></RequireAuth></Route>
         <Route path="/admin/activity-logs"><RequireAuth roles={["admin"]}><AdminActivityLogs /></RequireAuth></Route>
+
+        {/* ── Pastor portal (same content as admin, minus excluded features) ── */}
+        <Route path="/pastor/dashboard"><RequireAuth roles={["admin", "pastor"]}><AdminDashboard /></RequireAuth></Route>
+        <Route path="/pastor/profile"><RequireAuth roles={["admin", "pastor"]}><AdminProfile /></RequireAuth></Route>
+        <Route path="/pastor/members"><RequireAuth roles={["admin", "pastor"]}><AdminMembers /></RequireAuth></Route>
+        <Route path="/pastor/branches"><RequireAuth roles={["admin", "pastor"]}><AdminBranches /></RequireAuth></Route>
+        <Route path="/pastor/cell-fellowship"><RequireAuth roles={["admin", "pastor"]}><AdminCellFellowship /></RequireAuth></Route>
+        <Route path="/pastor/ministry-teams"><RequireAuth roles={["admin", "pastor"]}><AdminMinistryTeams /></RequireAuth></Route>
+        <Route path="/pastor/tasks"><RequireAuth roles={["admin", "pastor"]}><AdminTasks /></RequireAuth></Route>
+        <Route path="/pastor/duty-roster"><RequireAuth roles={["admin", "pastor"]}><AdminDutyRoster /></RequireAuth></Route>
+        <Route path="/pastor/induction"><RequireAuth roles={["admin", "pastor"]}><AdminInduction /></RequireAuth></Route>
+        <Route path="/pastor/attendance"><RequireAuth roles={["admin", "pastor"]}><AdminAttendance /></RequireAuth></Route>
+        <Route path="/pastor/events"><RequireAuth roles={["admin", "pastor"]}><AdminEvents /></RequireAuth></Route>
+        <Route path="/pastor/finance"><RequireAuth roles={["admin", "pastor"]}><AdminFinance /></RequireAuth></Route>
+        <Route path="/pastor/giving"><RequireAuth roles={["admin", "pastor"]}><AdminGiving /></RequireAuth></Route>
+        <Route path="/pastor/welfare"><RequireAuth roles={["admin", "pastor"]}><AdminWelfare /></RequireAuth></Route>
+        <Route path="/pastor/prayer-requests"><RequireAuth roles={["admin", "pastor"]}><AdminPrayerRequests /></RequireAuth></Route>
+        <Route path="/pastor/testimonies"><RequireAuth roles={["admin", "pastor"]}><AdminTestimonies /></RequireAuth></Route>
+        <Route path="/pastor/sermons"><RequireAuth roles={["admin", "pastor"]}><AdminSermons /></RequireAuth></Route>
+        <Route path="/pastor/pipeline"><RequireAuth roles={["admin", "pastor"]}><AdminPipeline /></RequireAuth></Route>
+        <Route path="/pastor/communication"><RequireAuth roles={["admin", "pastor"]}><AdminCommunication /></RequireAuth></Route>
+        <Route path="/pastor/media"><RequireAuth roles={["admin", "pastor"]}><AdminMedia /></RequireAuth></Route>
+        <Route path="/pastor/reports"><RequireAuth roles={["admin", "pastor"]}><AdminReports /></RequireAuth></Route>
+        <Route path="/pastor/documents"><RequireAuth roles={["admin", "pastor"]}><AdminDocuments /></RequireAuth></Route>
+        <Route path="/pastor/groups"><RequireAuth roles={["admin", "pastor"]}><AdminGroups /></RequireAuth></Route>
 
         {/* ── Leadership portal ── */}
         <Route path="/leadership/dashboard"><RequireAuth roles={["admin", "leadership"]}><LeadershipDashboard /></RequireAuth></Route>

@@ -61,7 +61,7 @@ router.get("/groups", requireAuth, async (_req, res): Promise<void> => {
   res.json(groups.map(g => ({ ...g, createdAt: g.createdAt.toISOString(), updatedAt: g.updatedAt.toISOString() })));
 });
 
-router.post("/groups", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.post("/groups", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const { name, branchId, leaderName, leaderUserId, location, meetingDay, meetingTime, type, isActive } = req.body;
   if (!name || !branchId) { res.status(400).json({ error: "name and branchId required" }); return; }
   const [group] = await db.insert(groupsTable).values({
@@ -71,7 +71,7 @@ router.post("/groups", requireAuth, requireRole(["admin", "leadership"]), async 
   res.status(201).json({ ...group, createdAt: group.createdAt.toISOString(), updatedAt: group.updatedAt.toISOString() });
 });
 
-router.patch("/groups/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -90,7 +90,7 @@ router.patch("/groups/:id", requireAuth, requireRole(["admin", "leadership"]), a
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/groups/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.delete("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

@@ -7,7 +7,7 @@ import { logActivity } from "../lib/activityLog";
 const router = Router();
 
 // FIX: added pagination limit — unbounded query degrades at scale
-router.get("/finance", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.get("/finance", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const page = Math.max(0, Number((req.query.page as string) ?? 0));
   const limit = 200;
   const transactions = await db.select().from(transactionsTable)
@@ -17,7 +17,7 @@ router.get("/finance", requireAuth, requireRole(["admin"]), async (req, res): Pr
   res.json(transactions.map(t => ({ ...t, amount: Number(t.amount), createdAt: t.createdAt.toISOString() })));
 });
 
-router.post("/finance", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/finance", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const { type, amount, currency, memberId, memberName, description, category, branchId, date } = req.body;
   if (!type || !amount || !description || !category || !date) {
     res.status(400).json({ error: "type, amount, description, category, date required" }); return;
@@ -42,7 +42,7 @@ router.post("/finance", requireAuth, requireRole(["admin"]), async (req: AuthReq
   res.status(201).json({ ...tx, amount: Number(tx.amount), createdAt: tx.createdAt.toISOString() });
 });
 
-router.get("/finance/summary", requireAuth, requireRole(["admin", "leadership"]), async (_req, res): Promise<void> => {
+router.get("/finance/summary", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (_req, res): Promise<void> => {
   const all = await db.select().from(transactionsTable);
   const now = new Date();
   const thisMonth = now.getMonth();
@@ -69,7 +69,7 @@ router.get("/finance/summary", requireAuth, requireRole(["admin", "leadership"])
   });
 });
 
-router.delete("/finance/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+router.delete("/finance/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

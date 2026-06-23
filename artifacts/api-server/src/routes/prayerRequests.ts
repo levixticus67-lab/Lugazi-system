@@ -35,7 +35,7 @@ router.post("/prayer-requests", requireAuth, async (req: AuthRequest, res): Prom
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() });
 });
 
-router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const { status, adminNote } = req.body;
@@ -47,7 +47,7 @@ router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "leaders
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/prayer-requests/:id", requireAuth, requireRole(["admin"]), async (req, res): Promise<void> => {
+router.delete("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   await db.delete(prayerRequestsTable).where(eq(prayerRequestsTable.id, id));

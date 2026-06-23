@@ -27,7 +27,7 @@ import { Router } from "express";
     })));
   });
 
-  router.post("/tasks", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  router.post("/tasks", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
     const { title, description, assignedToUserId, assignedToName, dueDate, priority, category, notes } = req.body;
     if (!title?.trim()) { res.status(400).json({ error: "Title is required" }); return; }
     const [me] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
@@ -69,7 +69,7 @@ import { Router } from "express";
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString(), completedAt: updated.completedAt?.toISOString() ?? null });
   });
 
-  router.delete("/tasks/:id", requireAuth, requireRole(["admin", "leadership"]), async (req, res): Promise<void> => {
+  router.delete("/tasks/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
     const id = Number(req.params.id as string);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     await db.delete(tasksTable).where(eq(tasksTable.id, id));

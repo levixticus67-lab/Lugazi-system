@@ -40,7 +40,7 @@ router.get("/announcements", requireAuth, async (req: AuthRequest, res): Promise
   })));
 });
 
-router.post("/announcements", requireAuth, requireRole(["admin", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/announcements", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const {
     title, message, audience, sentBy, type,
     mediaUrl, mediaType, bgGradient, linkUrl, linkLabel, expiresAt, isPinned,
@@ -68,7 +68,7 @@ router.post("/announcements", requireAuth, requireRole(["admin", "leadership"]),
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null });
 });
 
-router.patch("/announcements/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+router.patch("/announcements/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id);
   const { title, message, audience, type, mediaUrl, mediaType, bgGradient, linkUrl, linkLabel, expiresAt, isPinned } = req.body;
   const [record] = await db.update(announcementsTable).set({
@@ -88,7 +88,7 @@ router.patch("/announcements/:id", requireAuth, requireRole(["admin"]), async (r
   res.json({ ...record, createdAt: record.createdAt.toISOString(), expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null });
 });
 
-router.delete("/announcements/:id", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+router.delete("/announcements/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   await db.delete(announcementsTable).where(eq(announcementsTable.id, Number(req.params.id)));
   res.json({ success: true });
 });
