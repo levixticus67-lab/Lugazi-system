@@ -14,17 +14,16 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   import ChurchValuesCard from "@/components/ChurchValuesCard";
   import { adminNavItems } from "./navItems";
   import {
-    Users, GitBranch, UsersRound, CalendarCheck, Wallet, Heart,
-    Bell, UserPlus, TrendingUp, Calendar, RefreshCw, Activity,
+    Users, UsersRound, CalendarCheck, Heart,
+    Bell, UserPlus, TrendingUp, Calendar, Activity,
   } from "lucide-react";
   import {
-    BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid,
+    Tooltip, ResponsiveContainer,
   } from "recharts";
 
   type ChartData = {
     weeklyAttendance: { week: string; count: number }[];
-    monthlyFinance: { month: string; income: number; expenses: number }[];
     memberGrowth: { month: string; members: number }[];
   };
 
@@ -32,12 +31,6 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
 
   const REFETCH_MS = 30_000;
   const ACTIVITY_REFETCH_MS = 15_000;
-
-  function formatUGX(n: number) {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-    return String(n);
-  }
 
   function LiveBadge({ updatedAt }: { updatedAt: Date | null }) {
     if (!updatedAt) return null;
@@ -52,7 +45,6 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   function ActivityIcon({ icon }: { icon: string }) {
     const cls = "h-4 w-4";
     if (icon === "user") return <UserPlus className={`${cls} text-blue-500`} />;
-    if (icon === "wallet") return <Wallet className={`${cls} text-green-500`} />;
     if (icon === "heart") return <Heart className={`${cls} text-rose-500`} />;
     if (icon === "calendar") return <Calendar className={`${cls} text-purple-500`} />;
     return <Activity className={`${cls} text-muted-foreground`} />;
@@ -90,8 +82,8 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
 
         {statsLoading ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
               ))}
             </div>
@@ -108,45 +100,27 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
               <BirthdayCard />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up">
-              <StatCard title="Total Members" value={stats.totalMembers} icon={<Users className="h-5 w-5" />} />
-              <StatCard title="Active Branches" value={stats.activeBranches} icon={<GitBranch className="h-5 w-5" />} />
-              <StatCard title="Cell Groups" value={stats.cellGroups} icon={<UsersRound className="h-5 w-5" />} />
-              <StatCard title="Attendance Today" value={stats.attendanceToday} icon={<CalendarCheck className="h-5 w-5" />} />
-              <StatCard title="Monthly Income (UGX)" value={formatUGX(Number(stats.monthlyIncome))} icon={<Wallet className="h-5 w-5" />} />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-slide-in-up">
+              <StatCard title="Total Members"  value={stats.totalMembers}           icon={<Users className="h-5 w-5" />} />
+              <StatCard title="Cell Groups"    value={stats.cellGroups}             icon={<UsersRound className="h-5 w-5" />} />
+              <StatCard title="Attendance Today" value={stats.attendanceToday}      icon={<CalendarCheck className="h-5 w-5" />} />
               <StatCard title="Pending Welfare" value={stats.pendingWelfareRequests} icon={<Heart className="h-5 w-5" />} />
-              <StatCard title="Role Requests" value={stats.pendingRoleRequests} icon={<Bell className="h-5 w-5" />} />
-              <StatCard title="New Members" value={stats.newMembersThisMonth} icon={<TrendingUp className="h-5 w-5" />} />
+              <StatCard title="Role Requests"  value={stats.pendingRoleRequests}    icon={<Bell className="h-5 w-5" />} />
+              <StatCard title="New Members"    value={stats.newMembersThisMonth}    icon={<TrendingUp className="h-5 w-5" />} />
             </div>
 
             {charts && !chartsLoading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="glass-card p-5 animate-slide-in-up card-hover">
-                  <h2 className="font-serif text-sm font-semibold mb-4 flex items-center gap-2"><CalendarCheck className="h-4 w-4 text-primary"/>Weekly Attendance</h2>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="glass-card p-5 animate-slide-in-up card-hover">
-                  <h2 className="font-serif text-sm font-semibold mb-4 flex items-center gap-2"><Wallet className="h-4 w-4 text-primary"/>Monthly Finance</h2>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={charts.monthlyFinance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v: number) => [`UGX ${formatUGX(v)}`, ""]} />
-                      <Legend />
-                      <Area type="monotone" dataKey="income" stroke="#22c55e" fill="#22c55e20" strokeWidth={2} />
-                      <Area type="monotone" dataKey="expenses" stroke="#ef4444" fill="#ef444420" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+              <div className="glass-card p-5 animate-slide-in-up card-hover">
+                <h2 className="font-serif text-sm font-semibold mb-4 flex items-center gap-2"><CalendarCheck className="h-4 w-4 text-primary"/>Weekly Attendance</h2>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
 
@@ -182,4 +156,3 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
       </PortalLayout>
     );
   }
-  
