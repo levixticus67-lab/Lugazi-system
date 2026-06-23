@@ -18,7 +18,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
     Bell, UserPlus, TrendingUp, Calendar, Activity,
   } from "lucide-react";
   import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid,
+    AreaChart, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
   } from "recharts";
 
@@ -113,13 +113,19 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
               <div className="glass-card p-5 animate-slide-in-up card-hover">
                 <h2 className="font-serif text-sm font-semibold mb-4 flex items-center gap-2"><CalendarCheck className="h-4 w-4 text-primary"/>Weekly Attendance</h2>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4,4,0,0]} />
-                  </BarChart>
+                  <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="grad-admin" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-admin)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+                </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
