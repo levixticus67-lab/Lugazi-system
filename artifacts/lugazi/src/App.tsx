@@ -44,6 +44,7 @@ import Privacy from "@/pages/Privacy";
   // Pastor pages
   import PastorDashboard from "@/pages/pastor/Dashboard";
   import PastorAttendance from "@/pages/pastor/Attendance";
+  import PastorReports from "@/pages/pastor/Reports";
 
   // Leadership pages
   import LeadershipDashboard from "@/pages/leadership/Dashboard";
@@ -204,7 +205,7 @@ import Privacy from "@/pages/Privacy";
         <Route path="/pastor/pipeline"><RequireAuth roles={["admin", "pastor"]}><AdminPipeline /></RequireAuth></Route>
         <Route path="/pastor/communication"><RequireAuth roles={["admin", "pastor"]}><AdminCommunication /></RequireAuth></Route>
         <Route path="/pastor/media"><RequireAuth roles={["admin", "pastor"]}><AdminMedia /></RequireAuth></Route>
-        <Route path="/pastor/reports"><RequireAuth roles={["admin", "pastor"]}><AdminReports /></RequireAuth></Route>
+        <Route path="/pastor/reports"><RequireAuth roles={["admin", "pastor"]}><PastorReports /></RequireAuth></Route>
         <Route path="/pastor/documents"><RequireAuth roles={["admin", "pastor"]}><AdminDocuments /></RequireAuth></Route>
         <Route path="/pastor/groups"><RequireAuth roles={["admin", "pastor"]}><AdminGroups /></RequireAuth></Route>
 
