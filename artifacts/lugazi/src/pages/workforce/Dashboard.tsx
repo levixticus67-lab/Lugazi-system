@@ -62,19 +62,18 @@ import { useGetMemberStats } from "@workspace/api-client-react";
               <StatCard title="Upcoming Events" value={stats.upcomingEvents} icon={<CalendarDays className="h-5 w-5" />} />
             </div>
 
-            {charts && (
-              <div className="glass-card p-5 animate-slide-in-up stagger-2 card-hover">
+            <div className="glass-card p-5 animate-slide-in-up stagger-2 card-hover">
                 <div className="flex items-center gap-2 mb-4">
                   <CalendarCheck className="h-4 w-4 text-primary" />
-                  <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
+                  <h2 className="font-serif text-sm font-semibold">My Engagement</h2>
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <RadarChart cx="50%" cy="50%" outerRadius="65%" data={[
-                    { metric: "Attendance",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 50) * 100)) },
-                    { metric: "My Giving", score: Math.min(100, Math.round((Number(stats?.myGivingTotal ?? 0) / 500_000) * 100)) },
-                    { metric: "Events",      score: Math.min(100, (stats?.upcomingEvents ?? 0) * 20) },
-                    { metric: "Welfare",     score: Math.max(0, 100 - (stats?.pendingWelfareRequests ?? 0) * 25) },
-                    { metric: "Commitment",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 52) * 100)) },
+                    { metric: "Attendance",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 4) * 100)) },
+                    { metric: "My Giving",   score: Math.min(100, Math.round((Number(stats?.myGivingTotal ?? 0) / 50_000) * 100)) },
+                    { metric: "Events",      score: Math.min(100, (stats?.upcomingEvents ?? 0) * 25) },
+                    { metric: "Welfare",     score: Math.min(100, (stats?.pendingWelfareRequests ?? 0) * 25) },
+                    { metric: "Commitment",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 5) * 100)) },
                   ]}>
                     <PolarGrid stroke="var(--border)" />
                     <PolarAngleAxis dataKey="metric" tick={{ fontSize: 9 }} />
@@ -84,7 +83,7 @@ import { useGetMemberStats } from "@workspace/api-client-react";
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
-            )}
+            
 
             <ChurchValuesCard />
           </div>
