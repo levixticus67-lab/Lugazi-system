@@ -15,8 +15,8 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   import { leadershipNavItems } from "./navItems";
   import { Users, CalendarCheck, Heart, CalendarDays } from "lucide-react";
   import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer,
+    RadialBarChart, RadialBar, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+    Tooltip, Legend, ResponsiveContainer,
   } from "recharts";
 
   type ChartData = {
@@ -70,19 +70,15 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                     <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
                   </div>
                   <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="grad-lead-attend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(v: number) => [v, "Attendance"]} />
-                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-lead-attend)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
-                </AreaChart>
+                    <RadialBarChart cx="50%" cy="55%" innerRadius="20%" outerRadius="88%"
+                      data={(charts?.weeklyAttendance ?? []).slice(-4).map((w, i) => ({
+                        name: w.week, count: w.count,
+                        fill: ["#3b82f6","#8b5cf6","#10b981","#f59e0b"][i],
+                      }))}>
+                      <RadialBar dataKey="count" cornerRadius={6} label={false} />
+                      <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                      <Tooltip formatter={(v: number) => [v, "Attendance"]} />
+                    </RadialBarChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="glass-card p-5 card-hover">
