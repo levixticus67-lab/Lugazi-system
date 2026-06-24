@@ -15,8 +15,8 @@ import { useGetMemberStats } from "@workspace/api-client-react";
   import { workforceNavItems } from "./navItems";
   import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
   import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer,
+    RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  Tooltip, ResponsiveContainer,
   } from "recharts";
 
   type ChartData = {
@@ -68,20 +68,20 @@ import { useGetMemberStats } from "@workspace/api-client-react";
                   <CalendarCheck className="h-4 w-4 text-primary" />
                   <h2 className="font-serif text-sm font-semibold">Weekly Attendance</h2>
                 </div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="grad-work" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(v: number) => [v, "Attendance"]} />
-                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-work)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
-                </AreaChart>
+                <ResponsiveContainer width="100%" height={220}>
+                  <RadarChart cx="50%" cy="50%" outerRadius="65%" data={[
+                    { metric: "Attendance",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 50) * 100)) },
+                    { metric: "Giving",      score: Math.min(100, Math.round((Number(stats?.myGivingTotal ?? 0) / 500_000) * 100)) },
+                    { metric: "Events",      score: Math.min(100, (stats?.upcomingEvents ?? 0) * 20) },
+                    { metric: "Welfare",     score: Math.max(0, 100 - (stats?.pendingWelfareRequests ?? 0) * 25) },
+                    { metric: "Commitment",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 52) * 100)) },
+                  ]}>
+                    <PolarGrid stroke="var(--border)" />
+                    <PolarAngleAxis dataKey="metric" tick={{ fontSize: 9 }} />
+                    <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                    <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} strokeWidth={2} />
+                    <Tooltip formatter={(v: number) => [`${v}%`, "Score"]} />
+                  </RadarChart>
                 </ResponsiveContainer>
               </div>
             )}
