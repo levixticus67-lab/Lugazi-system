@@ -71,7 +71,7 @@ import { useGetMemberStats } from "@workspace/api-client-react";
                 <ResponsiveContainer width="100%" height={220}>
                   <RadarChart cx="50%" cy="50%" outerRadius="65%" data={[
                     { metric: "Attendance",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 50) * 100)) },
-                    { metric: "Giving",      score: Math.min(100, Math.round((Number(stats?.myGivingTotal ?? 0) / 500_000) * 100)) },
+                    { metric: "My Giving", score: Math.min(100, Math.round((Number(stats?.myGivingTotal ?? 0) / 500_000) * 100)) },
                     { metric: "Events",      score: Math.min(100, (stats?.upcomingEvents ?? 0) * 20) },
                     { metric: "Welfare",     score: Math.max(0, 100 - (stats?.pendingWelfareRequests ?? 0) * 25) },
                     { metric: "Commitment",  score: Math.min(100, Math.round(((stats?.myAttendanceCount ?? 0) / 52) * 100)) },
