@@ -3,7 +3,7 @@ import axios from "@/lib/axios";
 import { Cake, Users } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 
 interface Member {
@@ -132,13 +132,19 @@ export default function BirthdayCard() {
           <div>
             <p className="text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">Birthdays by month</p>
             <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={monthData} margin={{ top: 0, right: 4, left: -24, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+              <AreaChart data={monthData} margin={{ top: 0, right: 4, left: -24, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad-bday" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f472b6" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#f472b6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9 }} allowDecimals={false} axisLine={false} tickLine={false} />
                 <Tooltip formatter={(v: number) => [`${v}`, "Members"]} />
-                <Bar dataKey="count" fill="#f472b6" radius={[3, 3, 0, 0]} />
-              </BarChart>
+                <Area type="monotone" dataKey="count" stroke="#f472b6" strokeWidth={2} fill="url(#grad-bday)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
