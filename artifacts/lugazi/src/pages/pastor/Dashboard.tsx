@@ -14,7 +14,7 @@ import CellLeaderCard from "@/components/CellLeaderCard";
 import ChurchValuesCard from "@/components/ChurchValuesCard";
 import { pastorNavItems } from "./navItems";
 import { Users, UsersRound, CalendarCheck, Heart, Bell, TrendingUp, Calendar, Activity } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 type ChartData = { weeklyAttendance: { week: string; count: number }[] };
 type ActivityItem = { type: string; description: string; date: string; icon: string };
@@ -80,19 +80,20 @@ export default function PastorDashboard() {
                 <CalendarCheck className="h-4 w-4 text-primary" />Weekly Attendance
               </h2>
               <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="grad-pastor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
+                <LineChart
+                  data={(charts?.weeklyAttendance ?? []).map((d, i, arr) => ({
+                    ...d,
+                    avg: Math.round(arr.slice(Math.max(0,i-2),i+1).reduce((s,x)=>s+x.count,0)/Math.min(i+1,3)),
+                  }))}
+                  margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
                   <Tooltip />
-                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-pastor)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
-                </AreaChart>
+                  <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
+                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(var(--primary))" }} name="Attendance" />
+                  <Line type="monotone" dataKey="avg" stroke="#10b981" strokeWidth={2} strokeDasharray="6 3" dot={false} name="3-Wk Avg" />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           )}
