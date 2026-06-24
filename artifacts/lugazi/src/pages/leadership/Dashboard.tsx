@@ -15,7 +15,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   import { leadershipNavItems } from "./navItems";
   import { Users, CalendarCheck, Heart, CalendarDays } from "lucide-react";
   import {
-    RadialBarChart, RadialBar, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+    RadialBarChart, RadialBar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, Legend, ResponsiveContainer,
   } from "recharts";
 
@@ -71,11 +71,13 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                   </div>
                   <ResponsiveContainer width="100%" height={180}>
                     <RadialBarChart cx="50%" cy="55%" innerRadius="20%" outerRadius="88%"
-                      data={(charts?.weeklyAttendance ?? []).slice(-4).map((w, i) => ({
-                        name: w.week, count: w.count,
-                        fill: ["#3b82f6","#8b5cf6","#10b981","#f59e0b"][i],
-                      }))}>
-                      <RadialBar dataKey="count" cornerRadius={6} label={false} />
+                      data={(charts?.weeklyAttendance ?? []).slice(-4).map((w) => ({ name: w.week, count: w.count }))}>
+                      <RadialBar dataKey="count" cornerRadius={6} label={false}>
+                        <Cell fill="#3b82f6" />
+                        <Cell fill="#8b5cf6" />
+                        <Cell fill="#10b981" />
+                        <Cell fill="#f59e0b" />
+                      </RadialBar>
                       <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
                       <Tooltip formatter={(v: number) => [v, "Attendance"]} />
                     </RadialBarChart>
