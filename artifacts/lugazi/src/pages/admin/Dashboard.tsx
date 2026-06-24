@@ -18,7 +18,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
     Bell, UserPlus, TrendingUp, Calendar, Activity,
   } from "lucide-react";
   import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid,
+    ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
   } from "recharts";
 
@@ -113,19 +113,20 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
               <div className="glass-card p-5 animate-slide-in-up card-hover">
                 <h2 className="font-serif text-sm font-semibold mb-4 flex items-center gap-2"><CalendarCheck className="h-4 w-4 text-primary"/>Weekly Attendance</h2>
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={charts.weeklyAttendance} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <ComposedChart data={charts.weeklyAttendance.map((d, i, arr) => ({ ...d, avg: Math.round(arr.slice(Math.max(0,i-2),i+1).reduce((s,x)=>s+x.count,0)/Math.min(i+1,3)) }))} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="grad-admin" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    <linearGradient id="grad-admin-bar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.85}/>
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.25}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
                   <Tooltip />
-                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-admin)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
-                </AreaChart>
+                  <Bar dataKey="count" fill="url(#grad-admin-bar)" radius={[4, 4, 0, 0]} name="Attendance" />
+                  <Line type="monotone" dataKey="avg" stroke="#f59e0b" strokeWidth={2.5} dot={false} name="3-Wk Avg" />
+                </ComposedChart>
                 </ResponsiveContainer>
               </div>
             )}
