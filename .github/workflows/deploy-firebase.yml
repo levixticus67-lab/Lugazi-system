@@ -32,6 +32,13 @@ jobs:
         with:
           version: latest
 
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}'
+          token_format: 'access_token'
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
@@ -45,10 +52,8 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-          projectId: lugazi-system1
-          channelId: live
-          entryPoint: artifacts/lugazi
+        run: |
+          cd artifacts/lugazi
+          npx firebase-tools@13.29.0 deploy --only hosting --project lugazi-system1
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
