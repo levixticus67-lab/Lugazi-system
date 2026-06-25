@@ -32,16 +32,13 @@ jobs:
         with:
           version: latest
 
-      - name: Write service account credentials
-        env:
-          SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          printf '%s' "$SERVICE_ACCOUNT_JSON" > /tmp/firebase-sa.json
-          echo "File size: $(wc -c < /tmp/firebase-sa.json) bytes"
-          node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/firebase-sa.json','utf8')); console.log('OK — type:', j.type, '| project:', j.project_id, '| email:', j.client_email, '| token_uri:', j.token_uri)"
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
 
-      - name: Install firebase-tools globally
-        run: npm install -g firebase-tools@13.29.0
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
@@ -57,9 +54,6 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         run: |
-          echo "GOOGLE_APPLICATION_CREDENTIALS = $GOOGLE_APPLICATION_CREDENTIALS"
-          echo "File exists: $(test -f "$GOOGLE_APPLICATION_CREDENTIALS" && echo YES || echo NO)"
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
           cd artifacts/lugazi
-          firebase deploy --only hosting --project lugazi-system1
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa.json
+          GOOGLE_OAUTH_ACCESS_TOKEN="$ACCESS_TOKEN" npx firebase-tools@13.29.0 deploy --only hosting --project lugazi-system1
