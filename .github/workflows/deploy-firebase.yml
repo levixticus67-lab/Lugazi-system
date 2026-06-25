@@ -44,12 +44,11 @@ jobs:
           NODE_ENV: production
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
-      - name: Write Google credentials
-        run: echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}' > /tmp/gha-firebase-creds.json
-
       - name: Deploy to Firebase Hosting
-        run: |
-          cd artifacts/lugazi
-          npx firebase-tools@13.29.0 deploy --only hosting --project lugazi-system1
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gha-firebase-creds.json
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          projectId: lugazi-system1
+          channelId: live
+          entryPoint: artifacts/lugazi
