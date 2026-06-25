@@ -32,6 +32,11 @@ jobs:
         with:
           version: latest
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
@@ -47,6 +52,4 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: |
           cd artifacts/lugazi
-          npx firebase-tools@latest deploy --only hosting --project lugazi-system1
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          npx firebase-tools@13.29.0 deploy --only hosting --project lugazi-system1
