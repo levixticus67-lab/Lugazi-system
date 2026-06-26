@@ -38,9 +38,7 @@ jobs:
         with:
           credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           token_format: 'access_token'
-          access_token_scopes: >-
-            https://www.googleapis.com/auth/cloud-platform
-            https://www.googleapis.com/auth/firebase
+          access_token_scopes: 'https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase'
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
