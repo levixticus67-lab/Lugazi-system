@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sql, eq, desc } from "drizzle-orm";
+import { sql, eq, desc, inArray } from "drizzle-orm";
 import {
   db, usersTable, membersTable, branchesTable, groupsTable,
   attendanceTable, transactionsTable, welfareTable, roleRequestsTable, eventsTable,
@@ -126,9 +126,17 @@ router.get("/dashboard/activity", requireAuth, async (req: AuthRequest, res): Pr
     return;
   }
 
+  const PASTOR_ACTIONS = [
+    "create_announcement", "delete_announcement",
+    "create_event", "delete_event",
+    "welfare_submitted", "welfare_updated", "welfare_deleted",
+  ];
+  const isPastor = req.userRole === "pastor";
+
   const logs = await db
     .select()
     .from(activityLogsTable)
+    .where(isPastor ? inArray(activityLogsTable.action, PASTOR_ACTIONS) : undefined)
     .orderBy(desc(activityLogsTable.createdAt))
     .limit(10);
 
@@ -155,7 +163,14 @@ router.get("/dashboard/activity", requireAuth, async (req: AuthRequest, res): Pr
       case "delete_announcement": return { description: `${who} removed announcement: ${entity}`,                   icon: "calendar" };
       case "create_transaction":  return { description: `${who} recorded transaction${entity ? ": " + entity : ""}`, icon: "calendar" };
       case "delete_transaction":  return { description: `${who} deleted transaction${entity ? ": " + entity : ""}`, icon: "calendar" };
-      default:                    return { description: l.details ?? `${who}: ${l.action}`,                         icon: "activity" };
+      case "create_sermon":           return { description: `${who} uploaded sermon: ${entity}`,                        icon: "calendar" };
+      case "delete_sermon":           return { description: `${who} deleted sermon: ${entity}`,                         icon: "calendar" };
+      case "attendance_recorded":     return { description: `${who} recorded attendance for ${entity}`,                  icon: "user" };
+      case "qr_checkin":              return { description: `${entity} checked in via QR at ${l.details ?? "event"}`,   icon: "user" };
+      case "role_request_submitted":  return { description: `${who} requested role upgrade to ${entity}`,               icon: "user" };
+      case "role_request_approved":   return { description: `${who} approved role upgrade for ${entity}`,               icon: "user" };
+      case "role_request_rejected":   return { description: `${who} rejected role request for ${entity}`,               icon: "user" };
+      default:                        return { description: l.details ?? `${who}: ${l.action}`,                         icon: "activity" };
     }
   }
 

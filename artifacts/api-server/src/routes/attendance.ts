@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { eq, desc, asc, sql } from "drizzle-orm";
-import { db, attendanceTable, membersTable } from "@workspace/db";
+import { db, attendanceTable, membersTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -77,6 +78,9 @@ router.post("/attendance", requireAuth, requireRole(["admin", "leadership", "wor
     }
   }
 
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Staff", action: "attendance_recorded", entityType: "attendance", entityId: record.id, entityName: member.fullName, details: `${eventName} — ${method}`, ipAddress: req.ip ?? "unknown" });
+
   res.status(201).json({ ...record, checkedInAt: record.checkedInAt.toISOString() });
 });
 
@@ -110,6 +114,9 @@ router.post("/attendance/qr-scan", requireAuth, requireRole(["admin", "leadershi
       await db.execute(sql`UPDATE events SET attendee_count = attendee_count + 1 WHERE id = ${safeId}`);
     }
   }
+
+  const [qrActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({ userId: req.userId!, displayName: qrActor?.displayName ?? "Staff", action: "qr_checkin", entityType: "attendance", entityId: record.id, entityName: member.fullName, details: eventName, ipAddress: req.ip ?? "unknown" });
 
   res.status(201).json({ ...record, checkedInAt: record.checkedInAt.toISOString() });
 });

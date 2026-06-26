@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, roleRequestsTable, usersTable, membersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -61,6 +62,8 @@ router.post("/role-requests", requireAuth, async (req: AuthRequest, res): Promis
     status: "pending",
   }).returning();
 
+  await logActivity({ userId: req.userId!, displayName: user?.displayName ?? "Member", action: "role_request_submitted", entityType: "role_request", entityId: created.id, entityName: requestedRole, details: reason ?? undefined, ipAddress: req.ip ?? "unknown" });
+
   res.status(201).json({
     ...created,
     userEmail: user?.email ?? null,
@@ -89,6 +92,8 @@ router.patch("/role-requests/:id/approve", requireAuth, requireRole(["admin"]), 
   await db.update(membersTable).set({ role: request.requestedRole }).where(eq(membersTable.userId, request.userId));
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, request.userId)).limit(1);
+  const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, (req as AuthRequest).userId!)).limit(1);
+  await logActivity({ userId: (req as AuthRequest).userId!, displayName: adminActor?.displayName ?? "Admin", action: "role_request_approved", entityType: "role_request", entityId: id, entityName: user?.displayName ?? undefined, details: `Approved role: ${request.requestedRole}`, ipAddress: req.ip ?? "unknown" });
 
   res.json({
     ...updated,
@@ -114,6 +119,8 @@ router.patch("/role-requests/:id/reject", requireAuth, requireRole(["admin"]), a
 
   if (!updated) { res.status(404).json({ error: "Request not found" }); return; }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, updated.userId)).limit(1);
+  const [rejectActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, (req as AuthRequest).userId!)).limit(1);
+  await logActivity({ userId: (req as AuthRequest).userId!, displayName: rejectActor?.displayName ?? "Admin", action: "role_request_rejected", entityType: "role_request", entityId: id, entityName: user?.displayName ?? undefined, details: adminNote ?? undefined, ipAddress: req.ip ?? "unknown" });
 
   res.json({
     ...updated,

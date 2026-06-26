@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { desc, eq } from "drizzle-orm";
-import { db, sermonsTable } from "@workspace/db";
+import { db, sermonsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -20,6 +21,8 @@ router.post("/sermons", requireAuth, requireRole(["admin", "pastor", "leadership
     title, preacher, sermonDate, series, description, mediaUrl, mediaType: mediaType || "audio",
     thumbnailUrl, scriptureRef, branchId, createdBy: req.userId,
   }).returning();
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "create_sermon", entityType: "sermon", entityId: sermon.id, entityName: title, ipAddress: req.ip ?? "unknown" });
   res.status(201).json({ ...sermon, createdAt: sermon.createdAt.toISOString(), updatedAt: sermon.updatedAt.toISOString() });
 });
 
@@ -42,10 +45,13 @@ router.patch("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leade
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+router.delete("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ title: sermonsTable.title }).from(sermonsTable).where(eq(sermonsTable.id, id)).limit(1);
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await db.delete(sermonsTable).where(eq(sermonsTable.id, id));
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "delete_sermon", entityType: "sermon", entityId: id, entityName: existing?.title, ipAddress: req.ip ?? "unknown" });
   res.sendStatus(204);
 });
 

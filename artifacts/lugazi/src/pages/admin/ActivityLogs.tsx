@@ -40,8 +40,15 @@ const ACTION_META: Record<string, { label: string; color: "default" | "success" 
   welfare_deleted:      { label: "Welfare Deleted",      color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
   create_giving:        { label: "Giving Recorded",      color: "success",  icon: <Wallet className="h-3.5 w-3.5" /> },
   delete_giving:        { label: "Giving Deleted",       color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
-  create_announcement:  { label: "Announcement Posted",  color: "success",  icon: <Bell className="h-3.5 w-3.5" /> },
-  delete_announcement:  { label: "Announcement Removed", color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  create_announcement:     { label: "Announcement Posted",   color: "success",  icon: <Bell className="h-3.5 w-3.5" /> },
+  delete_announcement:     { label: "Announcement Removed",  color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  create_sermon:           { label: "Sermon Added",           color: "success",  icon: <Calendar className="h-3.5 w-3.5" /> },
+  delete_sermon:           { label: "Sermon Deleted",         color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  attendance_recorded:     { label: "Attendance Recorded",    color: "default",  icon: <UserPlus className="h-3.5 w-3.5" /> },
+  qr_checkin:              { label: "QR Check-in",            color: "default",  icon: <UserPlus className="h-3.5 w-3.5" /> },
+  role_request_submitted:  { label: "Role Request",           color: "default",  icon: <UserCog className="h-3.5 w-3.5" /> },
+  role_request_approved:   { label: "Role Request Approved",  color: "success",  icon: <UserCog className="h-3.5 w-3.5" /> },
+  role_request_rejected:   { label: "Role Request Rejected",  color: "danger",   icon: <UserCog className="h-3.5 w-3.5" /> },
 };
 
 function getMeta(action: string) {

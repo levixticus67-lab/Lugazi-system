@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, transactionsTable } from "@workspace/db";
+import { db, transactionsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
 
@@ -28,9 +28,10 @@ router.post("/finance", requireAuth, requireRole(["admin", "pastor"]), async (re
     branchId, recordedBy: req.userId, date,
   }).returning();
 
+  const [finActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
+    displayName: finActor?.displayName ?? `User #${req.userId}`,
     action: "create_transaction",
     entityType: "transaction",
     entityId: tx.id,
@@ -77,9 +78,10 @@ router.delete("/finance/:id", requireAuth, requireRole(["admin", "pastor"]), asy
   const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id)).limit(1);
   await db.delete(transactionsTable).where(eq(transactionsTable.id, id));
 
+  const [delActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
+    displayName: delActor?.displayName ?? `User #${req.userId}`,
     action: "delete_transaction",
     entityType: "transaction",
     entityId: id,
