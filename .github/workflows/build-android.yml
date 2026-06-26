@@ -26,13 +26,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Install Android SDK build tools
+        run: |
+          # ubuntu-latest already has Android SDK at $ANDROID_HOME.
+          # We just need to install the specific packages Bubblewrap requires.
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "build-tools;35.0.0" \
+            "platforms;android-35" \
+            "platform-tools" 2>&1 | tail -5
 
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
@@ -40,12 +47,12 @@ jobs:
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
 
-      - name: Configure Bubblewrap
+      - name: Configure Bubblewrap (skip JDK/SDK prompts)
         run: |
           mkdir -p ~/.bubblewrap
           printf '{\n  "jdkPath": "%s",\n  "androidSdkPath": "%s"\n}\n' \
             "$JAVA_HOME" "$ANDROID_HOME" > ~/.bubblewrap/config.json
-          echo "Bubblewrap config:"
+          echo "Bubblewrap config written:"
           cat ~/.bubblewrap/config.json
 
       - name: Create TWA manifest
