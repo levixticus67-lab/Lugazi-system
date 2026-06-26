@@ -21,7 +21,7 @@ router.get("/media", requireAuth, async (_req, res): Promise<void> => {
 });
 
 // Get Cloudinary upload signature for direct browser upload
-router.get("/media/upload-signature", requireAuth, requireRole(["admin", "leadership", "workforce"]), async (_req, res): Promise<void> => {
+router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce"]), async (_req, res): Promise<void> => {
   const config = getCloudinaryConfig();
   const timestamp = Math.round(new Date().getTime() / 1000);
   const folder = "dcl-lugazi";
@@ -30,7 +30,7 @@ router.get("/media/upload-signature", requireAuth, requireRole(["admin", "leader
   res.json({ signature, timestamp, cloudName: config.cloud_name, apiKey: config.api_key });
 });
 
-router.post("/media", requireAuth, requireRole(["admin", "leadership", "workforce"]), async (req: AuthRequest, res): Promise<void> => {
+router.post("/media", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce"]), async (req: AuthRequest, res): Promise<void> => {
   const { title, type, url, thumbnailUrl, description, cloudinaryId } = req.body;
   if (!title || !type || !url) {
     res.status(400).json({ error: "title, type, url required" }); return;
