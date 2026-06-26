@@ -40,85 +40,74 @@ jobs:
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
 
-      - name: Create TWA manifest from live PWA
+      - name: Create TWA manifest
         run: |
-          node << 'EOF'
-          const https = require('https');
-          const fs = require('fs');
-          https.get('https://lugazi-system1.web.app/manifest.json', res => {
-            let d = '';
-            res.on('data', c => d += c);
-            res.on('end', () => {
-              const m = JSON.parse(d);
-              const icons = (m.icons || []).sort((a,b) => {
-                const sa = parseInt((a.sizes||'0x0').split('x')[0]);
-                const sb = parseInt((b.sizes||'0x0').split('x')[0]);
-                return sb - sa;
-              });
-              const maskable = icons.find(i => (i.purpose||'').includes('maskable')) || icons[0];
-              const any = icons.find(i => !(i.purpose||'').includes('maskable')) || icons[0];
-              const base = 'https://lugazi-system1.web.app';
-              const twa = {
-                packageId: 'app.web.lugazi_system1.twa',
-                host: 'lugazi-system1.web.app',
-                name: m.name || 'DC Lugazi',
-                launcherName: (m.short_name || m.name || 'Lugazi').substring(0, 12),
-                display: m.display || 'standalone',
-                orientation: m.orientation || 'default',
-                themeColor: m.theme_color || '#FFFFFF',
-                backgroundColor: m.background_color || '#FFFFFF',
-                navigationColor: m.theme_color || '#000000',
-                navigationColorDark: '#000000',
-                navigationDividerColor: '#000000',
-                navigationDividerColorDark: '#000000',
-                enableNotifications: false,
-                startUrl: m.start_url || '/',
-                iconUrl: any ? base + any.src : '',
-                maskableIconUrl: maskable ? base + maskable.src : '',
-                monochromeIconUrl: '',
-                splashScreenFadeOutDuration: 300,
-                signing: {
-                  keystore: '/tmp/signing.keystore',
-                  alias: process.env.KEY_ALIAS,
-                  keyPassword: process.env.KEY_PASSWORD,
-                  storePassword: process.env.KEYSTORE_PASSWORD
-                },
-                appVersionCode: parseInt(process.env.GITHUB_RUN_NUMBER || '1') + 1,
-                appVersionName: '1.0.' + (process.env.GITHUB_RUN_NUMBER || '1'),
-                shortcuts: [],
-                generatorApp: 'pwa-builder',
-                webManifestUrl: 'https://lugazi-system1.web.app/manifest.json',
-                fallbackType: 'customtabs',
-                features: {},
-                alphaDependencies: { enabled: false },
-                enableSiteSettingsShortcut: true,
-                isChromeOSOnly: false,
-                isMetaQuest: false,
-                fullScopeUrl: 'https://lugazi-system1.web.app/',
-                minSdkVersion: 21,
-                sdkVersion: 35
-              };
-              fs.mkdirSync('twa-build', { recursive: true });
-              fs.writeFileSync('twa-build/twa-manifest.json', JSON.stringify(twa, null, 2));
-              console.log('Created twa-manifest.json');
-              console.log('App name:', twa.name);
-              console.log('Icon URL:', twa.iconUrl);
-            });
-          }).on('error', e => { console.error(e); process.exit(1); });
+          mkdir -p twa-build
+          cat > twa-build/twa-manifest.json << EOF
+          {
+            "packageId": "app.web.lugazi_system1.twa",
+            "host": "lugazi-system1.web.app",
+            "name": "DC Lugazi",
+            "launcherName": "DC Lugazi",
+            "display": "standalone",
+            "orientation": "portrait",
+            "themeColor": "#6D1F3C",
+            "backgroundColor": "#ffffff",
+            "navigationColor": "#6D1F3C",
+            "navigationColorDark": "#6D1F3C",
+            "navigationDividerColor": "#6D1F3C",
+            "navigationDividerColorDark": "#6D1F3C",
+            "enableNotifications": false,
+            "startUrl": "/",
+            "iconUrl": "https://lugazi-system1.web.app/icons/icon-512x512.png",
+            "maskableIconUrl": "https://lugazi-system1.web.app/icons/icon-512x512-maskable.png",
+            "monochromeIconUrl": "",
+            "splashScreenFadeOutDuration": 300,
+            "signing": {
+              "keystore": "/tmp/signing.keystore",
+              "alias": "${{ secrets.KEY_ALIAS }}",
+              "keyPassword": "${{ secrets.KEY_PASSWORD }}",
+              "storePassword": "${{ secrets.KEYSTORE_PASSWORD }}"
+            },
+            "appVersionCode": ${{ github.run_number }},
+            "appVersionName": "1.0.${{ github.run_number }}",
+            "shortcuts": [
+              {
+                "name": "Members",
+                "shortName": "Members",
+                "url": "/members",
+                "icons": [{ "src": "https://lugazi-system1.web.app/icons/icon-96x96.png", "sizes": "96x96" }]
+              },
+              {
+                "name": "Attendance",
+                "shortName": "Attendance",
+                "url": "/attendance",
+                "icons": [{ "src": "https://lugazi-system1.web.app/icons/icon-96x96.png", "sizes": "96x96" }]
+              },
+              {
+                "name": "Finance",
+                "shortName": "Finance",
+                "url": "/finance",
+                "icons": [{ "src": "https://lugazi-system1.web.app/icons/icon-96x96.png", "sizes": "96x96" }]
+              }
+            ],
+            "generatorApp": "pwa-builder",
+            "webManifestUrl": "https://lugazi-system1.web.app/manifest.webmanifest",
+            "fallbackType": "customtabs",
+            "features": {},
+            "alphaDependencies": { "enabled": false },
+            "enableSiteSettingsShortcut": true,
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://lugazi-system1.web.app/",
+            "minSdkVersion": 21,
+            "sdkVersion": 35
+          }
           EOF
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build APK and AAB
         working-directory: twa-build
         run: bubblewrap build --skipPwaValidation
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          JAVA_HOME: ${{ env.JAVA_HOME }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
