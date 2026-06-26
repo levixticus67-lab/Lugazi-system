@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "lugazi-system",
+    "site": "lugazi-system1",
     "public": "dist",
     "ignore": [
       "firebase.json",
