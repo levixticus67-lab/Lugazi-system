@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { desc, or, eq, and, isNull, gt } from "drizzle-orm";
-import { db, announcementsTable } from "@workspace/db";
+import { db, announcementsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -65,6 +66,8 @@ router.post("/announcements", requireAuth, requireRole(["admin", "pastor", "lead
     isPinned: isPinned ?? false,
   }).returning();
   logger.info({ id: record.id, type: record.type }, "Announcement created");
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "create_announcement", entityType: "announcement", entityId: record.id, entityName: title.trim(), ipAddress: req.ip ?? "unknown" });
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null });
 });
 
@@ -89,7 +92,11 @@ router.patch("/announcements/:id", requireAuth, requireRole(["admin", "pastor"])
 });
 
 router.delete("/announcements/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
-  await db.delete(announcementsTable).where(eq(announcementsTable.id, Number(req.params.id)));
+  const id = Number(req.params.id);
+  const [existing] = await db.select({ title: announcementsTable.title }).from(announcementsTable).where(eq(announcementsTable.id, id)).limit(1);
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await db.delete(announcementsTable).where(eq(announcementsTable.id, id));
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "delete_announcement", entityType: "announcement", entityId: id, entityName: existing?.title, ipAddress: req.ip ?? "unknown" });
   res.json({ success: true });
 });
 

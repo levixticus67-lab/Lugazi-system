@@ -3,6 +3,7 @@ import { sql, eq, desc } from "drizzle-orm";
 import {
   db, usersTable, membersTable, branchesTable, groupsTable,
   attendanceTable, transactionsTable, welfareTable, roleRequestsTable, eventsTable,
+  activityLogsTable,
 } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
@@ -120,89 +121,50 @@ router.get("/dashboard/charts", requireAuth, requireRole(["admin", "leadership",
 });
 
 router.get("/dashboard/activity", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const userRole = (req as any).userRole as string | undefined;
-  if (userRole && !["admin", "leadership", "pastor"].includes(userRole)) {
+  if (!["admin", "leadership", "pastor"].includes(req.userRole ?? "")) {
     res.json([]);
     return;
   }
 
-  const [
-    recentMembers,
-    recentUsers,
-    recentTransactions,
-    recentWelfare,
-    recentEvents,
-    recentAttendance,
-    recentRoleRequests,
-  ] = await Promise.all([
-    db.select({ id: membersTable.id, fullName: membersTable.fullName, createdAt: membersTable.createdAt })
-      .from(membersTable).orderBy(desc(membersTable.createdAt)).limit(4),
-    db.select({ id: usersTable.id, displayName: usersTable.displayName, createdAt: usersTable.createdAt })
-      .from(usersTable).orderBy(desc(usersTable.createdAt)).limit(4),
-    db.select({ id: transactionsTable.id, type: transactionsTable.type, amount: transactionsTable.amount, description: transactionsTable.description, category: transactionsTable.category, createdAt: transactionsTable.createdAt })
-      .from(transactionsTable).orderBy(desc(transactionsTable.createdAt)).limit(4),
-    db.select({ id: welfareTable.id, reason: welfareTable.reason, status: welfareTable.status, createdAt: welfareTable.createdAt })
-      .from(welfareTable).orderBy(desc(welfareTable.createdAt)).limit(3),
-    db.select({ id: eventsTable.id, title: eventsTable.title, createdAt: eventsTable.createdAt })
-      .from(eventsTable).orderBy(desc(eventsTable.createdAt)).limit(3),
-    db.select({ id: attendanceTable.id, memberId: attendanceTable.memberId, checkedInAt: attendanceTable.checkedInAt })
-      .from(attendanceTable).orderBy(desc(attendanceTable.checkedInAt)).limit(3),
-    db.select({ id: roleRequestsTable.id, requestedRole: roleRequestsTable.requestedRole, status: roleRequestsTable.status, createdAt: roleRequestsTable.createdAt })
-      .from(roleRequestsTable).orderBy(desc(roleRequestsTable.createdAt)).limit(3),
-  ]);
+  const logs = await db
+    .select()
+    .from(activityLogsTable)
+    .orderBy(desc(activityLogsTable.createdAt))
+    .limit(10);
 
-  type ActivityItem = { type: string; description: string; date: string; icon: string };
+  function formatLog(l: typeof logs[number]): { description: string; icon: string } {
+    const who = l.displayName;
+    const entity = l.entityName ?? "";
+    switch (l.action) {
+      case "login":               return { description: `${who} logged in`,                                         icon: "user" };
+      case "register":            return { description: `${who} registered an account`,                             icon: "user" };
+      case "change_password":     return { description: `${who} changed their password`,                            icon: "user" };
+      case "create_member":       return { description: `${who} added member: ${entity}`,                           icon: "user" };
+      case "update_member":       return { description: `${who} updated member: ${entity}`,                         icon: "user" };
+      case "delete_member":       return { description: `${who} removed member: ${entity}`,                         icon: "user" };
+      case "change_role":         return { description: `${who} changed role — ${l.details ?? entity}`,             icon: "user" };
+      case "deactivate_user":     return { description: `${who} deactivated user: ${entity}`,                       icon: "user" };
+      case "create_event":        return { description: `${who} created event: ${entity}`,                          icon: "calendar" };
+      case "delete_event":        return { description: `${who} deleted event: ${entity}`,                          icon: "calendar" };
+      case "welfare_submitted":   return { description: `${who} submitted a welfare request`,                       icon: "heart" };
+      case "welfare_updated":     return { description: `${who} ${l.details ?? "updated"} welfare: ${entity}`,      icon: "heart" };
+      case "welfare_deleted":     return { description: `${who} removed welfare request: ${entity}`,                icon: "heart" };
+      case "create_giving":       return { description: `${who} recorded giving: ${entity}`,                        icon: "calendar" };
+      case "delete_giving":       return { description: `${who} deleted giving record: ${entity}`,                  icon: "calendar" };
+      case "create_announcement": return { description: `${who} posted announcement: ${entity}`,                    icon: "calendar" };
+      case "delete_announcement": return { description: `${who} removed announcement: ${entity}`,                   icon: "calendar" };
+      case "create_transaction":  return { description: `${who} recorded transaction${entity ? ": " + entity : ""}`, icon: "calendar" };
+      case "delete_transaction":  return { description: `${who} deleted transaction${entity ? ": " + entity : ""}`, icon: "calendar" };
+      default:                    return { description: l.details ?? `${who}: ${l.action}`,                         icon: "activity" };
+    }
+  }
 
-  const activities: ActivityItem[] = [
-    ...recentMembers.map((m) => ({
-      type: "member",
-      description: `${m.fullName} joined as a church member`,
-      date: m.createdAt.toISOString(),
-      icon: "user",
-    })),
-    ...recentUsers
-      .filter((u) => !recentMembers.some((m) => Math.abs(m.createdAt.getTime() - u.createdAt.getTime()) < 5000))
-      .map((u) => ({
-        type: "user",
-        description: `${u.displayName ?? "New user"} registered an account`,
-        date: u.createdAt.toISOString(),
-        icon: "user",
-      })),
-    ...recentTransactions.map((t) => ({
-      type: "transaction",
-      description: `${t.type === "expense" ? "Expense" : "Income"}: UGX ${Number(t.amount).toLocaleString()} — ${t.description ?? t.category ?? "Finance record"}`,
-      date: t.createdAt.toISOString(),
-      icon: "wallet",
-    })),
-    ...recentWelfare.map((w) => ({
-      type: "welfare",
-      description: `Welfare request (${w.status}): ${w.reason ?? "Support needed"}`,
-      date: w.createdAt.toISOString(),
-      icon: "heart",
-    })),
-    ...recentEvents.map((e) => ({
-      type: "event",
-      description: `Event created: ${e.title}`,
-      date: e.createdAt.toISOString(),
-      icon: "calendar",
-    })),
-    ...recentAttendance.map((a) => ({
-      type: "attendance",
-      description: `Attendance check-in recorded`,
-      date: a.checkedInAt.toISOString(),
-      icon: "calendar",
-    })),
-    ...recentRoleRequests.map((r) => ({
-      type: "role",
-      description: `Role upgrade request: ${r.requestedRole} (${r.status})`,
-      date: r.createdAt.toISOString(),
-      icon: "user",
-    })),
-  ]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 10);
-
-  res.json(activities);
+  res.json(
+    logs.map((l) => {
+      const { description, icon } = formatLog(l);
+      return { type: l.action, description, date: l.createdAt.toISOString(), icon };
+    })
+  );
 });
 
 

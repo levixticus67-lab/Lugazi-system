@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, eventsTable, attendanceTable } from "@workspace/db";
+import { db, eventsTable, attendanceTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -16,6 +17,8 @@ router.post("/events", requireAuth, requireRole(["admin", "pastor", "leadership"
     res.status(400).json({ error: "title, date, time, location, category required" }); return;
   }
   const [event] = await db.insert(eventsTable).values({ title, description, date, time, location, branchId, category, createdBy: req.userId }).returning();
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "create_event", entityType: "event", entityId: event.id, entityName: title, ipAddress: req.ip ?? "unknown" });
   res.status(201).json({ ...event, createdAt: event.createdAt.toISOString(), updatedAt: event.updatedAt.toISOString() });
 });
 
@@ -36,13 +39,15 @@ router.patch("/events/:id", requireAuth, requireRole(["admin", "pastor", "leader
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/events/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+router.delete("/events/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
-  // Auto-delete attendance records for this event first
+  const [existing] = await db.select({ title: eventsTable.title }).from(eventsTable).where(eq(eventsTable.id, id)).limit(1);
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await db.delete(attendanceTable).where(eq(attendanceTable.eventId, id));
   await db.delete(eventsTable).where(eq(eventsTable.id, id));
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "delete_event", entityType: "event", entityId: id, entityName: existing?.title, ipAddress: req.ip ?? "unknown" });
   res.sendStatus(204);
 });
 

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { desc, eq, sql } from "drizzle-orm";
-import { db, contributionsTable } from "@workspace/db";
+import { db, contributionsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -35,6 +36,8 @@ router.post("/giving", requireAuth, requireRole(["admin", "pastor", "leadership"
     reference, notes,
     recordedBy: req.userId,
   }).returning();
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "create_giving", entityType: "giving", entityId: record.id, entityName: memberName, details: `${type} — UGX ${Number(amount).toLocaleString()}`, ipAddress: req.ip ?? "unknown" });
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
@@ -42,7 +45,10 @@ router.post("/giving", requireAuth, requireRole(["admin", "pastor", "leadership"
 router.delete("/giving/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ memberName: contributionsTable.memberName, type: contributionsTable.type }).from(contributionsTable).where(eq(contributionsTable.id, id)).limit(1);
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await db.delete(contributionsTable).where(eq(contributionsTable.id, id));
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "delete_giving", entityType: "giving", entityId: id, entityName: existing?.memberName ?? undefined, details: existing?.type, ipAddress: req.ip ?? "unknown" });
   res.json({ success: true });
 });
 

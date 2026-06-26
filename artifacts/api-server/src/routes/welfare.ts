@@ -1,7 +1,8 @@
 import { Router } from "express";
   import { eq, desc } from "drizzle-orm";
-  import { db, welfareTable, membersTable } from "@workspace/db";
+  import { db, welfareTable, membersTable, usersTable } from "@workspace/db";
   import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+  import { logActivity } from "../lib/activityLog";
 
   const router = Router();
 
@@ -30,6 +31,7 @@ import { Router } from "express";
       amountRequested: amountRequested ? String(amountRequested) : null,
       status: "pending",
     }).returning();
+    await logActivity({ userId: req.userId!, displayName: member.fullName, action: "welfare_submitted", entityType: "welfare", entityId: record.id, entityName: category, ipAddress: req.ip ?? "unknown" });
     res.status(201).json({ ...record, amountRequested: record.amountRequested ? Number(record.amountRequested) : null, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() });
   });
 
@@ -41,6 +43,8 @@ import { Router } from "express";
     if (!status) { res.status(400).json({ error: "status required" }); return; }
     const [updated] = await db.update(welfareTable).set({ status, adminNote, reviewedBy: req.userId }).where(eq(welfareTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "Request not found" }); return; }
+    const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "welfare_updated", entityType: "welfare", entityId: id, entityName: updated.memberName ?? undefined, details: `Status set to ${status}`, ipAddress: req.ip ?? "unknown" });
     res.json({ ...updated, amountRequested: updated.amountRequested ? Number(updated.amountRequested) : null, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   });
 
@@ -50,7 +54,9 @@ import { Router } from "express";
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [existing] = await db.select().from(welfareTable).where(eq(welfareTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "Request not found" }); return; }
+    const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     await db.delete(welfareTable).where(eq(welfareTable.id, id));
+    await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "welfare_deleted", entityType: "welfare", entityId: id, entityName: existing.memberName ?? undefined, ipAddress: req.ip ?? "unknown" });
     res.sendStatus(204);
   });
 

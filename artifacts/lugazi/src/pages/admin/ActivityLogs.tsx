@@ -7,7 +7,7 @@ import { adminNavItems } from "./navItems";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/Badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, UserPlus, Trash2, PencilLine, LogIn, KeyRound, UserCog } from "lucide-react";
+import { Shield, UserPlus, Trash2, PencilLine, LogIn, KeyRound, UserCog, Calendar, Heart, Bell, Wallet } from "lucide-react";
 
 interface ActivityLog {
   id: number;
@@ -23,16 +23,25 @@ interface ActivityLog {
 }
 
 const ACTION_META: Record<string, { label: string; color: "default" | "success" | "warning" | "danger"; icon: React.ReactNode }> = {
-  login:              { label: "Login",            color: "success",  icon: <LogIn className="h-3.5 w-3.5" /> },
-  register:           { label: "Register",         color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },
-  change_password:    { label: "Password Change",  color: "warning",  icon: <KeyRound className="h-3.5 w-3.5" /> },
-  create_member:      { label: "Member Added",     color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },
-  update_member:      { label: "Member Edited",    color: "default",  icon: <PencilLine className="h-3.5 w-3.5" /> },
-  delete_member:      { label: "Member Deleted",   color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
-  create_transaction: { label: "Transaction Added",color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },
-  delete_transaction: { label: "Transaction Deleted", color: "danger", icon: <Trash2 className="h-3.5 w-3.5" /> },
-  change_role:        { label: "Role Changed",     color: "warning",  icon: <UserCog className="h-3.5 w-3.5" /> },
-  deactivate_user:    { label: "User Deactivated", color: "danger",   icon: <Shield className="h-3.5 w-3.5" /> },
+  login:                { label: "Login",                color: "success",  icon: <LogIn className="h-3.5 w-3.5" /> },
+  register:             { label: "Register",             color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },
+  change_password:      { label: "Password Change",      color: "warning",  icon: <KeyRound className="h-3.5 w-3.5" /> },
+  create_member:        { label: "Member Added",         color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },
+  update_member:        { label: "Member Edited",        color: "default",  icon: <PencilLine className="h-3.5 w-3.5" /> },
+  delete_member:        { label: "Member Deleted",       color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  create_transaction:   { label: "Transaction Added",    color: "success",  icon: <Wallet className="h-3.5 w-3.5" /> },
+  delete_transaction:   { label: "Transaction Deleted",  color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  change_role:          { label: "Role Changed",         color: "warning",  icon: <UserCog className="h-3.5 w-3.5" /> },
+  deactivate_user:      { label: "User Deactivated",     color: "danger",   icon: <Shield className="h-3.5 w-3.5" /> },
+  create_event:         { label: "Event Created",        color: "success",  icon: <Calendar className="h-3.5 w-3.5" /> },
+  delete_event:         { label: "Event Deleted",        color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  welfare_submitted:    { label: "Welfare Submitted",    color: "default",  icon: <Heart className="h-3.5 w-3.5" /> },
+  welfare_updated:      { label: "Welfare Updated",      color: "warning",  icon: <Heart className="h-3.5 w-3.5" /> },
+  welfare_deleted:      { label: "Welfare Deleted",      color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  create_giving:        { label: "Giving Recorded",      color: "success",  icon: <Wallet className="h-3.5 w-3.5" /> },
+  delete_giving:        { label: "Giving Deleted",       color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
+  create_announcement:  { label: "Announcement Posted",  color: "success",  icon: <Bell className="h-3.5 w-3.5" /> },
+  delete_announcement:  { label: "Announcement Removed", color: "danger",   icon: <Trash2 className="h-3.5 w-3.5" /> },
 };
 
 function getMeta(action: string) {
