@@ -14,7 +14,9 @@ on:
 jobs:
   build:
     name: Build and sign APK + AAB
-    runs-on: ubuntu-latest
+    # macOS runners have Android SDK pre-configured with the exact layout
+    # Bubblewrap expects (cmdline-tools/latest/ present and in PATH).
+    runs-on: macos-13
 
     steps:
       - name: Checkout repository
@@ -31,45 +33,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Prepare Android SDK for Bubblewrap
+      - name: Install required Android SDK packages
         run: |
-          echo "--- env ---"
+          # On macOS runners sdkmanager is already in PATH via cmdline-tools/latest/bin
+          yes | sdkmanager --licenses 2>/dev/null || true
+          sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools"
           echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "JAVA_HOME=$JAVA_HOME"
-
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          echo "--- SDK root contents ---"
-          ls "$SDK/" 2>/dev/null || echo "SDK root missing!"
-
-          echo "--- cmdline-tools ---"
-          ls "$SDK/cmdline-tools/" 2>/dev/null || echo "No cmdline-tools dir"
-
-          # Bubblewrap validates: $androidSdkPath/cmdline-tools/latest/bin/sdkmanager
-          # GitHub runners may have it under a version number instead of 'latest'.
-          # Create the 'latest' symlink when it is absent.
-          if [ ! -d "$SDK/cmdline-tools/latest" ]; then
-            AVAIL=$(ls "$SDK/cmdline-tools/" 2>/dev/null | sort -V | tail -1)
-            if [ -n "$AVAIL" ]; then
-              ln -sfn "$SDK/cmdline-tools/$AVAIL" "$SDK/cmdline-tools/latest"
-              echo "Created symlink: cmdline-tools/$AVAIL -> latest"
-            else
-              echo "ERROR: no cmdline-tools found at all — aborting"
-              exit 1
-            fi
-          else
-            echo "cmdline-tools/latest already exists"
-          fi
-
-          # Accept licences and install the packages Bubblewrap needs
-          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses 2>/dev/null || true
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" \
-            "build-tools;35.0.0" \
-            "platforms;android-35" \
-            "platform-tools" 2>&1 | tail -5
-
-          echo "--- build-tools ---"
-          ls "$SDK/build-tools/" 2>/dev/null || echo "No build-tools dir"
+          ls "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" && echo "sdkmanager ✓"
+          ls "$ANDROID_HOME/build-tools/" || true
 
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
@@ -79,10 +50,9 @@ jobs:
 
       - name: Configure Bubblewrap (skip JDK/SDK prompts)
         run: |
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           mkdir -p ~/.bubblewrap
           printf '{\n  "jdkPath": "%s",\n  "androidSdkPath": "%s"\n}\n' \
-            "$JAVA_HOME" "$SDK" > ~/.bubblewrap/config.json
+            "$JAVA_HOME" "$ANDROID_HOME" > ~/.bubblewrap/config.json
           echo "Bubblewrap config written:"
           cat ~/.bubblewrap/config.json
 
