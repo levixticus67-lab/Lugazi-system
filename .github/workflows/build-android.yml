@@ -40,42 +40,6 @@ jobs:
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
-      - name: Inspect installed Bubblewrap — what does it actually check?
-        run: |
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          echo "=== Bubblewrap version ==="
-          bubblewrap --version || true
-
-          echo "=== Node.js existsSync check (same as Bubblewrap) ==="
-          node -e "
-            const {existsSync, readdirSync} = require('fs');
-            const path = require('path');
-            const sdk = '${SDK}';
-            const mgr = path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'sdkmanager');
-            const bt  = path.join(sdk, 'build-tools');
-            console.log('SDK path :', sdk);
-            console.log('sdkmanager existsSync:', existsSync(mgr), ' path:', mgr);
-            console.log('build-tools existsSync:', existsSync(bt));
-            if (existsSync(bt)) {
-              const dirs = readdirSync(bt);
-              console.log('build-tools dirs:', dirs);
-              const semver = require('semver');
-              const valid = dirs.filter(d => semver.valid(d));
-              console.log('semver-valid dirs:', valid);
-            }
-          "
-
-          echo "=== AndroidSdk.js create() method (installed source) ==="
-          CORE=$(npm root -g)/@bubblewrap/core
-          SDK_JS=$(find "$CORE" -name "AndroidSdk.js" 2>/dev/null | head -1)
-          echo "File: $SDK_JS"
-          grep -A 40 "static.*create\b" "$SDK_JS" 2>/dev/null || echo "Not found"
-
-          echo "=== SdkManager.js getPath/verifyAvailability (installed source) ==="
-          MGR_JS=$(find "$CORE" -name "SdkManager.js" 2>/dev/null | head -1)
-          echo "File: $MGR_JS"
-          grep -A 20 "getPath\|verifyAvail\|sdkmanager" "$MGR_JS" 2>/dev/null | head -60
-
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
 
@@ -85,7 +49,10 @@ jobs:
           mkdir -p ~/.bubblewrap
           printf '{\n  "jdkPath": "%s",\n  "androidSdkPath": "%s"\n}\n' \
             "$JAVA_HOME" "$SDK" > ~/.bubblewrap/config.json
+          echo "Config written:"
           cat ~/.bubblewrap/config.json
+          echo "Config file exists (Node.js check):"
+          node -e "console.log(require('fs').existsSync(require('os').homedir()+'/.bubblewrap/config.json'))"
 
       - name: Create TWA manifest
         run: |
@@ -152,9 +119,24 @@ jobs:
           }
           EOF
 
-      - name: Build APK and AAB
+      - name: Print AndroidSdk.js source then build (verbose)
         working-directory: twa-build
-        run: bubblewrap build --skipPwaValidation --verbose
+        run: |
+          echo "=== Installed Bubblewrap AndroidSdk.js create() ==="
+          CORE=$(npm root -g)/@bubblewrap/core
+          SDK_JS=$(find "$CORE" -name "AndroidSdk.js" 2>/dev/null | head -1)
+          echo "Path: $SDK_JS"
+          grep -A 60 "static.*create\b\|create(sdkPath\|getExistingBuild\|verifyAvail\|sdkmanager" "$SDK_JS" 2>/dev/null | head -100 || echo "grep failed"
+
+          echo ""
+          echo "=== SdkManager.js key methods ==="
+          MGR_JS=$(find "$CORE" -name "SdkManager.js" 2>/dev/null | head -1)
+          echo "Path: $MGR_JS"
+          grep -A 20 "getPath\|verifyAvail\|cmdline" "$MGR_JS" 2>/dev/null | head -60 || echo "grep failed"
+
+          echo ""
+          echo "=== bubblewrap build --verbose ==="
+          bubblewrap build --skipPwaValidation --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
