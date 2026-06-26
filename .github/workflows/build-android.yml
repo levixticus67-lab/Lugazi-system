@@ -29,28 +29,36 @@ jobs:
       - name: Setup Android SDK + build tools
         uses: android-actions/setup-android@v3
         with:
-          # Install the exact packages Bubblewrap needs for sdkVersion 35.
-          # The action also ensures cmdline-tools/latest/ is present.
           packages: 'build-tools;35.0.0 platforms;android-35 platform-tools'
           accept-android-sdk-licenses: true
 
-      - name: Verify SDK layout for Bubblewrap
+      - name: Verify SDK layout + simulate Bubblewrap validation
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "JAVA_HOME=$JAVA_HOME"
-          ls -la "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 2>/dev/null \
-            && echo "sdkmanager ✓" \
-            || echo "sdkmanager MISSING — listing cmdline-tools:" && ls "$ANDROID_HOME/cmdline-tools/"
-          ls "$ANDROID_HOME/build-tools/" || echo "No build-tools dir"
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "=== SDK root: $SDK ==="
+          ls "$SDK/"
+
+          echo "=== cmdline-tools ==="
+          ls "$SDK/cmdline-tools/" 2>/dev/null || echo "MISSING"
+
+          echo "=== sdkmanager binary ==="
+          ls -la "$SDK/cmdline-tools/latest/bin/sdkmanager" 2>/dev/null \
+            && echo "EXISTS" || echo "MISSING — Bubblewrap will fail here"
+
+          echo "=== build-tools ==="
+          ls "$SDK/build-tools/" 2>/dev/null || echo "MISSING"
+
+          echo "=== Simulate Bubblewrap: run sdkmanager with JAVA_HOME=$JAVA_HOME ==="
+          JAVA_HOME="$JAVA_HOME" "$SDK/cmdline-tools/latest/bin/sdkmanager" --list 2>&1 | head -20
+          echo "Exit code: $?"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli
+      - name: Install Bubblewrap CLI (pinned to 1.13.0)
+        run: npm install -g @bubblewrap/cli@1.13.0
 
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
@@ -131,7 +139,7 @@ jobs:
 
       - name: Build APK and AAB
         working-directory: twa-build
-        run: bubblewrap build --skipPwaValidation
+        run: bubblewrap build --skipPwaValidation --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
