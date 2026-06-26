@@ -32,6 +32,16 @@ jobs:
         with:
           version: latest
 
+      - name: Authenticate and get access token
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          token_format: 'access_token'
+          access_token_scopes: >-
+            https://www.googleapis.com/auth/cloud-platform
+            https://www.googleapis.com/auth/firebase
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
@@ -46,7 +56,8 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         run: |
+          echo "Access token length: ${#GOOGLE_OAUTH_ACCESS_TOKEN}"
           cd artifacts/lugazi
-          npx firebase-tools@13.15.4 deploy --only hosting --project lugazi-system1
+          npx firebase-tools deploy --only hosting --project lugazi-system1
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
