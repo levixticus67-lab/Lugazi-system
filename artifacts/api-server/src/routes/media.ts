@@ -21,7 +21,7 @@ router.get("/media", requireAuth, async (_req, res): Promise<void> => {
 });
 
 // Get Cloudinary upload signature for direct browser upload
-router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce"]), async (_req, res): Promise<void> => {
+router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce", "member"]), async (_req, res): Promise<void> => {
   const config = getCloudinaryConfig();
   const timestamp = Math.round(new Date().getTime() / 1000);
   const folder = "dcl-lugazi";
