@@ -54,8 +54,13 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         run: |
-          echo "Access token length: ${#GOOGLE_OAUTH_ACCESS_TOKEN}"
           cd artifacts/lugazi
-          npx firebase-tools deploy --only hosting --project lugazi-system1
+          npx firebase-tools@13.15.4 deploy --only hosting --project lugazi-system1 2>&1 | tee /tmp/firebase-out.txt
+          EXIT=${PIPESTATUS[0]}
+          if [ $EXIT -ne 0 ] && grep -q "is the current active version" /tmp/firebase-out.txt; then
+            echo "Version already active — deploy is up to date."
+            exit 0
+          fi
+          exit $EXIT
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
