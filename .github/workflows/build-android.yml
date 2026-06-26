@@ -1,0 +1,74 @@
+name: Build Android TWA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'artifacts/lugazi/**'
+      - 'lib/**'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  build:
+    name: Build and sign APK + AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Restore keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
+
+      - name: Init TWA project
+        run: |
+          mkdir -p twa-build
+          bubblewrap init \
+            --manifest https://lugazi-system1.web.app/manifest.json \
+            --directory twa-build
+        env:
+          BUBBLEWRAP_KEYSTORE_PATH: /tmp/signing.keystore
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build APK and AAB
+        working-directory: twa-build
+        run: bubblewrap build
+        env:
+          BUBBLEWRAP_KEYSTORE_PATH: /tmp/signing.keystore
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DC-Lugazi-APK
+          path: twa-build/app-release-signed.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DC-Lugazi-AAB
+          path: twa-build/app-release.aab
+          retention-days: 30
