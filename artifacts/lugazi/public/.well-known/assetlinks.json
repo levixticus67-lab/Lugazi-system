@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.web.lugazi_system1.twa",
+        "sha256_cert_fingerprints": ["EB:92:38:2C:59:C2:6A:D8:68:1B:AB:94:5C:9C:2E:6A:25:45:E2:BD:01:76:C5:B0:F1:2B:A9:9F:27:28:71:F6"]
+      }
+    }]
