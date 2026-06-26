@@ -32,33 +32,49 @@ jobs:
           packages: 'build-tools;35.0.0 platforms;android-35 platform-tools'
           accept-android-sdk-licenses: true
 
-      - name: Verify SDK layout + simulate Bubblewrap validation
-        run: |
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          echo "=== SDK root: $SDK ==="
-          ls "$SDK/"
-
-          echo "=== cmdline-tools ==="
-          ls "$SDK/cmdline-tools/" 2>/dev/null || echo "MISSING"
-
-          echo "=== sdkmanager binary ==="
-          ls -la "$SDK/cmdline-tools/latest/bin/sdkmanager" 2>/dev/null \
-            && echo "EXISTS" || echo "MISSING — Bubblewrap will fail here"
-
-          echo "=== build-tools ==="
-          ls "$SDK/build-tools/" 2>/dev/null || echo "MISSING"
-
-          echo "=== Simulate Bubblewrap: run sdkmanager with JAVA_HOME=$JAVA_HOME ==="
-          JAVA_HOME="$JAVA_HOME" "$SDK/cmdline-tools/latest/bin/sdkmanager" --list 2>&1 | head -20
-          echo "Exit code: $?"
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Bubblewrap CLI (pinned to 1.13.0)
-        run: npm install -g @bubblewrap/cli@1.13.0
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Inspect installed Bubblewrap — what does it actually check?
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "=== Bubblewrap version ==="
+          bubblewrap --version || true
+
+          echo "=== Node.js existsSync check (same as Bubblewrap) ==="
+          node -e "
+            const {existsSync, readdirSync} = require('fs');
+            const path = require('path');
+            const sdk = '${SDK}';
+            const mgr = path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'sdkmanager');
+            const bt  = path.join(sdk, 'build-tools');
+            console.log('SDK path :', sdk);
+            console.log('sdkmanager existsSync:', existsSync(mgr), ' path:', mgr);
+            console.log('build-tools existsSync:', existsSync(bt));
+            if (existsSync(bt)) {
+              const dirs = readdirSync(bt);
+              console.log('build-tools dirs:', dirs);
+              const semver = require('semver');
+              const valid = dirs.filter(d => semver.valid(d));
+              console.log('semver-valid dirs:', valid);
+            }
+          "
+
+          echo "=== AndroidSdk.js create() method (installed source) ==="
+          CORE=$(npm root -g)/@bubblewrap/core
+          SDK_JS=$(find "$CORE" -name "AndroidSdk.js" 2>/dev/null | head -1)
+          echo "File: $SDK_JS"
+          grep -A 40 "static.*create\b" "$SDK_JS" 2>/dev/null || echo "Not found"
+
+          echo "=== SdkManager.js getPath/verifyAvailability (installed source) ==="
+          MGR_JS=$(find "$CORE" -name "SdkManager.js" 2>/dev/null | head -1)
+          echo "File: $MGR_JS"
+          grep -A 20 "getPath\|verifyAvail\|sdkmanager" "$MGR_JS" 2>/dev/null | head -60
 
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
@@ -69,7 +85,6 @@ jobs:
           mkdir -p ~/.bubblewrap
           printf '{\n  "jdkPath": "%s",\n  "androidSdkPath": "%s"\n}\n' \
             "$JAVA_HOME" "$SDK" > ~/.bubblewrap/config.json
-          echo "Bubblewrap config written:"
           cat ~/.bubblewrap/config.json
 
       - name: Create TWA manifest
