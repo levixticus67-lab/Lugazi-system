@@ -16,9 +16,6 @@ jobs:
     name: Build and sign APK + AAB
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,10 +37,22 @@ jobs:
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/signing.keystore
 
+      - name: Configure Bubblewrap (skip JDK/SDK prompts)
+        run: |
+          mkdir -p ~/.bubblewrap
+          cat > ~/.bubblewrap/config.json << EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "/usr/local/lib/android/sdk"
+          }
+          EOF
+          echo "Bubblewrap config written:"
+          cat ~/.bubblewrap/config.json
+
       - name: Create TWA manifest
         run: |
           mkdir -p twa-build
-          cat > twa-build/twa-manifest.json << EOF
+          cat > twa-build/twa-manifest.json << 'EOF'
           {
             "packageId": "app.web.lugazi_system1.twa",
             "host": "lugazi-system1.web.app",
