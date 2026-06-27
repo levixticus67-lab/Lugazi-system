@@ -428,14 +428,56 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     });
 
     const token = generateToken(user.id, user.role);
-    setAuthCookie(res, token);
-    res.redirect(FRONTEND_URL);
+
+    // Cross-domain fix: Firebase and Render are on different domains so HttpOnly
+    // cookies set here won't be readable by Firebase. Instead we store {token,user}
+    // behind a short-lived one-time code and pass the code in the redirect URL.
+    // The frontend exchanges the code via POST /api/auth/oauth-exchange.
+    const oauthCode = uuidv4();
+    const userData = {
+      id: user.id, email: user.email, displayName: user.displayName, role: user.role,
+      photoUrl: user.photoUrl ?? null, branchId: user.branchId ?? null,
+      phone: user.phone ?? null, isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+    };
+    oauthCodes.set(oauthCode, { token, userData, expiresAt: Date.now() + 60_000 });
+    res.redirect(`${FRONTEND_URL}/login?oauth_code=${oauthCode}`);
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");
     res.redirect(`${FRONTEND_URL}?error=google_server_error`);
   }
 });
 
+
+// ── OAuth One-Time Code Store (in-memory, 60-second TTL) ───────────────────────
+// Used to bridge cross-domain Google OAuth: callback stores {token,user} behind a
+// short-lived UUID code, frontend exchanges the code for a session via HTTP POST.
+interface OAuthCode { token: string; userData: object; expiresAt: number }
+const oauthCodes = new Map<string, OAuthCode>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, data] of oauthCodes) {
+    if (now > data.expiresAt) oauthCodes.delete(code);
+  }
+}, 30 * 1000).unref();
+
+// POST /auth/oauth-exchange — frontend calls this with the one-time code
+router.post("/auth/oauth-exchange", async (req, res): Promise<void> => {
+  const { code } = (req.body ?? {}) as Record<string, unknown>;
+  if (!code || typeof code !== "string") {
+    res.status(400).json({ error: "Code is required" });
+    return;
+  }
+  const entry = oauthCodes.get(code);
+  if (!entry || Date.now() > entry.expiresAt) {
+    res.status(400).json({ error: "This sign-in link has expired. Please try Google sign-in again." });
+    return;
+  }
+  oauthCodes.delete(code); // one-time use
+  // Also set the HttpOnly cookie for API auth on subsequent requests
+  setAuthCookie(res, entry.token);
+  res.json({ token: entry.token, user: entry.userData });
+});
 
 // ── Password Reset Token Store (in-memory, 1-hour TTL) ───────────────────────
 interface ResetToken { email: string; expiresAt: number }

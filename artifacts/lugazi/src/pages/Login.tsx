@@ -59,6 +59,28 @@ export default function Login() {
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
+  // ── Google OAuth one-time code exchange ──────────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("oauth_code");
+    if (!code) return;
+    // Clean the URL immediately so a refresh doesn't re-trigger
+    window.history.replaceState({}, "", "/login");
+    axios.post<{ token: string; user: any }>("/api/auth/oauth-exchange", { code })
+      .then(res => {
+        login(res.data.token, res.data.user);
+        redirectByRole(res.data.user.role);
+      })
+      .catch(() => {
+        toast({
+          title: "Google sign-in failed",
+          description: "The sign-in session expired. Please try again.",
+          variant: "destructive",
+        });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function redirectByRole(role: string) {
     if (role === "admin")           setLocation("/admin/dashboard");
     else if (role === "leadership") setLocation("/leadership/dashboard");
