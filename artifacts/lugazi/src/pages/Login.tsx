@@ -136,7 +136,7 @@ export default function Login() {
   function handleGoogleSignIn() {
     // Must use the full backend URL — the frontend is on Firebase, not the same domain as the API
     const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
-    window.location.href = `${apiBase}/auth/google`;
+    window.location.href = `${apiBase}/api/auth/google`;
   }
 
   const leftPanel = (
