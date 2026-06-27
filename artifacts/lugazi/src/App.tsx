@@ -7,6 +7,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
 import Terms from "@/pages/Terms";
+import ResetPassword from "@/pages/ResetPassword";
 import Privacy from "@/pages/Privacy";
 
   // Pages
@@ -264,6 +265,7 @@ import Privacy from "@/pages/Privacy";
         <Route path="/member/media"><RequireAuth><MemberMedia /></RequireAuth></Route>
         <Route path="/member/qr"><RequireAuth><MemberQrCode /></RequireAuth></Route>
 
+        <Route path="/reset-password" component={ResetPassword} />
         <Route path="/terms" component={Terms} />
         <Route path="/privacy" component={Privacy} />
         <Route component={NotFound} />

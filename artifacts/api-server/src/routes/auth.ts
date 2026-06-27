@@ -7,6 +7,7 @@ import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { logActivity } from "../lib/activityLog";
 import { v4 as uuidv4 } from "uuid";
+import nodemailer from "nodemailer";
 
 const router = Router();
 
@@ -433,6 +434,150 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     logger.error({ err }, "Google OAuth callback error");
     res.redirect(`${FRONTEND_URL}?error=google_server_error`);
   }
+});
+
+
+// ── Password Reset Token Store (in-memory, 1-hour TTL) ───────────────────────
+interface ResetToken { email: string; expiresAt: number }
+const resetTokens = new Map<string, ResetToken>();
+const RESET_TTL_MS = 60 * 60 * 1000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [tok, data] of resetTokens) {
+    if (now > data.expiresAt) resetTokens.delete(tok);
+  }
+}, 30 * 60 * 1000).unref();
+
+function createMailTransport() {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST ?? "smtp.gmail.com",
+    port: parseInt(process.env.EMAIL_PORT ?? "587"),
+    secure: (process.env.EMAIL_PORT ?? "587") === "465",
+    auth: { user, pass },
+  });
+}
+
+// POST /auth/forgot-password ──────────────────────────────────────────────────
+router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+  const { email } = (req.body ?? {}) as Record<string, unknown>;
+  if (!email || typeof email !== "string") {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+  const emailLower = email.trim().toLowerCase();
+
+  // Always respond success to prevent email enumeration
+  res.json({ message: "If that email is registered, a reset link has been sent." });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower)).limit(1);
+  if (!user) return;
+
+  const transport = createMailTransport();
+  if (!transport) {
+    logger.warn({ email: emailLower }, "Forgot-password: EMAIL_USER/EMAIL_PASS not set — cannot send reset email");
+    return;
+  }
+
+  // Remove any existing tokens for this email
+  for (const [tok, data] of resetTokens) {
+    if (data.email === emailLower) resetTokens.delete(tok);
+  }
+
+  const resetToken = uuidv4();
+  resetTokens.set(resetToken, { email: emailLower, expiresAt: Date.now() + RESET_TTL_MS });
+
+  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+  const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+  const fromEmail = process.env.EMAIL_USER!;
+  const fromName = process.env.EMAIL_FROM ?? "DCL Lugazi ERP";
+
+  try {
+    await transport.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: emailLower,
+      subject: "Reset your DCL Lugazi password",
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-block;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);line-height:48px;color:#fff;font-weight:bold;font-size:13px;">DCL</div>
+            <h2 style="margin:12px 0 4px;color:#1e293b;">Deliverance Church Lugazi</h2>
+            <p style="color:#64748b;margin:0;font-size:13px;">The House of Kingdom Giants</p>
+          </div>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
+          <h3 style="color:#1e293b;margin:0 0 12px;">Password Reset Request</h3>
+          <p style="color:#475569;line-height:1.6;">Hi ${user.displayName},</p>
+          <p style="color:#475569;line-height:1.6;">
+            We received a request to reset your password for the DCL Lugazi ERP system.
+            Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.
+          </p>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${resetLink}"
+               style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
+              Reset My Password
+            </a>
+          </div>
+          <p style="color:#94a3b8;font-size:12px;line-height:1.6;">
+            If you didn't request this, you can safely ignore this email — your password won't change.<br/>
+            This link will expire in 1 hour for your security.
+          </p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
+          <p style="color:#94a3b8;font-size:11px;text-align:center;">
+            DCL Lugazi ERP &bull; Deliverance Church Lugazi, Uganda
+          </p>
+        </div>
+      `,
+    });
+    logger.info({ userId: user.id }, "Password reset email sent");
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "Failed to send password reset email");
+  }
+});
+
+// POST /auth/reset-password ───────────────────────────────────────────────────
+router.post("/auth/reset-password", async (req, res): Promise<void> => {
+  const { token, password } = (req.body ?? {}) as Record<string, unknown>;
+
+  if (!token || typeof token !== "string") {
+    res.status(400).json({ error: "Reset token is required." });
+    return;
+  }
+  if (!password || typeof password !== "string" || password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters." });
+    return;
+  }
+  if (!/\d/.test(password)) {
+    res.status(400).json({ error: "Password must contain at least one number." });
+    return;
+  }
+
+  const tokenData = resetTokens.get(token);
+  if (!tokenData || Date.now() > tokenData.expiresAt) {
+    res.status(400).json({ error: "This reset link has expired or is invalid. Please request a new one." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, tokenData.email)).limit(1);
+  if (!user) {
+    res.status(404).json({ error: "Account not found." });
+    return;
+  }
+
+  const hash = await bcrypt.hash(password, 12);
+  await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.id, user.id));
+  resetTokens.delete(token);
+
+  await logActivity({
+    userId: user.id, displayName: user.displayName,
+    action: "reset_password", details: "Password reset via email link",
+    ipAddress: req.ip ?? "unknown",
+  });
+
+  logger.info({ userId: user.id }, "Password reset successfully");
+  res.json({ message: "Password reset successfully. You can now sign in with your new password." });
 });
 
 export default router;
