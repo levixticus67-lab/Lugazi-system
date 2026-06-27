@@ -82,9 +82,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
       <aside className="hidden lg:flex w-64 bg-sidebar flex-col shrink-0 border-r border-sidebar-border">
         {/* Logo */}
         <div className="flex items-center gap-3 p-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-full bg-sidebar-primary flex items-center justify-center shrink-0">
-            <span className="text-sidebar-primary-foreground font-bold text-xs">DCL</span>
-          </div>
+          <img src="/dcl-logo.png" alt="DCL" className="w-9 h-9 rounded-full object-contain bg-white p-1 shrink-0" />
           <div className="min-w-0">
             <p className="text-sidebar-foreground font-semibold text-sm truncate">DCL Lugazi</p>
             <p className="text-sidebar-foreground/50 text-xs truncate">{effectiveLabel}</p>
@@ -179,9 +177,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
 
         {/* Mobile topbar */}
         <header className="lg:hidden h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center shrink-0">
-            <span className="text-sidebar-primary-foreground font-bold text-xs">DCL</span>
-          </div>
+          <img src="/dcl-logo.png" alt="DCL" className="w-8 h-8 rounded-full object-contain bg-white p-1 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-foreground font-semibold text-sm leading-tight">DCL Lugazi</p>
             <p className="text-muted-foreground text-xs leading-tight truncate">{effectiveLabel}</p>
@@ -253,9 +249,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
             {/* Handle + header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-sidebar-primary flex items-center justify-center shrink-0">
-                  <span className="text-sidebar-primary-foreground font-bold text-xs">DCL</span>
-                </div>
+                <img src="/dcl-logo.png" alt="DCL" className="w-7 h-7 rounded-full object-contain bg-white p-0.5 shrink-0" />
                 <span className="font-semibold text-sm">{effectiveLabel}</span>
               </div>
               <button onClick={() => setDrawerOpen(false)} className="text-muted-foreground p-1">

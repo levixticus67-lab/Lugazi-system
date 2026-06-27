@@ -545,7 +545,7 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
       html: `
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
           <div style="text-align:center;margin-bottom:24px;">
-            <div style="display:inline-block;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);line-height:48px;color:#fff;font-weight:bold;font-size:13px;">DCL</div>
+            <img src="https://system1.web.app/dcl-logo.png" alt="DCL Lugazi" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#fff;padding:4px;display:inline-block;vertical-align:middle;" />
             <h2 style="margin:12px 0 4px;color:#1e293b;">Deliverance Church Lugazi</h2>
             <p style="color:#64748b;margin:0;font-size:13px;">The House of Kingdom Giants</p>
           </div>

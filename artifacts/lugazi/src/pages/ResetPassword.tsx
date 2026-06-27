@@ -59,9 +59,7 @@ export default function ResetPassword() {
          style={{ background: "linear-gradient(160deg, hsl(210,40%,96%) 0%, hsl(213,60%,93%) 100%)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-full blue-gradient-bg flex items-center justify-center mx-auto mb-3 glow-blue">
-            <span className="text-white font-bold text-xs">DCL</span>
-          </div>
+          <img src="/dcl-logo.png" alt="DCL" className="w-12 h-12 rounded-full object-contain bg-white p-1 mx-auto mb-3 shrink-0 glow-blue" />
           <h1 className="font-serif text-2xl font-bold text-foreground">Deliverance Church Lugazi</h1>
           <p className="text-muted-foreground text-sm">The House of Kingdom Giants</p>
         </div>
