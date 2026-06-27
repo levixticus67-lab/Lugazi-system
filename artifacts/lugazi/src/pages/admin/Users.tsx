@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Shield, Search, Mail, Calendar } from "lucide-react";
+import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check } from "lucide-react";
+import axios from "@/lib/axios";
 
 type User = { id: number; email: string; displayName: string; role: string; isActive: boolean; createdAt: string };
 
@@ -28,17 +29,56 @@ export default function AdminUsers() {
   const updateRoleMutation = useUpdateUserRole();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
   const [editUser, setEditUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState("");
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
 
+  // Reset password state
+  const [resetUser, setResetUser] = useState<User | null>(null);
+  const [resetPending, setResetPending] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
   function handleRoleChange() {
     if (!editUser) return;
     updateRoleMutation.mutate({ id: editUser.id, data: { role: newRole } }, {
-      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }); toast({ title: "Role updated. User must re-login to see the change." }); setEditUser(null); },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+        toast({ title: "Role updated. User must re-login to see the change." });
+        setEditUser(null);
+      },
       onError: () => toast({ title: "Error updating role", variant: "destructive" }),
     });
+  }
+
+  async function handleResetPassword() {
+    if (!resetUser) return;
+    setResetPending(true);
+    try {
+      const res = await axios.post<{ tempPassword: string }>(`/api/users/${resetUser.id}/reset-password`);
+      setTempPassword(res.data.tempPassword);
+    } catch {
+      toast({ title: "Failed to reset password", variant: "destructive" });
+      setResetUser(null);
+    } finally {
+      setResetPending(false);
+    }
+  }
+
+  function handleCopy() {
+    if (!tempPassword) return;
+    navigator.clipboard.writeText(tempPassword).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function closeResetDialog() {
+    setResetUser(null);
+    setTempPassword(null);
+    setCopied(false);
   }
 
   const all = users as User[];
@@ -56,11 +96,11 @@ export default function AdminUsers() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
         {[
-          { label:"Total Users", value: all.length, color:"text-blue-600" },
-          { label:"Active",      value: all.filter(u=>u.isActive).length, color:"text-green-600" },
-          { label:"Admins",      value: roleCounts.admin ?? 0, color:"text-red-600" },
-          { label:"Pastors",     value: roleCounts.pastor ?? 0, color:"text-purple-600" },
-          { label:"Leadership",  value: roleCounts.leadership ?? 0, color:"text-blue-600" },
+          { label:"Total Users", value: all.length,                                      color:"text-blue-600" },
+          { label:"Active",      value: all.filter(u=>u.isActive).length,                color:"text-green-600" },
+          { label:"Admins",      value: roleCounts.admin ?? 0,                           color:"text-red-600" },
+          { label:"Pastors",     value: roleCounts.pastor ?? 0,                          color:"text-purple-600" },
+          { label:"Leadership",  value: roleCounts.leadership ?? 0,                      color:"text-blue-600" },
           { label:"Members",     value: (roleCounts.workforce??0)+(roleCounts.member??0), color:"text-green-600" },
         ].map(s => (
           <div key={s.label} className="glass-card p-3 text-center">
@@ -74,8 +114,12 @@ export default function AdminUsers() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
+
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-        <button onClick={() => setFilterRole("all")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterRole==="all" ? "blue-gradient-bg text-white shadow" : "bg-muted text-muted-foreground"}`}>All ({all.length})</button>
+        <button onClick={() => setFilterRole("all")}
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterRole==="all" ? "blue-gradient-bg text-white shadow" : "bg-muted text-muted-foreground"}`}>
+          All ({all.length})
+        </button>
         {ROLES.map(r => {
           const cfg = ROLE_CONFIG[r];
           return (
@@ -105,15 +149,24 @@ export default function AdminUsers() {
                     <p className="font-semibold text-sm truncate">{u.displayName}</p>
                     <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize ${cfg.bg} ${cfg.color}`}>{u.role}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mb-0.5"><Mail className="h-3 w-3 shrink-0"/>{u.email}</p>
-                  <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mb-0.5">
+                    <Mail className="h-3 w-3 shrink-0"/>{u.email}
+                  </p>
+                  <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
                     <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3"/>Joined {new Date(u.createdAt).toLocaleDateString("en-UG",{day:"numeric",month:"short",year:"numeric"})}
+                      <Calendar className="h-3 w-3"/>
+                      {new Date(u.createdAt).toLocaleDateString("en-UG",{day:"numeric",month:"short",year:"numeric"})}
                     </span>
-                    <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1"
-                      onClick={() => { setEditUser(u); setNewRole(u.role); }}>
-                      <Shield className="h-3 w-3"/>Change Role
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1"
+                        onClick={() => { setResetUser(u); setTempPassword(null); }}>
+                        <KeyRound className="h-3 w-3"/>Reset
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1"
+                        onClick={() => { setEditUser(u); setNewRole(u.role); }}>
+                        <Shield className="h-3 w-3"/>Role
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -122,6 +175,7 @@ export default function AdminUsers() {
         </div>
       )}
 
+      {/* Change Role Dialog */}
       <Dialog open={!!editUser} onOpenChange={() => setEditUser(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Change Role — {editUser?.displayName}</DialogTitle></DialogHeader>
@@ -142,8 +196,65 @@ export default function AdminUsers() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
-            <Button onClick={handleRoleChange} disabled={updateRoleMutation.isPending}>{updateRoleMutation.isPending ? "Applying…" : "Apply"}</Button>
+            <Button onClick={handleRoleChange} disabled={updateRoleMutation.isPending}>
+              {updateRoleMutation.isPending ? "Applying…" : "Apply"}
+            </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetUser} onOpenChange={closeResetDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-amber-500"/>
+              Reset Password
+            </DialogTitle>
+          </DialogHeader>
+
+          {!tempPassword ? (
+            <>
+              <div className="space-y-3 py-1">
+                <div className="p-3 rounded-xl bg-muted/60 text-sm">
+                  <p className="font-medium">{resetUser?.displayName}</p>
+                  <p className="text-xs text-muted-foreground">{resetUser?.email}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  This will generate a temporary password for this user. Share it with them via WhatsApp or phone — they can log in and change it from their profile.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeResetDialog}>Cancel</Button>
+                <Button onClick={handleResetPassword} disabled={resetPending}
+                  className="bg-amber-500 hover:bg-amber-600 text-white border-0">
+                  {resetPending ? "Generating…" : "Generate Password"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="space-y-4 py-1">
+                <p className="text-sm text-muted-foreground">
+                  Temporary password for <span className="font-semibold text-foreground">{resetUser?.displayName}</span>:
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-muted rounded-lg px-4 py-3 font-mono text-lg font-bold tracking-widest text-center select-all">
+                    {tempPassword}
+                  </div>
+                  <Button size="icon" variant="outline" className="shrink-0 h-11 w-11" onClick={handleCopy}>
+                    {copied ? <Check className="h-4 w-4 text-green-600"/> : <Copy className="h-4 w-4"/>}
+                  </Button>
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-lg">
+                  Share this password with the user securely. It will not be shown again.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button onClick={closeResetDialog} className="w-full">Done</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </PortalLayout>

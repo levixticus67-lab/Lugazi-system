@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { db, usersTable, membersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
@@ -61,9 +62,10 @@ router.delete("/users/:id", requireAuth, requireRole(["admin"]), async (req: Aut
   await db.update(usersTable).set({ role: "member", isActive: false }).where(eq(usersTable.id, id));
   await db.update(membersTable).set({ role: "member", isActive: false }).where(eq(membersTable.userId, id));
 
+  const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
+    displayName: adminActor?.displayName ?? "Admin",
     action: "deactivate_user",
     entityType: "user",
     entityId: id,
@@ -88,9 +90,10 @@ router.patch("/users/:id/role", requireAuth, requireRole(["admin"]), async (req:
   if (!updated) { res.status(404).json({ error: "User not found" }); return; }
   await db.update(membersTable).set({ role }).where(eq(membersTable.userId, id));
 
+  const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
+    displayName: adminActor?.displayName ?? "Admin",
     action: "change_role",
     entityType: "user",
     entityId: id,
@@ -100,6 +103,39 @@ router.patch("/users/:id/role", requireAuth, requireRole(["admin"]), async (req:
   });
 
   res.json({ id: updated.id, email: updated.email, displayName: updated.displayName, role: updated.role, photoUrl: updated.photoUrl, branchId: updated.branchId, phone: updated.phone, isActive: updated.isActive, createdAt: updated.createdAt.toISOString() });
+});
+
+// ── POST /users/:id/reset-password — admin only ───────────────────────────────
+// Generates a temporary password (DCL + 6 digits), hashes and saves it, and
+// returns the plain-text version to the admin so they can share it with the user.
+router.post("/users/:id/reset-password", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+  const [user] = await db.select({ displayName: usersTable.displayName, email: usersTable.email })
+    .from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const digits = Math.floor(100000 + Math.random() * 900000).toString();
+  const tempPassword = `DCL${digits}`;
+  const hash = await bcrypt.hash(tempPassword, 12);
+  await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.id, id));
+
+  const [adminActor] = await db.select({ displayName: usersTable.displayName })
+    .from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  await logActivity({
+    userId: req.userId!,
+    displayName: adminActor?.displayName ?? "Admin",
+    action: "reset_password",
+    entityType: "user",
+    entityId: id,
+    entityName: user.displayName,
+    details: `Password reset for ${user.email}`,
+    ipAddress: req.ip ?? "unknown",
+  });
+
+  res.json({ tempPassword, displayName: user.displayName, email: user.email });
 });
 
 export default router;
