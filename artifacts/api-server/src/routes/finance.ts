@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db, transactionsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
@@ -43,30 +43,48 @@ router.post("/finance", requireAuth, requireRole(["admin", "pastor"]), async (re
   res.status(201).json({ ...tx, amount: Number(tx.amount), createdAt: tx.createdAt.toISOString() });
 });
 
+// FIX: rewrote with a single SQL aggregate query — no longer loads every row into memory.
+// Previous version did db.select().from(transactionsTable) with no limit, which would
+// crash the server under high data volume.
 router.get("/finance/summary", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (_req, res): Promise<void> => {
-  const all = await db.select().from(transactionsTable);
   const now = new Date();
-  const thisMonth = now.getMonth();
-  const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+  const thisYear  = now.getFullYear();
+  const thisMonth = now.getMonth() + 1; // SQL EXTRACT months are 1-indexed
+  const lastMonth     = thisMonth === 1 ? 12 : thisMonth - 1;
+  const lastMonthYear = thisMonth === 1 ? thisYear - 1 : thisYear;
 
-  const income = all.filter(t => !["expense"].includes(t.type));
-  const expenses = all.filter(t => t.type === "expense");
-  const tithes = all.filter(t => t.type === "tithe");
-  const offerings = all.filter(t => t.type === "offering");
-  const donations = all.filter(t => t.type === "donation");
+  const [totals] = await db.select({
+    totalIncome:   sql<string>`COALESCE(SUM(CASE WHEN type != 'expense' THEN amount::numeric ELSE 0 END), 0)`,
+    totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN type = 'expense'  THEN amount::numeric ELSE 0 END), 0)`,
+    tithes:        sql<string>`COALESCE(SUM(CASE WHEN type = 'tithe'    THEN amount::numeric ELSE 0 END), 0)`,
+    offerings:     sql<string>`COALESCE(SUM(CASE WHEN type = 'offering' THEN amount::numeric ELSE 0 END), 0)`,
+    donations:     sql<string>`COALESCE(SUM(CASE WHEN type = 'donation' THEN amount::numeric ELSE 0 END), 0)`,
+    thisMonth: sql<string>`COALESCE(SUM(
+      CASE WHEN type != 'expense'
+        AND EXTRACT(MONTH FROM date::date) = ${thisMonth}
+        AND EXTRACT(YEAR  FROM date::date) = ${thisYear}
+      THEN amount::numeric ELSE 0 END
+    ), 0)`,
+    lastMonth: sql<string>`COALESCE(SUM(
+      CASE WHEN type != 'expense'
+        AND EXTRACT(MONTH FROM date::date) = ${lastMonth}
+        AND EXTRACT(YEAR  FROM date::date) = ${lastMonthYear}
+      THEN amount::numeric ELSE 0 END
+    ), 0)`,
+  }).from(transactionsTable);
 
-  const sumAmount = (arr: typeof all) => arr.reduce((s, t) => s + Number(t.amount), 0);
-  const byMonth = (arr: typeof all, m: number) => arr.filter(t => new Date(t.date).getMonth() === m);
+  const income   = Number(totals.totalIncome);
+  const expenses = Number(totals.totalExpenses);
 
   res.json({
-    totalIncome: sumAmount(income),
-    totalExpenses: sumAmount(expenses),
-    netBalance: sumAmount(income) - sumAmount(expenses),
-    tithes: sumAmount(tithes),
-    offerings: sumAmount(offerings),
-    donations: sumAmount(donations),
-    thisMonth: sumAmount(byMonth(income, thisMonth)),
-    lastMonth: sumAmount(byMonth(income, lastMonth)),
+    totalIncome:   income,
+    totalExpenses: expenses,
+    netBalance:    income - expenses,
+    tithes:        Number(totals.tithes),
+    offerings:     Number(totals.offerings),
+    donations:     Number(totals.donations),
+    thisMonth:     Number(totals.thisMonth),
+    lastMonth:     Number(totals.lastMonth),
   });
 });
 
