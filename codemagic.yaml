@@ -1,39 +1,37 @@
 workflows:
   android-capacitor-build:
     name: Build Capacitor Android APK
-    max_build_duration: 30
+    max_build_duration: 45
     instance_type: mac_mini_m1
     environment:
       node: 20
+      java: 17
     triggering:
       events:
         - push
     scripts:
-      - name: Enable pnpm via corepack
-        script: |
-          # pnpm ships pre-installed on Codemagic; corepack activates it cleanly
-          # without conflicting with the machine's packageManager yarn config
-          corepack enable pnpm
-          pnpm --version
-
       - name: Install Dependencies
         script: |
-          pnpm install --frozen-lockfile
+          # pnpm is pre-installed on Codemagic at /usr/local/bin/pnpm
+          # Do NOT use npm/corepack — the machine-level yarn packageManager config blocks them
+          /usr/local/bin/pnpm install --no-frozen-lockfile
 
       - name: Build Web Application
         script: |
-          pnpm --filter @workspace/lugazi run build
+          /usr/local/bin/pnpm --filter @workspace/lugazi run build
 
-      - name: Sync Capacitor Android
+      - name: Setup & Sync Capacitor
         script: |
           cd artifacts/lugazi
-          npx cap sync android
+          # Add Android platform (safe to re-run; exits 0 if already present)
+          /usr/local/bin/pnpm exec cap add android 2>/dev/null || true
+          /usr/local/bin/pnpm exec cap sync android
 
       - name: Build Android Debug APK
         script: |
           cd artifacts/lugazi/android
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
     artifacts:
       - artifacts/lugazi/android/app/build/outputs/apk/debug/*.apk
