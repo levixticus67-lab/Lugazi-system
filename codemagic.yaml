@@ -7,10 +7,6 @@ workflows:
       node: 20
       java: 17
       vars:
-        # Stops corepack from blocking pnpm when it finds the machine-level
-        # "packageManager": "yarn" in /Users/builder/package.json.
-        # Our own package.json now declares "packageManager": "pnpm@9.15.0"
-        # which takes precedence, but this env var is a belt-and-suspenders fix.
         COREPACK_ENABLE_STRICT: "0"
     triggering:
       events:
@@ -25,6 +21,12 @@ workflows:
       - name: Install Dependencies
         script: |
           pnpm install --no-frozen-lockfile
+
+      - name: Build Shared Libraries
+        script: |
+          # lib/* packages are TypeScript composite — they must emit declarations
+          # before the Vite app can resolve @workspace/api-client-react etc.
+          pnpm run typecheck:libs
 
       - name: Build Web Application
         script: |
