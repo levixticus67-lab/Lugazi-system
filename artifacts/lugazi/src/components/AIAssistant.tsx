@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useIsPwa } from "@/hooks/use-is-pwa";
   import { X, Send, Lightbulb, RefreshCw, AlertCircle } from "lucide-react";
   import axios from "@/lib/axios";
 
@@ -30,6 +31,7 @@ import { useState } from "react";
     const [messages, setMessages] = useState<Msg[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
+    const isPwa = useIsPwa();
 
     const prompts = suggestions ?? defaultSuggestions;
 
@@ -64,7 +66,7 @@ import { useState } from "react";
     }
 
     return (
-      <div className="fixed bottom-24 left-4 lg:bottom-6 lg:left-6 z-50">
+      <div className={`fixed z-50 ${isPwa ? "bottom-24 left-4 lg:bottom-6 lg:left-6" : "bottom-6 left-6"}`}>
         {open ? (
           <div className="glass-card w-80 flex flex-col shadow-2xl" style={{ height: 460 }}>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/20 rounded-t-[calc(var(--radius)-1px)]"
