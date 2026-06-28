@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { LogOut, Menu, X, ChevronDown, Shield, Sun, Moon } from "lucide-react";
 import { pastorNavItems } from "@/pages/pastor/navItems";
+import { useIsPwa } from "@/hooks/use-is-pwa";
 
 export interface NavItem {
   label: string;
@@ -40,6 +41,8 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
       localStorage.setItem("dcl-theme", "light");
     }
   }, [isDark]);
+
+  const isPwa = useIsPwa();
 
   const isAdmin = user?.role === "admin";
   const isPastorRoute = location.startsWith("/pastor/") || location === "/pastor";
@@ -89,7 +92,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
       {/* ════════════════════════════════════════════════════════
           DESKTOP SIDEBAR  (lg and above)
           ════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex w-64 bg-sidebar flex-col shrink-0 border-r border-sidebar-border">
+      <aside className={cn(isPwa ? "hidden lg:flex" : "flex", "w-64 bg-sidebar flex-col shrink-0 border-r border-sidebar-border")}>
         {/* Logo */}
         <div className="flex items-center gap-3 p-5 border-b border-sidebar-border">
           <img src="/dcl-logo.png" alt="DCL" className="w-9 h-9 rounded-full object-contain bg-white p-1 shrink-0" />
@@ -178,7 +181,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* Desktop topbar */}
-        <header className="hidden lg:flex h-14 border-b border-border bg-card items-center px-4 gap-4 shrink-0">
+        <header className={cn(isPwa ? "hidden lg:flex" : "flex", "h-14 border-b border-border bg-card items-center px-4 gap-4 shrink-0")}>
           <div className="flex-1" />
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">{user?.displayName}</span>
@@ -187,7 +190,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
         </header>
 
         {/* Mobile topbar */}
-        <header className="lg:hidden h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
+        <header className={cn(isPwa ? "lg:hidden" : "hidden", "h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0")}>
           <img src="/dcl-logo.png" alt="DCL" className="w-8 h-8 rounded-full object-contain bg-white p-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-foreground font-semibold text-sm leading-tight">DCL Lugazi</p>
@@ -203,7 +206,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
           style={{ paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
           data-mobile-padding
         >
-          <style>{`@media (min-width: 1024px) { [data-mobile-padding] { padding-bottom: 1.5rem !important; } }`}</style>
+          {isPwa && <style>{`@media (min-width: 1024px) { [data-mobile-padding] { padding-bottom: 1.5rem !important; } }`}</style>}
           {children}
         </main>
       </div>
@@ -212,7 +215,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
           FUTURISTIC MOBILE BOTTOM NAV
           ════════════════════════════════════════════════════════ */}
       <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 z-40"
+        className={cn(isPwa ? "lg:hidden" : "hidden", "fixed bottom-0 inset-x-0 z-40")}
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         {/* Floating glass pill */}
