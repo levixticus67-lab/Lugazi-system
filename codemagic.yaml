@@ -2,10 +2,9 @@ workflows:
   android-capacitor-build:
     name: Build Capacitor Android APK
     max_build_duration: 45
-    # Linux x64: Android doesn't need macOS, and linux-x64 esbuild is available.
-    # mac_mini_m1 was failing because pnpm-workspace.yaml excludes darwin-arm64
-    # esbuild binaries (Replit runs Linux-only), making lib builds impossible on Mac.
-    instance_type: linux_x2
+    # mac_mini_m1 is the free-tier instance on Codemagic.
+    # linux_x2 requires a paid plan.
+    instance_type: mac_mini_m1
     environment:
       node: 20
       java: 17
@@ -27,11 +26,16 @@ workflows:
 
       - name: Build Shared Libraries
         script: |
-          # 1. tsc --build: emits .d.ts declarations for all composite lib/* packages
+          # 1. tsc --build: emits .d.ts declarations for composite lib/* packages
           pnpm run typecheck:libs
-          # 2. Build api-client-react JS bundle (node build.mjs → dist/index.mjs)
-          #    This requires esbuild; works on linux_x2 since linux-x64 is not excluded
-          pnpm --filter @workspace/api-client-react run build
+          # 2. Build api-client-react JS bundle → dist/index.mjs
+          #    pnpm-workspace.yaml overrides exclude @esbuild/darwin-arm64 (Replit is Linux-only),
+          #    so we install the darwin binary via npm (which ignores pnpm workspace overrides)
+          #    inside the package dir before running node build.mjs.
+          cd lib/api-client-react
+          npm install -D @esbuild/darwin-arm64
+          node build.mjs
+          cd ../..
 
       - name: Build Web Application
         script: |
