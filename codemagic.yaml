@@ -9,9 +9,11 @@ workflows:
       events:
         - push
     scripts:
-      - name: Install pnpm
+      - name: Enable pnpm via corepack
         script: |
-          npm install -g pnpm
+          # pnpm ships pre-installed on Codemagic; corepack activates it cleanly
+          # without conflicting with the machine's packageManager yarn config
+          corepack enable pnpm
           pnpm --version
 
       - name: Install Dependencies
