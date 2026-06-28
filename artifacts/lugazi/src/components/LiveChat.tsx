@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useIsPwa } from "@/hooks/use-is-pwa";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   MessageSquare, Send, X, Archive, Search, ChevronLeft, ChevronRight,
@@ -75,6 +76,7 @@ interface LogsResponse {
 
 const POLL_INTERVAL = 2500;
 
+
 const QUICK_REACTIONS = ["🙏", "❤️", "🙌", "👍", "😂", "🎉", "🔥", "🕊️"];
 const FULL_EMOJI_ROWS = [
   ["😀","😂","🥰","😍","🤩","😎","🥳","😇","🙏","❤️","🧡","💛","💚","💙","💜"],
@@ -124,6 +126,7 @@ type ChatView = "chat" | "logs" | "emoji" | "stickers" | "dm" | "dm-thread" | "s
 
 export default function LiveChat() {
   const { user, token } = useAuth();
+  const isPwa = useIsPwa();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ChatView>("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -534,7 +537,7 @@ export default function LiveChat() {
   }
 
   return (
-    <div className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-50">
+    <div className={`fixed z-50 ${isPwa ? "bottom-24 right-4 lg:bottom-6 lg:right-6" : "bottom-6 right-6"}`}>
       {open ? (
         <div className="glass-card flex flex-col shadow-2xl animate-fade-in-scale" style={{ width: 340, height: 500 }}>
           {/* Header */}
