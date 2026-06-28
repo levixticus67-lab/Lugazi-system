@@ -534,7 +534,7 @@ export default function LiveChat() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-50">
       {open ? (
         <div className="glass-card flex flex-col shadow-2xl animate-fade-in-scale" style={{ width: 340, height: 500 }}>
           {/* Header */}

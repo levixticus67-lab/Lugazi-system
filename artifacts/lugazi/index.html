@@ -1,7 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function(){
+        var t=localStorage.getItem('dcl-theme');
+        if(t!=='light') document.documentElement.classList.add('dark');
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>DC Lugazi</title>
     <meta name="description" content="Deliverance Church Lugazi — Digital Church Management System for members, leaders, and administrators." />
