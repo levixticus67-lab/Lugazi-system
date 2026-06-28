@@ -6,26 +6,35 @@ workflows:
     environment:
       node: 20
       java: 17
+      vars:
+        # Stops corepack from blocking pnpm when it finds the machine-level
+        # "packageManager": "yarn" in /Users/builder/package.json.
+        # Our own package.json now declares "packageManager": "pnpm@9.15.0"
+        # which takes precedence, but this env var is a belt-and-suspenders fix.
+        COREPACK_ENABLE_STRICT: "0"
     triggering:
       events:
         - push
     scripts:
+      - name: Activate pnpm
+        script: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm --version
+
       - name: Install Dependencies
         script: |
-          # pnpm is pre-installed on Codemagic at /usr/local/bin/pnpm
-          # Do NOT use npm/corepack — the machine-level yarn packageManager config blocks them
-          /usr/local/bin/pnpm install --no-frozen-lockfile
+          pnpm install --no-frozen-lockfile
 
       - name: Build Web Application
         script: |
-          /usr/local/bin/pnpm --filter @workspace/lugazi run build
+          pnpm --filter @workspace/lugazi run build
 
       - name: Setup & Sync Capacitor
         script: |
           cd artifacts/lugazi
-          # Add Android platform (safe to re-run; exits 0 if already present)
-          /usr/local/bin/pnpm exec cap add android 2>/dev/null || true
-          /usr/local/bin/pnpm exec cap sync android
+          pnpm exec cap add android 2>/dev/null || true
+          pnpm exec cap sync android
 
       - name: Build Android Debug APK
         script: |
