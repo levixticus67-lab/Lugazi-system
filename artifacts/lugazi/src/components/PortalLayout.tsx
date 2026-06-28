@@ -230,8 +230,9 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
             {bottomItems.map(item => {
               const isActive = location === item.href || location.startsWith(item.href + "/");
               return (
-                <Link key={item.href} href={item.href}>
-                  <a className="flex-1 flex flex-col items-center justify-center gap-1 py-2 px-0.5 transition-all">
+                <div key={item.href} className="flex-1 flex">
+                <Link href={item.href}>
+                  <a className="w-full flex flex-col items-center justify-center gap-1 py-2 px-0.5 transition-all">
                     <div className={cn(
                       "relative flex items-center justify-center w-9 h-7 rounded-xl transition-all duration-200",
                       isActive
@@ -256,12 +257,13 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
                     </span>
                   </a>
                 </Link>
+                </div>
               );
             })}
 
             {/* Menu/More button */}
             <button
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 px-0.5 transition-all"
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 px-0.5 transition-all min-w-0"
               onClick={() => setDrawerOpen(true)}
               data-testid="button-menu"
             >
