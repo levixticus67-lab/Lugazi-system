@@ -2,7 +2,10 @@ workflows:
   android-capacitor-build:
     name: Build Capacitor Android APK
     max_build_duration: 45
-    instance_type: mac_mini_m1
+    # Linux x64: Android doesn't need macOS, and linux-x64 esbuild is available.
+    # mac_mini_m1 was failing because pnpm-workspace.yaml excludes darwin-arm64
+    # esbuild binaries (Replit runs Linux-only), making lib builds impossible on Mac.
+    instance_type: linux_x2
     environment:
       node: 20
       java: 17
@@ -24,9 +27,11 @@ workflows:
 
       - name: Build Shared Libraries
         script: |
-          # lib/* packages are TypeScript composite — they must emit declarations
-          # before the Vite app can resolve @workspace/api-client-react etc.
+          # 1. tsc --build: emits .d.ts declarations for all composite lib/* packages
           pnpm run typecheck:libs
+          # 2. Build api-client-react JS bundle (node build.mjs → dist/index.mjs)
+          #    This requires esbuild; works on linux_x2 since linux-x64 is not excluded
+          pnpm --filter @workspace/api-client-react run build
 
       - name: Build Web Application
         script: |
