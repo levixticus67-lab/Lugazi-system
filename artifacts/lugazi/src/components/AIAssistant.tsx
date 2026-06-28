@@ -64,7 +64,7 @@ import { useState } from "react";
     }
 
     return (
-      <div className="fixed bottom-6 left-6 z-50">
+      <div className="fixed bottom-24 left-4 lg:bottom-6 lg:left-6 z-50">
         {open ? (
           <div className="glass-card w-80 flex flex-col shadow-2xl" style={{ height: 460 }}>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/20 rounded-t-[calc(var(--radius)-1px)]"
@@ -148,7 +148,7 @@ import { useState } from "react";
           </div>
         ) : (
           <button onClick={() => setOpen(true)}
-            className="text-white rounded-full p-3.5 shadow-lg hover:scale-105 transition-transform relative"
+            className="text-white rounded-full p-4 shadow-lg hover:scale-105 transition-transform relative"
             style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)", boxShadow: "0 0 20px rgba(124,58,237,0.4)" }}>
             <GeminiIcon className="h-5 w-5" />
           </button>
