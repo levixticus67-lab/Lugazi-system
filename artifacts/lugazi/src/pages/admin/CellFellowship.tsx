@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import LiveChat from "@/components/LiveChat";
 import AIAssistant from "@/components/AIAssistant";
 import { adminNavItems } from "./navItems";
-import { Home, Users, MapPin, Clock, Plus, X, TrendingUp, CheckCircle2, Search, User } from "lucide-react";
+import { Home, Users, MapPin, Clock, Plus, X, TrendingUp, CheckCircle2, Search, User, Pencil, Power } from "lucide-react";
 
 interface CellGroup {
   id: number;
@@ -32,12 +32,6 @@ interface Member {
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-const mockCells: CellGroup[] = [
-  { id:1, name:"Zion Cell", type:"cell", leaderName:"Bro. James Okello", leaderUserId:null, location:"Kampala Road, Lugazi", meetingDay:"Wednesday", meetingTime:"18:00", memberCount:12, isActive:true, createdAt: new Date().toISOString() },
-  { id:2, name:"Bethel Cell", type:"cell", leaderName:"Sis. Grace Nakato", leaderUserId:null, location:"Buikwe Road, Lugazi", meetingDay:"Friday", meetingTime:"17:30", memberCount:9, isActive:true, createdAt: new Date().toISOString() },
-  { id:3, name:"Canaan Cell", type:"cell", leaderName:"Bro. Moses Sserunjogi", leaderUserId:null, location:"Njeru, Jinja Road", meetingDay:"Thursday", meetingTime:"18:30", memberCount:15, isActive:true, createdAt: new Date().toISOString() },
-  { id:4, name:"Jordan Cell", type:"cell", leaderName:"Sis. Ruth Akello", leaderUserId:null, location:"Kayunga Road", meetingDay:"Saturday", meetingTime:"10:00", memberCount:7, isActive:false, createdAt: new Date().toISOString() },
-];
 
 export default function AdminCellFellowship() {
   const qc = useQueryClient();
@@ -61,7 +55,7 @@ export default function AdminCellFellowship() {
     staleTime: 60_000,
   });
 
-  const displayCells = cells.length > 0 ? cells : mockCells;
+  const displayCells = cells;
 
   const create = useMutation({
     mutationFn: (data: { name: string; branchId: number; leaderName: string; leaderUserId: number | null; location: string; meetingDay: string; meetingTime: string; type: string }) =>
@@ -76,6 +70,12 @@ export default function AdminCellFellowship() {
 
   const del = useMutation({
     mutationFn: (id: number) => axios.delete(`/api/groups/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cells-fellowship"] }),
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      axios.patch(`/api/groups/${id}`, { isActive }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cells-fellowship"] }),
   });
 
@@ -295,7 +295,13 @@ export default function AdminCellFellowship() {
                   <div className="h-full blue-gradient-bg rounded-full transition-all" style={{ width: `${Math.min(100, (cell.memberCount/20)*100)}%` }} />
                 </div>
               </div>
-              <div className="flex justify-end pt-1">
+              <div className="flex justify-between items-center pt-1">
+                <button
+                  onClick={() => toggleActive.mutate({ id: cell.id, isActive: !cell.isActive })}
+                  disabled={toggleActive.isPending}
+                  className={`text-[10px] font-medium hover:underline disabled:opacity-50 ${cell.isActive ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+                  {cell.isActive ? "Deactivate" : "Activate"}
+                </button>
                 <button onClick={() => { if (confirm(`Delete ${cell.name}?`)) del.mutate(cell.id); }}
                   className="text-[10px] text-destructive hover:underline">Delete</button>
               </div>
