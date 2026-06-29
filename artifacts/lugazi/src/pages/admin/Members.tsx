@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search, UserCheck, UserX } from "lucide-react";
 
 type Member = {
   id: number; fullName: string; email: string; phone?: string | null;
@@ -73,6 +73,14 @@ export default function AdminMembers() {
   function handleDelete(id: number) {
     if (!confirm("Delete this member?")) return;
     deleteMutation.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() }) });
+  }
+
+  async function handleToggleActive(m: Member) {
+    try {
+      await axios.patch(`/api/members/${m.id}`, { isActive: !m.isActive });
+      queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+      toast({ title: m.isActive ? "Member deactivated" : "Member activated" });
+    } catch { toast({ title: "Failed to update member status", variant: "destructive" }); }
   }
 
   function openEdit(r: Member) {
@@ -144,8 +152,11 @@ export default function AdminMembers() {
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => handleDelete(m.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => handleToggleActive(m)} className={`p-1.5 rounded-lg transition-colors ${m.isActive ? "hover:bg-amber-100 text-muted-foreground hover:text-amber-600" : "hover:bg-green-100 text-muted-foreground hover:text-green-600"}`} title={m.isActive ? "Deactivate member" : "Activate member"}>
+                      {m.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                    </button>
+                    <button onClick={() => handleDelete(m.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 </div>
                 <div className="mt-1.5 space-y-0.5">
