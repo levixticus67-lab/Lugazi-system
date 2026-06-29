@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check } from "lucide-react";
+import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check, UserCheck, UserX } from "lucide-react";
 import axios from "@/lib/axios";
 
 type User = { id: number; email: string; displayName: string; role: string; isActive: boolean; createdAt: string };
@@ -37,9 +37,20 @@ export default function AdminUsers() {
 
   // Reset password state
   const [resetUser, setResetUser] = useState<User | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
   const [resetPending, setResetPending] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  async function handleToggleActive(u: User) {
+    setTogglingId(u.id);
+    try {
+      await axios.patch(`/api/users/${u.id}`, { isActive: !u.isActive });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+      toast({ title: u.isActive ? "User deactivated" : "User activated" });
+    } catch { toast({ title: "Failed to update user status", variant: "destructive" }); }
+    finally { setTogglingId(null); }
+  }
 
   function handleRoleChange() {
     if (!editUser) return;
@@ -165,6 +176,11 @@ export default function AdminUsers() {
                       <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1"
                         onClick={() => { setEditUser(u); setNewRole(u.role); }}>
                         <Shield className="h-3 w-3"/>Role
+                      </Button>
+                      <Button size="sm" variant="outline" className={`h-6 text-[10px] px-2 gap-1 ${u.isActive ? "hover:text-amber-600 hover:border-amber-300" : "hover:text-green-600 hover:border-green-300"}`}
+                        onClick={() => handleToggleActive(u)} disabled={togglingId === u.id}>
+                        {u.isActive ? <UserX className="h-3 w-3"/> : <UserCheck className="h-3 w-3"/>}
+                        {u.isActive ? "Deactivate" : "Activate"}
                       </Button>
                     </div>
                   </div>
