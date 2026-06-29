@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Users, Crown, UserPlus, UserMinus, ChevronDown, ChevronUp, Pencil, Search, X } from "lucide-react";
+import { Plus, Trash2, Users, Crown, UserPlus, UserMinus, ChevronDown, ChevronUp, Pencil, Search, X, Power } from "lucide-react";
 
 interface TeamMember { id: number; userId: number; memberName: string; role: string | null; joinedAt: string; }
 interface Team { id: number; name: string; description: string | null; leaderName: string | null; leaderId: number | null; isActive: boolean; members: TeamMember[]; createdAt: string; }
@@ -63,6 +63,12 @@ export default function AdminMinistryTeams() {
   const removeMember = useMutation({
     mutationFn: ({teamId, userId}: {teamId: number; userId: number}) => axios.delete(`/api/ministry-teams/${teamId}/members/${userId}`),
     onSuccess: () => { qc.invalidateQueries({queryKey:["admin-ministry-teams"]}); toast({title:"Member removed"}); },
+  });
+
+  const toggleTeamActive = useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      axios.patch(`/api/ministry-teams/${id}`, { isActive }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ministry-teams"] }),
   });
 
   const filteredLeaders = users.filter(u => u.displayName.toLowerCase().includes(leaderSearch.toLowerCase())).slice(0, 8);
@@ -125,6 +131,12 @@ export default function AdminMinistryTeams() {
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => setAddMemberTeam(team)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Add member">
                       <UserPlus className="h-4 w-4"/>
+                    </button>
+                    <button
+                      onClick={() => toggleTeamActive.mutate({ id: team.id, isActive: !team.isActive })}
+                      className={`p-2 rounded-xl transition-colors ${team.isActive ? "hover:bg-amber-100 dark:hover:bg-amber-950 text-muted-foreground hover:text-amber-600" : "hover:bg-green-100 dark:hover:bg-green-950 text-muted-foreground hover:text-green-600"}`}
+                      title={team.isActive ? "Deactivate team" : "Activate team"}>
+                      <Power className="h-4 w-4"/>
                     </button>
                     <button onClick={() => { if(confirm(`Delete "${team.name}"?`)) deleteTeam.mutate(team.id); }} className="p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete team">
                       <Trash2 className="h-4 w-4"/>
