@@ -30,20 +30,6 @@ interface Enrollment {
   completedAt: string | null;
 }
 
-const defaultTracks: Track[] = [
-  { id:1, name:"Foundation Class", description:"Basic discipleship and introduction to DCL Lugazi", level:1, totalSessions:4, isActive:true, createdAt: new Date().toISOString() },
-  { id:2, name:"Growth Track", description:"Spiritual maturity, prayer, and Bible study deep-dive", level:2, totalSessions:6, isActive:true, createdAt: new Date().toISOString() },
-  { id:3, name:"Leadership Training", description:"Equipping leaders for ministry and service", level:3, totalSessions:8, isActive:true, createdAt: new Date().toISOString() },
-  { id:4, name:"Marriage & Family", description:"Biblical foundations for family and relationships", level:2, totalSessions:5, isActive:true, createdAt: new Date().toISOString() },
-];
-
-const defaultEnrollments: Enrollment[] = [
-  { id:1, memberId:1, memberName:"Sarah Namusoke", trackId:1, trackName:"Foundation Class", progress:75, status:"in_progress", enrolledAt: new Date(Date.now()-7*86400000).toISOString(), completedAt:null },
-  { id:2, memberId:2, memberName:"John Kato", trackId:2, trackName:"Growth Track", progress:100, status:"completed", enrolledAt: new Date(Date.now()-30*86400000).toISOString(), completedAt: new Date(Date.now()-2*86400000).toISOString() },
-  { id:3, memberId:3, memberName:"Grace Nakayima", trackId:1, trackName:"Foundation Class", progress:25, status:"enrolled", enrolledAt: new Date(Date.now()-3*86400000).toISOString(), completedAt:null },
-  { id:4, memberId:4, memberName:"David Ssemakula", trackId:3, trackName:"Leadership Training", progress:60, status:"in_progress", enrolledAt: new Date(Date.now()-14*86400000).toISOString(), completedAt:null },
-];
-
 const levelColors = ["","bg-blue-500/10 text-blue-600 border-blue-200","bg-indigo-500/10 text-indigo-600 border-indigo-200","bg-purple-500/10 text-purple-600 border-purple-200"];
 const statusColor: Record<string,string> = { enrolled:"bg-yellow-100 text-yellow-700", in_progress:"bg-blue-100 text-blue-700", completed:"bg-green-100 text-green-700" };
 const statusLabel: Record<string,string> = { enrolled:"Enrolled", in_progress:"In Progress", completed:"Completed" };
@@ -64,8 +50,8 @@ export default function AdminInduction() {
     queryFn: () => axios.get("/api/induction/enrollments").then(r => r.data).catch(() => [] as Enrollment[]),
   });
 
-  const displayTracks = tracks.length > 0 ? tracks : defaultTracks;
-  const displayEnrollments = enrollments.length > 0 ? enrollments : defaultEnrollments;
+  const displayTracks = tracks;
+  const displayEnrollments = enrollments;
 
   const qc = useQueryClient();
   const createTrack = useMutation({
