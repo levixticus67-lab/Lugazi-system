@@ -269,6 +269,26 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
   });
 });
 
+
+// ── POST /auth/refresh ────────────────────────────────────────────────────────
+// Issues a fresh 2-day JWT for an already-authenticated session.
+// Called proactively by the native app (when the token has < 12 h left) and
+// reactively by the axios 401 interceptor before redirecting to login.
+router.post("/auth/refresh", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const [user] = await db.select().from(usersTable)
+    .where(eq(usersTable.id, req.userId!))
+    .limit(1);
+
+  if (!user || !user.isActive) {
+    res.status(401).json({ error: "Account not found or deactivated" });
+    return;
+  }
+
+  const token = generateToken(user.id, user.role, "2d");
+  setAuthCookie(res, token);
+  res.json({ token });
+});
+
 // ── POST /auth/change-password ────────────────────────────────────────────────
 router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const validated = validateChangePassword(req.body);
