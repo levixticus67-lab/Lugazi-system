@@ -59,12 +59,10 @@ export default function Login() {
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
-  // ── Google OAuth one-time code exchange ──────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("oauth_code");
     if (!code) return;
-    // Clean the URL immediately so a refresh doesn't re-trigger
     window.history.replaceState({}, "", "/login");
     axios.post<{ token: string; user: any }>("/api/auth/oauth-exchange", { code })
       .then(res => {
@@ -148,7 +146,6 @@ export default function Login() {
       await axios.post("/api/auth/forgot-password", { email: forgotEmail.trim() });
       setView("forgot-sent");
     } catch {
-      // Always show success to prevent email enumeration
       setView("forgot-sent");
     } finally {
       setPending(false);
@@ -156,7 +153,6 @@ export default function Login() {
   }
 
   function handleGoogleSignIn() {
-    // Must use the full backend URL — the frontend is on Firebase, not the same domain as the API
     const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
     window.location.href = `${apiBase}/api/auth/google`;
   }
@@ -196,8 +192,8 @@ export default function Login() {
     <div className="min-h-screen flex" data-testid="page-login">
       {leftPanel}
 
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-8"
-           style={{ background: "linear-gradient(160deg, hsl(210,40%,96%) 0%, hsl(213,60%,93%) 100%)" }}>
+      {/* Right panel — dark-mode-aware background */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-900 dark:to-slate-800">
         <div className="w-full max-w-md animate-fade-in-scale">
           <div className="lg:hidden mb-8 text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -217,7 +213,7 @@ export default function Login() {
                   <ArrowLeft className="h-4 w-4" /> Back to Sign In
                 </button>
                 <div className="mb-6">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
                     <KeyRound className="h-6 w-6 text-primary" />
                   </div>
                   <h2 className="font-serif text-2xl font-bold text-foreground">Forgot Password?</h2>
@@ -230,7 +226,7 @@ export default function Login() {
                     <Label>Email address</Label>
                     <Input type="email" placeholder="your@email.com" value={forgotEmail}
                       onChange={e => setForgotEmail(e.target.value)} required
-                      className="bg-white/70 border-blue-200 focus:border-primary" />
+                      className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                   </div>
                   <Button type="submit" className="w-full blue-gradient-bg text-white border-0 hover:opacity-90 glow-blue"
                     disabled={pending}>
@@ -244,8 +240,8 @@ export default function Login() {
             {/* ── Forgot Password: sent confirmation ── */}
             {view === "forgot-sent" && (
               <div className="text-center py-4">
-                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="h-8 w-8 text-green-600" />
+                <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
                 </div>
                 <h2 className="font-serif text-2xl font-bold text-foreground mb-2">Check your inbox</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed mb-6">
@@ -282,7 +278,9 @@ export default function Login() {
                       <h2 className="font-serif text-2xl font-bold text-foreground">Welcome back</h2>
                       <p className="text-muted-foreground text-sm mt-1">Sign in to your account to continue</p>
                     </div>
-                    <Button type="button" variant="outline" className="w-full mb-4 gap-2 border-gray-300 bg-white hover:bg-gray-50"
+                    {/* Google button — dark-mode-aware */}
+                    <Button type="button" variant="outline"
+                      className="w-full mb-4 gap-2 border-border bg-background hover:bg-muted text-foreground"
                       onClick={handleGoogleSignIn}>
                       <GoogleIcon />
                       Continue with Google
@@ -290,7 +288,7 @@ export default function Login() {
                     <div className="relative mb-4">
                       <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white/80 px-2 text-muted-foreground">or sign in with email</span>
+                        <span className="bg-card px-2 text-muted-foreground">or sign in with email</span>
                       </div>
                     </div>
                     <form onSubmit={handleLogin} className="space-y-4">
@@ -298,7 +296,7 @@ export default function Login() {
                         <Label>Email address</Label>
                         <Input type="email" placeholder="your@email.com" value={email}
                           onChange={e => setEmail(e.target.value)} required data-testid="input-email"
-                          className="bg-white/70 border-blue-200 focus:border-primary" />
+                          className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
@@ -311,12 +309,12 @@ export default function Login() {
                         </div>
                         <Input type="password" placeholder="Enter your password" value={password}
                           onChange={e => setPassword(e.target.value)} required data-testid="input-password"
-                          className="bg-white/70 border-blue-200 focus:border-primary" />
+                          className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <div className="flex items-center">
                         <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
-                            className="w-4 h-4 rounded border-blue-300 accent-primary cursor-pointer" />
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
                           <span className="text-sm text-muted-foreground">Remember me for 14 days</span>
                         </label>
                       </div>
@@ -347,7 +345,9 @@ export default function Login() {
                         Join DCL Lugazi. If your email was pre-registered, it will be automatically linked.
                       </p>
                     </div>
-                    <Button type="button" variant="outline" className="w-full mb-4 gap-2 border-gray-300 bg-white hover:bg-gray-50"
+                    {/* Google button — dark-mode-aware */}
+                    <Button type="button" variant="outline"
+                      className="w-full mb-4 gap-2 border-border bg-background hover:bg-muted text-foreground"
                       onClick={handleGoogleSignIn}>
                       <GoogleIcon />
                       Continue with Google
@@ -355,7 +355,7 @@ export default function Login() {
                     <div className="relative mb-4">
                       <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white/80 px-2 text-muted-foreground">or register with email</span>
+                        <span className="bg-card px-2 text-muted-foreground">or register with email</span>
                       </div>
                     </div>
                     <form onSubmit={handleRegister} className="space-y-4">
@@ -363,25 +363,25 @@ export default function Login() {
                         <Label>Full Name</Label>
                         <Input placeholder="Your full name" value={displayName}
                           onChange={e => setDisplayName(e.target.value)} required
-                          className="bg-white/70 border-blue-200 focus:border-primary" />
+                          className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Email address</Label>
                         <Input type="email" placeholder="your@email.com" value={email}
                           onChange={e => setEmail(e.target.value)} required
-                          className="bg-white/70 border-blue-200 focus:border-primary" />
+                          className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Password</Label>
                         <Input type="password" placeholder="At least 8 characters + a number" value={password}
                           onChange={e => setPassword(e.target.value)} required
-                          className="bg-white/70 border-blue-200 focus:border-primary" />
+                          className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Confirm Password</Label>
                         <Input type="password" placeholder="Repeat your password" value={confirmPassword}
                           onChange={e => setConfirmPassword(e.target.value)} required
-                          className="bg-white/70 border-blue-200 focus:border-primary" />
+                          className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <Button type="submit"
                         className="w-full blue-gradient-bg text-white border-0 hover:opacity-90 glow-blue mt-1"
