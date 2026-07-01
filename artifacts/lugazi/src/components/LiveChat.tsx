@@ -3,7 +3,7 @@ import { useIsPwa } from "@/hooks/use-is-pwa";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   MessageSquare, Send, X, Archive, Search, ChevronLeft, ChevronRight,
-  Smile, Trash2, Reply, Lock, LockOpen, Users, Wifi, WifiOff,
+  Smile, Trash2, Reply, Lock, LockOpen,
   Bell, BellOff, Sparkles, MoreHorizontal, Check, CheckCheck, AtSign, Pencil,
 } from "lucide-react";
 import axios from "@/lib/axios";
@@ -50,21 +50,19 @@ interface PrivateMessage {
   replyToText?: string | null;
   isRead: boolean;
   isPrivateMode: boolean;
+  isDeleted: boolean;
   createdAt: string;
+  autoDeleteAt?: string | null;
 }
 
-interface DMUser {
+interface DMContact {
   userId: number;
   displayName: string;
   photoUrl?: string | null;
   role: string;
-}
-
-interface UserStatus {
-  userId: number;
-  displayName: string;
-  photoUrl?: string | null;
   status: string;
+  unreadCount: number;
+  lastMessage: { message: string; createdAt: string } | null;
 }
 
 interface LogsResponse {
@@ -75,7 +73,7 @@ interface LogsResponse {
 }
 
 const POLL_INTERVAL = 2500;
-
+const DM_POLL_INTERVAL = 3000;
 
 const QUICK_REACTIONS = ["🙏", "❤️", "🙌", "👍", "😂", "🎉", "🔥", "🕊️"];
 const FULL_EMOJI_ROWS = [
@@ -95,11 +93,11 @@ const CHURCH_STICKERS = [
   { label: "To God be glory 🌟", text: "To God be all the glory! 🌟" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  online: { label: "Online", color: "bg-green-500", icon: "🟢" },
-  offline: { label: "Offline", color: "bg-gray-400", icon: "⚫" },
-  "in-service": { label: "In Service", color: "bg-blue-500", icon: "⛪" },
-  dnd: { label: "Do Not Disturb", color: "bg-red-500", icon: "🔴" },
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  online: { label: "Online", color: "bg-green-500" },
+  offline: { label: "Offline", color: "bg-gray-400" },
+  "in-service": { label: "In Service", color: "bg-blue-500" },
+  dnd: { label: "Do Not Disturb", color: "bg-red-500" },
 };
 
 const roleBadge: Record<string, string> = {
@@ -109,7 +107,7 @@ const roleBadge: Record<string, string> = {
   member: "bg-slate-500/20 text-slate-400 border border-slate-500/30",
 };
 const roleLabel: Record<string, string> = {
-  admin: "Admin", leadership: "Leader", workforce: "Workforce", member: "Member",
+  admin: "Admin", leadership: "Leader", workforce: "Workforce", member: "Member", pastor: "Pastor",
 };
 
 function Avatar({ name, photoUrl, size = "sm" }: { name: string; photoUrl?: string | null; size?: "sm" | "xs" }) {
@@ -122,13 +120,15 @@ function Avatar({ name, photoUrl, size = "sm" }: { name: string; photoUrl?: stri
   );
 }
 
-type ChatView = "chat" | "logs" | "emoji" | "stickers" | "dm" | "dm-thread" | "status" | "ai-summary";
+type ChatView = "chat" | "logs" | "dm" | "dm-thread" | "status" | "ai-summary";
 
 export default function LiveChat() {
   const { user, token } = useAuth();
   const isPwa = useIsPwa();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ChatView>("chat");
+
+  // Global chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [reactions, setReactions] = useState<ChatReaction[]>([]);
   const [hasLogs, setHasLogs] = useState(false);
@@ -139,6 +139,7 @@ export default function LiveChat() {
   const [dnd, setDnd] = useState(() => localStorage.getItem("chat_dnd") === "1");
   const [myStatus, setMyStatus] = useState("online");
 
+  // Message interaction
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -147,32 +148,42 @@ export default function LiveChat() {
   const [showMsgMenu, setShowMsgMenu] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
+  // Logs
   const [logSearch, setLogSearch] = useState("");
   const [logPage, setLogPage] = useState(0);
   const [logs, setLogs] = useState<LogsResponse | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  const [dmUsers, setDmUsers] = useState<DMUser[]>([]);
-  const [dmTarget, setDmTarget] = useState<DMUser | null>(null);
+  // DM state
+  const [dmContacts, setDmContacts] = useState<DMContact[]>([]);
+  const [dmTarget, setDmTarget] = useState<DMContact | null>(null);
   const [dmMessages, setDmMessages] = useState<PrivateMessage[]>([]);
   const [dmInput, setDmInput] = useState("");
   const [privateMode, setPrivateMode] = useState(false);
   const [dmReplyTo, setDmReplyTo] = useState<PrivateMessage | null>(null);
-  const [onlineStatuses, setOnlineStatuses] = useState<UserStatus[]>([]);
+  const [dmMsgMenu, setDmMsgMenu] = useState<number | null>(null);
+  const [dmConfirmDelete, setDmConfirmDelete] = useState<number | null>(null);
+  const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
+  const [dmContactsLoading, setDmContactsLoading] = useState(false);
 
+  // AI
   const [aiSummary, setAiSummary] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Mentions
   const [mentionSearch, setMentionSearch] = useState("");
   const [showMentions, setShowMentions] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dmInputRef = useRef<HTMLInputElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dmPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const menuOpenRef = useRef<number | null>(null);
 
   const SCOPE = "global";
 
+  // ─── Global chat polling ───────────────────────────────────────────────────
   const fetchMessages = useCallback(async () => {
     if (!token) return;
     try {
@@ -192,11 +203,29 @@ export default function LiveChat() {
     return () => clearInterval(interval);
   }, [token, fetchMessages]);
 
+  // ─── DM unread count polling (for badge on floating button) ───────────────
+  const fetchDmUnread = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get<{ count: number }>("/api/chat/dm/unread-count");
+      setDmUnreadTotal(res.data.count);
+    } catch { }
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
-    axios.get<UserStatus[]>("/api/chat/statuses").then(r => setOnlineStatuses(r.data)).catch(() => {});
-  }, [token, open]);
+    fetchDmUnread();
+    const interval = setInterval(fetchDmUnread, 10000);
+    return () => clearInterval(interval);
+  }, [token, fetchDmUnread]);
 
+  // ─── Update own status ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!token || !user) return;
+    axios.patch("/api/chat/status", { status: myStatus, displayName: user.displayName, photoUrl: (user as any).photoUrl }).catch(() => {});
+  }, [myStatus, token, user]);
+
+  // ─── Auto-scroll in global chat ──────────────────────────────────────────
   useEffect(() => {
     if (open && view === "chat" && showMsgMenu === null && confirmDeleteId === null) {
       setSeenCount(messages.length);
@@ -204,26 +233,27 @@ export default function LiveChat() {
     }
   }, [messages, open, view, showMsgMenu, confirmDeleteId]);
 
-  useEffect(() => {
-    if (!token || !user) return;
-    axios.patch("/api/chat/status", { status: myStatus, displayName: user.displayName, photoUrl: (user as any).photoUrl }).catch(() => {});
-  }, [myStatus, token, user]);
+  // ─── Load DM contacts when entering DM view ───────────────────────────────
+  const fetchDmContacts = useCallback(async () => {
+    if (!token) return;
+    setDmContactsLoading(true);
+    try {
+      const res = await axios.get<DMContact[]>("/api/chat/dm/contacts");
+      setDmContacts(res.data);
+      // Update total unread from contacts
+      const total = res.data.reduce((sum, c) => sum + c.unreadCount, 0);
+      setDmUnreadTotal(total);
+    } catch { } finally {
+      setDmContactsLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!token || view !== "dm" || !open) return;
-    axios.get<ChatMessage[]>(`/api/chat/${SCOPE}`).then(r => {
-      const seen = new Set<number>();
-      const users: DMUser[] = [];
-      (r.data as any[]).forEach((m: ChatMessage) => {
-        if (m.userId !== user?.id && !seen.has(m.userId)) {
-          seen.add(m.userId);
-          users.push({ userId: m.userId, displayName: m.displayName, photoUrl: m.photoUrl, role: m.role });
-        }
-      });
-      setDmUsers(users);
-    }).catch(() => {});
-  }, [token, view, open, user?.id]);
+    fetchDmContacts();
+  }, [token, view, open, fetchDmContacts]);
 
+  // ─── DM thread polling ────────────────────────────────────────────────────
   useEffect(() => {
     if (!token || !dmTarget) return;
     const poll = async () => {
@@ -233,10 +263,18 @@ export default function LiveChat() {
       } catch { }
     };
     poll();
-    dmPollRef.current = setInterval(poll, POLL_INTERVAL);
+    dmPollRef.current = setInterval(poll, DM_POLL_INTERVAL);
     return () => { if (dmPollRef.current) clearInterval(dmPollRef.current); };
   }, [token, dmTarget]);
 
+  // ─── Auto-scroll DM thread to bottom ─────────────────────────────────────
+  useEffect(() => {
+    if (view === "dm-thread" && dmMessages.length > 0) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }, [dmMessages, view]);
+
+  // ─── Logs ─────────────────────────────────────────────────────────────────
   async function fetchLogs(search: string, page: number) {
     setLogsLoading(true);
     try {
@@ -253,6 +291,7 @@ export default function LiveChat() {
     searchTimer.current = setTimeout(() => fetchLogs(val, 0), 350);
   }
 
+  // ─── Global chat actions ──────────────────────────────────────────────────
   async function sendMessage() {
     if (!input.trim() || !user || sending) return;
     setSending(true);
@@ -306,6 +345,7 @@ export default function LiveChat() {
     setShowEmojiFor(null);
   }
 
+  // ─── DM actions ───────────────────────────────────────────────────────────
   async function sendDm() {
     if (!dmInput.trim() || !user || !dmTarget) return;
     try {
@@ -317,7 +357,17 @@ export default function LiveChat() {
       const res = await axios.post<PrivateMessage>(`/api/chat/dm/${dmTarget.userId}`, payload);
       setDmMessages(prev => [...prev, res.data]);
       setDmInput(""); setDmReplyTo(null);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch { }
+  }
+
+  async function deleteDmMessage(id: number) {
+    try {
+      await axios.delete(`/api/chat/dm/message/${id}`);
+      setDmMessages(prev => prev.map(m => m.id === id ? { ...m, isDeleted: true } : m));
+    } catch { }
+    setDmConfirmDelete(null);
+    setDmMsgMenu(null);
   }
 
   async function endPrivateMode() {
@@ -327,6 +377,19 @@ export default function LiveChat() {
     setPrivateMode(false);
   }
 
+  function openDmThread(contact: DMContact) {
+    setDmTarget(contact);
+    setDmMessages([]);
+    setDmMsgMenu(null);
+    setDmConfirmDelete(null);
+    setDmReplyTo(null);
+    setPrivateMode(false);
+    // Optimistically clear unread on the contact
+    setDmContacts(prev => prev.map(c => c.userId === contact.userId ? { ...c, unreadCount: 0 } : c));
+    setView("dm-thread");
+  }
+
+  // ─── AI summary ───────────────────────────────────────────────────────────
   async function getAiSummary() {
     setAiLoading(true); setView("ai-summary");
     try {
@@ -339,6 +402,7 @@ export default function LiveChat() {
     } catch { setAiSummary("Could not generate summary. Try again later."); } finally { setAiLoading(false); }
   }
 
+  // ─── @mentions ────────────────────────────────────────────────────────────
   function handleInput(val: string) {
     setInput(val);
     const atMatch = val.match(/@(\w*)$/);
@@ -356,13 +420,24 @@ export default function LiveChat() {
     if (val) setMyStatus("dnd"); else setMyStatus("online");
   }
 
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   function formatTime(iso: string) { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
   function formatDate(iso: string) {
     const d = new Date(iso);
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + " " + formatTime(iso);
   }
+  function formatLastMsg(iso: string) {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (diffMs < 60000) return "just now";
+    if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)}m ago`;
+    if (diffMs < 86400000) return formatTime(iso);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  }
 
   const unread = dnd ? 0 : Math.max(0, messages.length - seenCount);
+  const totalBadge = (dnd ? 0 : unread) + (dnd ? 0 : dmUnreadTotal);
 
   function getReactionsForMsg(msgId: number): Record<string, { count: number; mine: boolean }> {
     const grouped: Record<string, { count: number; mine: boolean }> = {};
@@ -374,9 +449,10 @@ export default function LiveChat() {
     return grouped;
   }
 
-  const mentionUsers = dmUsers.filter(u => u.displayName.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 5);
+  const mentionUsers = dmContacts.filter(u => u.displayName.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 5);
 
-  function renderMessage(msg: ChatMessage, isPrivate = false) {
+  // ─── Render global chat message ───────────────────────────────────────────
+  function renderMessage(msg: ChatMessage) {
     const isMe = msg.userId === user?.id;
     const canDelete = isMe || user?.role === "admin" || user?.role === "leadership";
     const msgReactions = getReactionsForMsg(msg.id);
@@ -396,7 +472,6 @@ export default function LiveChat() {
         <div className={`flex items-end gap-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
           <Avatar name={msg.displayName} photoUrl={msg.photoUrl} size="xs" />
 
-          {/* Always-visible ⋮ menu button */}
           {!msg.isDeleted && !isEditing && (
             <button
               onClick={e => { e.stopPropagation(); const next = showMsgMenu === msg.id ? null : msg.id; menuOpenRef.current = next; setShowMsgMenu(next); setConfirmDeleteId(null); }}
@@ -409,7 +484,6 @@ export default function LiveChat() {
           <div className="flex flex-col" style={{ maxWidth: "72%" }}>
             {!isMe && <span className="text-[10px] font-semibold mb-0.5 ml-0.5">{msg.displayName}</span>}
 
-            {/* Bubble */}
             {msg.isDeleted ? (
               <div className="px-3 py-1.5 rounded-2xl text-xs italic text-muted-foreground bg-muted/50">Message deleted</div>
             ) : isEditing ? (
@@ -440,7 +514,6 @@ export default function LiveChat() {
               </div>
             )}
 
-            {/* Action menu — appears below bubble when ⋮ tapped */}
             {!msg.isDeleted && !isEditing && menuOpen && (
               <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end" : "self-start"}`}>
                 <button onClick={e => { e.stopPropagation(); setShowEmojiFor(msg.id); menuOpenRef.current = null; setShowMsgMenu(null); }}
@@ -466,7 +539,6 @@ export default function LiveChat() {
               </div>
             )}
 
-            {/* Delete confirmation */}
             {confirmingDelete && (
               <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end" : "self-start"}`}>
                 <span className="text-[11px] text-destructive font-medium">Delete this message?</span>
@@ -477,22 +549,18 @@ export default function LiveChat() {
               </div>
             )}
 
-            {/* Emoji picker */}
             {showEmojiFor === msg.id && (
               <div className={`flex flex-wrap gap-1 mt-1 p-1.5 rounded-xl bg-popover border border-border shadow-lg ${isMe ? "self-end" : "self-start"}`}>
                 {QUICK_REACTIONS.map(e => (
                   <button key={e} onPointerDown={() => toggleReaction(msg.id, e)}
                     className="text-base hover:scale-125 transition-transform leading-none p-0.5 rounded">{e}</button>
                 ))}
-                <button onPointerDown={() => { setShowEmojiFor(null); setShowFullEmoji(true); }}
-                  className="text-[10px] text-muted-foreground hover:text-foreground px-1">+</button>
                 <button onPointerDown={() => setShowEmojiFor(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="h-3 w-3" />
                 </button>
               </div>
             )}
 
-            {/* Reactions */}
             {hasReactions && !msg.isDeleted && (
               <div className={`flex flex-wrap gap-0.5 mt-0.5 ${isMe ? "self-end" : "self-start"}`}>
                 {Object.entries(msgReactions).map(([emoji, { count, mine }]) => (
@@ -511,39 +579,97 @@ export default function LiveChat() {
     );
   }
 
+  // ─── Render DM message ────────────────────────────────────────────────────
   function renderDmMessage(msg: PrivateMessage) {
     const isMe = msg.fromUserId === user?.id;
+    const menuOpen = dmMsgMenu === msg.id;
+    const confirmingDelete = dmConfirmDelete === msg.id;
+
+    if (msg.isDeleted) {
+      return (
+        <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+          <div className="px-3 py-1.5 rounded-2xl text-xs italic text-muted-foreground bg-muted/40">Message deleted</div>
+        </div>
+      );
+    }
+
     return (
-      <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} group`}>
+      <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
         {msg.replyToText && (
           <div className={`max-w-[85%] mb-0.5 px-2 py-1 rounded-lg border-l-2 border-primary/40 bg-muted/60 text-[10px] text-muted-foreground ${isMe ? "self-end" : "self-start"}`}>
-            {msg.replyToText.slice(0, 60)}
+            {msg.replyToText.slice(0, 60)}{msg.replyToText.length > 60 ? "…" : ""}
           </div>
         )}
-        <div className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed relative ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"} ${msg.isPrivateMode ? "border border-purple-500/40" : ""}`}>
-          {msg.isPrivateMode && <Lock className="h-2.5 w-2.5 absolute top-1 right-1 opacity-50" />}
-          {msg.message}
+
+        <div className={`flex items-end gap-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+          {/* ⋮ menu button — always visible for touch */}
+          <button
+            onClick={e => { e.stopPropagation(); setDmMsgMenu(prev => prev === msg.id ? null : msg.id); setDmConfirmDelete(null); }}
+            className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition shrink-0 self-center"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+
+          <div className={`relative max-w-[80%] px-3 py-1.5 rounded-2xl text-sm leading-relaxed ${isMe ? "blue-gradient-bg text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"} ${msg.isPrivateMode ? "ring-1 ring-purple-500/40" : ""}`}>
+            {msg.isPrivateMode && <Lock className="h-2.5 w-2.5 absolute top-1 right-1 opacity-50" />}
+            {msg.message}
+          </div>
         </div>
-        <div className={`flex items-center gap-2 mt-0.5 ${isMe ? "flex-row-reverse" : ""}`}>
-          <span className="text-[9px] text-muted-foreground">{formatTime(msg.createdAt)}</span>
-          {!isMe && (
-            <button onClick={() => setDmReplyTo(msg)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition">
-              <Reply className="h-2.5 w-2.5" />
+
+        {/* Action menu */}
+        {menuOpen && (
+          <div className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end mr-6" : "self-start ml-6"}`}>
+            <button
+              onClick={() => { setDmReplyTo(msg); setDmMsgMenu(null); dmInputRef.current?.focus(); }}
+              className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Reply">
+              <Reply className="h-4 w-4" />
             </button>
+            {isMe && (
+              <button
+                onClick={() => { setDmConfirmDelete(msg.id); setDmMsgMenu(null); }}
+                className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-destructive" title="Delete">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Delete confirmation */}
+        {confirmingDelete && (
+          <div className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end mr-6" : "self-start ml-6"}`}>
+            <span className="text-[11px] text-destructive font-medium">Delete?</span>
+            <button onPointerDown={() => deleteDmMessage(msg.id)}
+              className="text-[10px] px-2 py-0.5 rounded-md bg-destructive text-white font-medium">Yes</button>
+            <button onPointerDown={() => setDmConfirmDelete(null)}
+              className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground">No</button>
+          </div>
+        )}
+
+        {/* Timestamp + read receipt */}
+        <div className={`flex items-center gap-1 mt-0.5 mx-6 ${isMe ? "flex-row-reverse" : ""}`}>
+          <span className="text-[9px] text-muted-foreground">{formatTime(msg.createdAt)}</span>
+          {isMe && (
+            msg.isRead
+              ? <CheckCheck className="h-3 w-3 text-primary" />
+              : <Check className="h-3 w-3 text-muted-foreground" />
           )}
+          {msg.isPrivateMode && <Lock className="h-2.5 w-2.5 text-purple-400 opacity-70" />}
         </div>
       </div>
     );
   }
 
+  // ─── Main render ──────────────────────────────────────────────────────────
   return (
     <div className={`fixed z-50 ${isPwa ? "bottom-24 right-4 lg:bottom-6 lg:right-6" : "bottom-6 right-6"}`}>
       {open ? (
-        <div className="glass-card flex flex-col shadow-2xl animate-fade-in-scale" style={{ width: 340, height: 500 }}>
-          {/* Header */}
+        <div className="glass-card flex flex-col shadow-2xl animate-fade-in-scale" style={{ width: 340, height: 520 }}>
+
+          {/* ── Header ── */}
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/20 blue-gradient-bg rounded-t-[calc(var(--radius)-1px)] shrink-0">
             {(view === "logs" || view === "dm-thread" || view === "ai-summary" || view === "status") && (
-              <button onClick={() => { setView(view === "dm-thread" ? "dm" : "chat"); setDmTarget(null); }}
+              <button
+                onClick={() => { setView(view === "dm-thread" ? "dm" : "chat"); if (view === "dm-thread") { setDmTarget(null); fetchDmContacts(); } }}
                 className="text-white/70 hover:text-white">
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -553,6 +679,7 @@ export default function LiveChat() {
                 <ChevronLeft className="h-4 w-4" />
               </button>
             )}
+
             <MessageSquare className="h-4 w-4 text-white shrink-0" />
             <span className="text-white font-semibold text-sm flex-1 truncate">
               {view === "chat" ? "Church Live Chat" :
@@ -562,19 +689,23 @@ export default function LiveChat() {
                view === "ai-summary" ? "AI Catch-Up ✨" :
                view === "status" ? "My Status" : ""}
             </span>
-            {view === "chat" && (
-              <div className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-white/70 text-[9px]">Live</span>
-              </div>
-            )}
+
             {view === "chat" && (
               <>
-                <button onClick={getAiSummary} title="AI Catch-Up" className="text-white/70 hover:text-white ml-0.5">
+                <div className="flex items-center gap-1 mr-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-white/70 text-[9px]">Live</span>
+                </div>
+                <button onClick={getAiSummary} title="AI Catch-Up" className="text-white/70 hover:text-white">
                   <Sparkles className="h-3.5 w-3.5" />
                 </button>
-                <button onClick={() => setView("dm")} title="Direct Messages" className="text-white/70 hover:text-white ml-0.5">
+                <button onClick={() => setView("dm")} title="Direct Messages" className="text-white/70 hover:text-white ml-0.5 relative">
                   <AtSign className="h-3.5 w-3.5" />
+                  {dmUnreadTotal > 0 && !dnd && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                      {dmUnreadTotal > 9 ? "9+" : dmUnreadTotal}
+                    </span>
+                  )}
                 </button>
                 <button onClick={() => toggleDnd(!dnd)} title={dnd ? "DND On" : "DND Off"} className="text-white/70 hover:text-white ml-0.5">
                   {dnd ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
@@ -589,12 +720,14 @@ export default function LiveChat() {
                 )}
               </>
             )}
+
             {view === "dm-thread" && dmTarget && (
               <button onClick={() => setPrivateMode(p => !p)} title={privateMode ? "Exit private mode" : "Enter private mode"}
                 className={`ml-0.5 ${privateMode ? "text-purple-300" : "text-white/70 hover:text-white"}`}>
                 {privateMode ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
               </button>
             )}
+
             <button onClick={() => { setOpen(false); setView("chat"); setReplyTo(null); setShowEmojiFor(null); setShowMsgMenu(null); }}
               className="text-white/70 hover:text-white ml-0.5">
               <X className="h-4 w-4" />
@@ -604,13 +737,13 @@ export default function LiveChat() {
           {/* Private mode banner */}
           {view === "dm-thread" && privateMode && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border-b border-purple-500/20 text-xs text-purple-400 shrink-0">
-              <Lock className="h-3 w-3" />
-              <span className="flex-1">Private mode — messages auto-delete when session ends</span>
-              <button onClick={endPrivateMode} className="text-purple-400 hover:text-purple-300 underline">End</button>
+              <Lock className="h-3 w-3 shrink-0" />
+              <span className="flex-1">Private — messages auto-delete after 24h</span>
+              <button onClick={endPrivateMode} className="text-purple-400 hover:text-purple-300 underline shrink-0">End</button>
             </div>
           )}
 
-          {/* Chat view */}
+          {/* ── Global Chat view ── */}
           {view === "chat" && (
             <>
               <div className="flex-1 overflow-y-auto p-3 space-y-2.5" onClick={() => { setShowEmojiFor(null); menuOpenRef.current = null; setShowMsgMenu(null); }}>
@@ -629,7 +762,6 @@ export default function LiveChat() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Full emoji picker */}
               {showFullEmoji && (
                 <div className="px-3 pb-2 shrink-0 border-t border-white/10">
                   <div className="flex items-center justify-between mb-1">
@@ -660,7 +792,6 @@ export default function LiveChat() {
                 </div>
               )}
 
-              {/* @mention suggestions */}
               {showMentions && mentionUsers.length > 0 && (
                 <div className="px-3 shrink-0 border-t border-white/10">
                   <div className="bg-popover border border-border rounded-lg overflow-hidden">
@@ -676,7 +807,6 @@ export default function LiveChat() {
                 </div>
               )}
 
-              {/* Reply preview */}
               {replyTo && (
                 <div className="mx-3 mb-1 px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between gap-2 shrink-0">
                   <div className="min-w-0">
@@ -709,7 +839,7 @@ export default function LiveChat() {
             </>
           )}
 
-          {/* Archive / Logs view */}
+          {/* ── Archive / Logs view ── */}
           {view === "logs" && (
             <>
               <div className="px-3 pt-3 pb-2 shrink-0 border-b border-white/10">
@@ -749,61 +879,104 @@ export default function LiveChat() {
             </>
           )}
 
-          {/* DM List */}
+          {/* ── DM Contact List ── */}
           {view === "dm" && (
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              <p className="text-xs text-muted-foreground mb-2">Chat directly with anyone from the conversation</p>
-              {dmUsers.length === 0 ? (
-                <p className="text-center text-xs text-muted-foreground py-8">No contacts yet. Join the group chat to see people.</p>
-              ) : (
-                dmUsers.map(u => {
-                  const status = onlineStatuses.find(s => s.userId === u.userId);
-                  return (
-                    <button key={u.userId} onClick={() => { setDmTarget(u); setView("dm-thread"); }}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-muted/60 transition text-left">
-                      <div className="relative">
-                        <Avatar name={u.displayName} photoUrl={u.photoUrl} />
-                        {status && (
-                          <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-background ${STATUS_CONFIG[status.status]?.color ?? "bg-gray-400"}`} />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{u.displayName}</p>
-                        <p className="text-[10px] text-muted-foreground capitalize">{roleLabel[u.role] ?? u.role} · {status ? STATUS_CONFIG[status.status]?.label : "Unknown"}</p>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+            <>
+              <div className="px-3 pt-3 pb-2 shrink-0 border-b border-white/10">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    className="w-full text-xs bg-muted rounded-lg pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-primary/40"
+                    placeholder="Search people…"
+                    onChange={e => {
+                      const q = e.target.value.toLowerCase();
+                      if (!q) { fetchDmContacts(); return; }
+                      setDmContacts(prev => prev.filter(c => c.displayName.toLowerCase().includes(q)));
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                {dmContactsLoading ? (
+                  [...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse" />)
+                ) : dmContacts.length === 0 ? (
+                  <p className="text-center text-xs text-muted-foreground py-8">No contacts found.</p>
+                ) : (
+                  dmContacts.map(contact => {
+                    return (
+                      <button key={contact.userId} onClick={() => openDmThread(contact)}
+                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-muted/60 transition text-left">
+                        <div className="relative shrink-0">
+                          <Avatar name={contact.displayName} photoUrl={contact.photoUrl} />
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-background ${STATUS_CONFIG[contact.status]?.color ?? "bg-gray-400"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="text-sm font-medium truncate">{contact.displayName}</p>
+                            {contact.lastMessage && (
+                              <span className="text-[9px] text-muted-foreground shrink-0">{formatLastMsg(contact.lastMessage.createdAt)}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {contact.lastMessage
+                                ? contact.lastMessage.message.slice(0, 35) + (contact.lastMessage.message.length > 35 ? "…" : "")
+                                : `${roleLabel[contact.role] ?? contact.role} · ${STATUS_CONFIG[contact.status]?.label ?? "Offline"}`}
+                            </p>
+                            {contact.unreadCount > 0 && (
+                              <span className="shrink-0 bg-primary text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                                {contact.unreadCount > 9 ? "9+" : contact.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </>
           )}
 
-          {/* DM Thread */}
+          {/* ── DM Thread ── */}
           {view === "dm-thread" && dmTarget && (
             <>
-              <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2.5" onClick={() => { setDmMsgMenu(null); setDmConfirmDelete(null); }}>
                 {dmMessages.length === 0 ? (
-                  <p className="text-center text-xs text-muted-foreground py-8">No messages yet. Start the conversation!</p>
+                  <div className="flex flex-col items-center justify-center h-full gap-2 py-8">
+                    <Avatar name={dmTarget.displayName} photoUrl={dmTarget.photoUrl} size="sm" />
+                    <p className="text-sm font-medium">{dmTarget.displayName}</p>
+                    <p className="text-xs text-muted-foreground text-center">No messages yet.<br />Start the conversation!</p>
+                  </div>
                 ) : (
                   dmMessages.map(msg => renderDmMessage(msg))
                 )}
                 <div ref={bottomRef} />
               </div>
+
               {dmReplyTo && (
                 <div className="mx-3 mb-1 px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between shrink-0">
-                  <p className="text-[10px] text-muted-foreground truncate">Replying: {dmReplyTo.message.slice(0, 50)}</p>
-                  <button onClick={() => setDmReplyTo(null)}><X className="h-3 w-3" /></button>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-medium text-primary">Replying to {dmReplyTo.fromUserId === user?.id ? "yourself" : dmTarget.displayName}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{dmReplyTo.message.slice(0, 50)}</p>
+                  </div>
+                  <button onClick={() => setDmReplyTo(null)}><X className="h-3 w-3 text-muted-foreground" /></button>
                 </div>
               )}
+
               <div className="px-3 pb-3 pt-1 border-t border-white/10 shrink-0">
                 <div className="flex gap-2 items-center">
                   {privateMode && <Lock className="h-3.5 w-3.5 text-purple-400 shrink-0" />}
-                  <input className="flex-1 text-sm bg-muted rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
-                    placeholder={privateMode ? "Private message…" : "Message…"}
-                    value={dmInput} onChange={e => setDmInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDm(); } }} />
+                  <input
+                    ref={dmInputRef}
+                    className="flex-1 text-sm bg-muted rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
+                    placeholder={privateMode ? "Private message…" : `Message ${dmTarget.displayName}…`}
+                    value={dmInput}
+                    onChange={e => setDmInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDm(); } }}
+                  />
                   <button onClick={sendDm} disabled={!dmInput.trim()}
-                    className="blue-gradient-bg text-white rounded-xl p-2 disabled:opacity-40 shrink-0">
+                    className="blue-gradient-bg text-white rounded-xl p-2 disabled:opacity-40 hover:opacity-90 transition shrink-0">
                     <Send className="h-4 w-4" />
                   </button>
                 </div>
@@ -811,7 +984,7 @@ export default function LiveChat() {
             </>
           )}
 
-          {/* AI Summary */}
+          {/* ── AI Summary ── */}
           {view === "ai-summary" && (
             <div className="flex-1 overflow-y-auto p-4">
               {aiLoading ? (
@@ -829,12 +1002,12 @@ export default function LiveChat() {
                   <button onClick={getAiSummary} className="text-xs text-primary hover:underline">Refresh summary</button>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">Click the ✨ button in the chat to get an AI summary of recent messages.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">Click ✨ in the chat header to get an AI summary of recent messages.</p>
               )}
             </div>
           )}
 
-          {/* Status picker */}
+          {/* ── Status picker ── */}
           {view === "status" && (
             <div className="flex-1 p-4 space-y-3">
               <p className="text-xs text-muted-foreground mb-2">Set your presence status</p>
@@ -847,21 +1020,23 @@ export default function LiveChat() {
                 </button>
               ))}
               <div className="pt-2 border-t border-border">
-                <p className="text-[10px] text-muted-foreground">Sunday tip: Set "In Service" during services for focused worship</p>
+                <p className="text-[10px] text-muted-foreground">Sunday tip: Set "In Service" during services</p>
               </div>
             </div>
           )}
+
         </div>
       ) : (
+        /* Floating button */
         <button onClick={() => setOpen(true)}
           className="blue-gradient-bg text-white rounded-full p-4 shadow-lg glow-blue hover:scale-105 transition-transform relative">
           <MessageSquare className="h-5 w-5" />
-          {unread > 0 && !dnd && (
+          {totalBadge > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 animate-bounce">
-              {unread > 99 ? "99+" : unread}
+              {totalBadge > 99 ? "99+" : totalBadge}
             </span>
           )}
-          {dnd && (
+          {dnd && totalBadge === 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
               <BellOff className="h-2.5 w-2.5" />
             </span>
