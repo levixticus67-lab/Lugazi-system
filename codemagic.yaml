@@ -8,8 +8,13 @@ workflows:
     environment:
       node: 20
       java: 17
+      groups:
+        # Create this group in Codemagic → Teams → Global variables & secrets
+        # and add VITE_API_BASE_URL = https://<your-render-app>.onrender.com
+        - lugazi_secrets
       vars:
         COREPACK_ENABLE_STRICT: "0"
+        NODE_ENV: "production"
     triggering:
       events:
         - push
