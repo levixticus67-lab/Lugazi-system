@@ -2,6 +2,7 @@ import { setBaseUrl, setAuthTokenGetter } from '@workspace/api-client-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { proactiveRefresh } from './lib/axios';
+import { scheduleAllNotifications } from './services/notificationScheduler';
 import './index.css';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -12,16 +13,18 @@ setBaseUrl(apiBaseUrl);
 
 if (Capacitor.isNativePlatform()) {
   // Supply the stored JWT to all Orval-generated React Query hooks.
-  // The getter always reads the latest value from localStorage so it picks up
-  // any token that was silently refreshed by the axios interceptor.
   setAuthTokenGetter(() => localStorage.getItem('dcl_token_jwt'));
 
-  // Proactively refresh the token on app start (in case it has nearly expired
-  // while the app was closed) and every time the user brings the app back to
-  // the foreground. This prevents the 401 → redirect-to-login surprise.
+  // Refresh the token proactively if it is near expiry, and reschedule
+  // local notifications every time the app starts or comes to the foreground.
   proactiveRefresh();
+  scheduleAllNotifications();
+
   CapApp.addListener('appStateChange', ({ isActive }) => {
-    if (isActive) proactiveRefresh();
+    if (isActive) {
+      proactiveRefresh();
+      scheduleAllNotifications();
+    }
   });
 }
 
