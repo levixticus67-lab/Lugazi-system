@@ -133,7 +133,7 @@ export default function LiveChat() {
   const [reactions, setReactions] = useState<ChatReaction[]>([]);
   const [hasLogs, setHasLogs] = useState(false);
   const [total, setTotal] = useState(0);
-  const [seenCount, setSeenCount] = useState(0);
+  const [lastSeenId, setLastSeenId] = useState<number>(() => Number(localStorage.getItem("chat_last_seen_id") ?? 0));
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [dnd, setDnd] = useState(() => localStorage.getItem("chat_dnd") === "1");
@@ -225,10 +225,17 @@ export default function LiveChat() {
     axios.patch("/api/chat/status", { status: myStatus, displayName: user.displayName, photoUrl: (user as any).photoUrl }).catch(() => {});
   }, [myStatus, token, user]);
 
-  // ─── Auto-scroll in global chat ──────────────────────────────────────────
+  // ─── Auto-scroll in global chat + persist last-seen message ID ──────────
   useEffect(() => {
     if (open && view === "chat" && showMsgMenu === null && confirmDeleteId === null) {
-      setSeenCount(messages.length);
+      // Mark all currently-loaded messages as read by storing the highest id
+      if (messages.length > 0) {
+        const maxId = Math.max(...messages.map(m => m.id));
+        if (maxId > lastSeenId) {
+          setLastSeenId(maxId);
+          localStorage.setItem("chat_last_seen_id", String(maxId));
+        }
+      }
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     }
   }, [messages, open, view, showMsgMenu, confirmDeleteId]);
@@ -436,7 +443,7 @@ export default function LiveChat() {
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
 
-  const unread = dnd ? 0 : Math.max(0, messages.length - seenCount);
+  const unread = dnd ? 0 : messages.filter(m => m.id > lastSeenId && !m.isDeleted).length;
   const totalBadge = (dnd ? 0 : unread) + (dnd ? 0 : dmUnreadTotal);
 
   function getReactionsForMsg(msgId: number): Record<string, { count: number; mine: boolean }> {
