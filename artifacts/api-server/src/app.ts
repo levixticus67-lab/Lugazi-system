@@ -34,7 +34,7 @@ app.use(
   }),
 );
 
-// CORS — allow Render, Firebase Hosting, and any custom ALLOWED_ORIGINS
+// CORS — allow Render, Firebase Hosting, Capacitor (mobile app), and any custom ALLOWED_ORIGINS
 const extraOrigins = (process.env.ALLOWED_ORIGINS ?? "").split(",").map(s => s.trim()).filter(Boolean);
 
 app.use(
@@ -45,6 +45,10 @@ app.use(
       if (origin.endsWith(".onrender.com")) return callback(null, true);
       if (origin.endsWith(".web.app")) return callback(null, true);
       if (origin.endsWith(".firebaseapp.com")) return callback(null, true);
+      // Capacitor Android/iOS WebView origins — required for the mobile APK to reach the API
+      if (origin === "https://localhost") return callback(null, true);      // androidScheme: "https"
+      if (origin === "capacitor://localhost") return callback(null, true);  // iOS / default scheme
+      if (origin === "http://localhost") return callback(null, true);       // fallback cleartext
       if (extraOrigins.some(o => origin === o)) return callback(null, true);
       logger.warn({ origin }, "CORS: rejected request from unlisted origin");
       callback(new Error("Not allowed by CORS"));
