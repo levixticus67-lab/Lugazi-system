@@ -14,7 +14,6 @@ workflows:
         - lugazi_secrets
       vars:
         COREPACK_ENABLE_STRICT: "0"
-        NODE_ENV: "production"
     triggering:
       events:
         - push
@@ -44,7 +43,7 @@ workflows:
 
       - name: Build Web Application
         script: |
-          pnpm --filter @workspace/lugazi run build
+          NODE_ENV=production pnpm --filter @workspace/lugazi run build
 
       - name: Setup & Sync Capacitor
         script: |
