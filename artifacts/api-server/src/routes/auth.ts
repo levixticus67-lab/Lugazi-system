@@ -65,8 +65,7 @@ function clearAuthCookie(res: import("express").Response): void {
   });
 }
 
-// ── MX record check — verifies the email domain has mail servers ──────────────
-// On DNS timeout (>5s) or error, we fail open so legitimate users aren't blocked.
+// ── MX record check ───────────────────────────────────────────────────────────
 async function hasMailServer(email: string): Promise<boolean> {
   const domain = email.split("@")[1];
   if (!domain) return false;
@@ -79,7 +78,6 @@ async function hasMailServer(email: string): Promise<boolean> {
     ]);
     return Array.isArray(records) && records.length > 0;
   } catch (err: any) {
-    // timeout → let it through; NXDOMAIN / no MX → block
     if (err?.message === "dns_timeout") {
       logger.warn({ domain }, "MX check timed out — allowing registration");
       return true;
@@ -202,7 +200,6 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
   const { email, password, displayName } = validated;
 
-  // MX record check — catches typos and fake domains before writing to the DB
   const mxOk = await hasMailServer(email);
   if (!mxOk) {
     res.status(400).json({
@@ -254,8 +251,6 @@ router.post("/auth/logout", (_req, res): void => {
 });
 
 // ── GET /auth/me ──────────────────────────────────────────────────────────────
-// Always reads role from DB. If JWT role is stale, re-issues the cookie
-// so the client's next requests carry the correct role without requiring a re-login.
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
@@ -294,21 +289,20 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
 });
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────
-// RENDER_EXTERNAL_URL is set automatically by Render — no manual config needed.
-// FRONTEND_URL must be set on Render to your Firebase hosting URL.
-// GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET come from Google Cloud Console.
-
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const BACKEND_URL = process.env.RENDER_EXTERNAL_URL ?? process.env.VITE_API_BASE_URL ?? "http://localhost:5001";
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:5173";
 
-// GET /auth/google — redirect user to Google's consent screen
+// GET /auth/google — redirect user to Google's consent screen.
+// Pass source=capacitor from the mobile app so the callback knows to
+// redirect back via the dclugazi:// deep link scheme instead of the web URL.
 router.get("/auth/google", (_req, res): void => {
   if (!GOOGLE_CLIENT_ID) {
     res.status(503).json({ error: "Google login is not configured on this server." });
     return;
   }
+  const source = (_req.query.source as string | undefined) ?? "web";
   const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", GOOGLE_CLIENT_ID);
@@ -317,20 +311,26 @@ router.get("/auth/google", (_req, res): void => {
   url.searchParams.set("scope", "openid email profile");
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "select_account");
+  // Encode the source into the OAuth state so the callback can route correctly
+  url.searchParams.set("state", source === "capacitor" ? "capacitor" : "web");
   res.redirect(url.toString());
 });
 
 // GET /auth/google/callback — Google posts the auth code here
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
-  const { code, error: oauthError } = req.query as { code?: string; error?: string };
+  const { code, error: oauthError, state } = req.query as { code?: string; error?: string; state?: string };
+
+  // Determine redirect target: native app (dclugazi://) vs web browser
+  const isCapacitor = state === "capacitor";
+  const frontendBase = isCapacitor ? "dclugazi://login" : FRONTEND_URL;
+  const frontendLogin = isCapacitor ? "dclugazi://login" : `${FRONTEND_URL}/login`;
 
   if (oauthError || !code) {
-    res.redirect(`${FRONTEND_URL}?error=google_denied`);
+    res.redirect(`${frontendBase}?error=google_denied`);
     return;
   }
 
   try {
-    // Exchange auth code for access token
     const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -346,20 +346,19 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
     if (!tokenRes.ok) {
       logger.error({ status: tokenRes.status }, "Google token exchange failed");
-      res.redirect(`${FRONTEND_URL}?error=google_token_failed`);
+      res.redirect(`${frontendBase}?error=google_token_failed`);
       return;
     }
 
     const tokens = await tokenRes.json() as { access_token: string };
 
-    // Fetch user profile from Google
     const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
     if (!profileRes.ok) {
       logger.error({ status: profileRes.status }, "Google userinfo fetch failed");
-      res.redirect(`${FRONTEND_URL}?error=google_profile_failed`);
+      res.redirect(`${frontendBase}?error=google_profile_failed`);
       return;
     }
 
@@ -368,18 +367,15 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     };
 
     if (!gUser.email) {
-      res.redirect(`${FRONTEND_URL}?error=google_no_email`);
+      res.redirect(`${frontendBase}?error=google_no_email`);
       return;
     }
 
     const email = gUser.email.toLowerCase();
 
-    // Find or create the local user account
     let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
 
     if (!user) {
-      // New user — create account. Store an unusable password hash so the
-      // NOT NULL constraint is satisfied; they can only ever log in via Google.
       const unusableHash = await bcrypt.hash(uuidv4(), 12);
       const [created] = await db.insert(usersTable).values({
         email,
@@ -391,7 +387,6 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       }).returning();
       user = created;
 
-      // Link to pre-registered member record if one exists
       const [preReg] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
       if (preReg) {
         await db.update(membersTable)
@@ -411,14 +406,13 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
         action: "register", details: "Registered via Google", ipAddress: req.ip ?? "unknown",
       });
     } else {
-      // Existing user — update photo if they didn't have one
       if (gUser.picture && !user.photoUrl) {
         await db.update(usersTable).set({ photoUrl: gUser.picture }).where(eq(usersTable.id, user.id));
       }
     }
 
     if (!user.isActive) {
-      res.redirect(`${FRONTEND_URL}?error=account_deactivated`);
+      res.redirect(`${frontendBase}?error=account_deactivated`);
       return;
     }
 
@@ -428,30 +422,29 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     });
 
     const token = generateToken(user.id, user.role);
-
-    // Cross-domain fix: Firebase and Render are on different domains so HttpOnly
-    // cookies set here won't be readable by Firebase. Instead we store {token,user}
-    // behind a short-lived one-time code and pass the code in the redirect URL.
-    // The frontend exchanges the code via POST /api/auth/oauth-exchange.
-    const oauthCode = uuidv4();
     const userData = {
       id: user.id, email: user.email, displayName: user.displayName, role: user.role,
       photoUrl: user.photoUrl ?? null, branchId: user.branchId ?? null,
       phone: user.phone ?? null, isActive: user.isActive,
       createdAt: user.createdAt.toISOString(),
     };
+
+    // Store the token behind a short-lived one-time code so the frontend
+    // can exchange it safely without exposing the raw JWT in the URL.
+    const oauthCode = uuidv4();
     oauthCodes.set(oauthCode, { token, userData, expiresAt: Date.now() + 60_000 });
-    res.redirect(`${FRONTEND_URL}/login?oauth_code=${oauthCode}`);
+
+    // For Capacitor: redirect to the dclugazi:// custom scheme — Android
+    // intercepts this URL and hands it to the app via the appUrlOpen listener.
+    // For web: redirect to the Firebase-hosted login page as before.
+    res.redirect(`${frontendLogin}?oauth_code=${oauthCode}`);
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");
-    res.redirect(`${FRONTEND_URL}?error=google_server_error`);
+    res.redirect(`${frontendBase}?error=google_server_error`);
   }
 });
 
-
-// ── OAuth One-Time Code Store (in-memory, 60-second TTL) ───────────────────────
-// Used to bridge cross-domain Google OAuth: callback stores {token,user} behind a
-// short-lived UUID code, frontend exchanges the code for a session via HTTP POST.
+// ── OAuth One-Time Code Store (in-memory, 60-second TTL) ─────────────────────
 interface OAuthCode { token: string; userData: object; expiresAt: number }
 const oauthCodes = new Map<string, OAuthCode>();
 setInterval(() => {
@@ -473,8 +466,7 @@ router.post("/auth/oauth-exchange", async (req, res): Promise<void> => {
     res.status(400).json({ error: "This sign-in link has expired. Please try Google sign-in again." });
     return;
   }
-  oauthCodes.delete(code); // one-time use
-  // Also set the HttpOnly cookie for API auth on subsequent requests
+  oauthCodes.delete(code);
   setAuthCookie(res, entry.token);
   res.json({ token: entry.token, user: entry.userData });
 });
@@ -512,7 +504,6 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   }
   const emailLower = email.trim().toLowerCase();
 
-  // Always respond success to prevent email enumeration
   res.json({ message: "If that email is registered, a reset link has been sent." });
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower)).limit(1);
@@ -524,7 +515,6 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
     return;
   }
 
-  // Remove any existing tokens for this email
   for (const [tok, data] of resetTokens) {
     if (data.email === emailLower) resetTokens.delete(tok);
   }
