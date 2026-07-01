@@ -3,12 +3,15 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { Toaster } from "@/components/ui/toaster";
   import { TooltipProvider } from "@/components/ui/tooltip";
   import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-  import { ReactNode } from "react";
+  import { ReactNode, useEffect } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
 import Terms from "@/pages/Terms";
 import ResetPassword from "@/pages/ResetPassword";
 import Privacy from "@/pages/Privacy";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
+import axios from "@/lib/axios";
 
   // Pages
   import Login from "@/pages/Login";
@@ -107,6 +110,54 @@ import Privacy from "@/pages/Privacy";
       queries: { retry: 1, staleTime: 30_000 },
     },
   });
+
+  // ── Deep link handler (Capacitor native only) ────────────────────────────────
+  // Listens for dclugazi:// URLs that Android fires after Google OAuth redirects
+  // back to the app. Exchanges the one-time oauth_code for a full session.
+  function DeepLinkHandler() {
+    const { login } = useAuth();
+
+    useEffect(() => {
+      if (!Capacitor.isNativePlatform()) return;
+
+      const ROLE_MAP: Record<string, string> = {
+        admin: "/admin/dashboard",
+        pastor: "/pastor/dashboard",
+        leadership: "/leadership/dashboard",
+        workforce: "/workforce/dashboard",
+        member: "/member/dashboard",
+      };
+
+      let handle: { remove: () => Promise<void> } | undefined;
+
+      CapApp.addListener("appUrlOpen", async (event: { url: string }) => {
+        try {
+          const url = new URL(event.url);
+          if (url.protocol !== "dclugazi:") return;
+
+          const error = url.searchParams.get("error");
+          if (error) {
+            // Surface the error on the login page via the existing error handler
+            window.location.href = `/login?error=${error}`;
+            return;
+          }
+
+          const code = url.searchParams.get("oauth_code");
+          if (!code) return;
+
+          const res = await axios.post<{ token: string; user: any }>("/api/auth/oauth-exchange", { code });
+          login(res.data.token, res.data.user);
+          window.location.href = ROLE_MAP[res.data.user.role] ?? "/member/dashboard";
+        } catch {
+          window.location.href = "/login?error=google_server_error";
+        }
+      }).then(h => { handle = h; });
+
+      return () => { handle?.remove(); };
+    }, [login]);
+
+    return null;
+  }
 
   function RequireAuth({ children, roles }: { children: ReactNode; roles?: string[] }) {
     const { user, isLoading } = useAuth();
@@ -279,6 +330,7 @@ import Privacy from "@/pages/Privacy";
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AuthProvider>
+            <DeepLinkHandler />
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>
