@@ -2,15 +2,11 @@ workflows:
   android-capacitor-build:
     name: Build Capacitor Android APK
     max_build_duration: 45
-    # mac_mini_m1 is the free-tier instance on Codemagic.
-    # linux_x2 requires a paid plan.
     instance_type: mac_mini_m1
     environment:
       node: 20
       java: 17
       groups:
-        # Create this group in Codemagic → Teams → Global variables & secrets
-        # and add VITE_API_BASE_URL = https://<your-render-app>.onrender.com
         - lugazi_secrets
       vars:
         COREPACK_ENABLE_STRICT: "0"
@@ -30,12 +26,7 @@ workflows:
 
       - name: Build Shared Libraries
         script: |
-          # 1. tsc --build: emits .d.ts declarations for composite lib/* packages
           pnpm run typecheck:libs
-          # 2. Build api-client-react JS bundle → dist/index.mjs
-          #    pnpm-workspace.yaml overrides exclude @esbuild/darwin-arm64 (Replit is Linux-only),
-          #    so we install the darwin binary via npm (which ignores pnpm workspace overrides)
-          #    inside the package dir before running node build.mjs.
           cd lib/api-client-react
           npm install -D @esbuild/darwin-arm64
           node build.mjs
@@ -49,31 +40,8 @@ workflows:
         script: |
           cd artifacts/lugazi
           pnpm exec cap add android 2>/dev/null || true
-          # Patch AndroidManifest.xml to register dclugazi:// scheme so Android
-          # hands the Google OAuth callback back to the app (deep link).
-          python3 - <<'PYEOF'
-import sys
-manifest = 'android/app/src/main/AndroidManifest.xml'
-try:
-    with open(manifest, 'r') as f:
-        content = f.read()
-    intent_filter = """
-        <intent-filter>
-            <action android:name="android.intent.action.VIEW"/>
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
-            <data android:scheme="dclugazi"/>
-        </intent-filter>"""
-    if 'dclugazi' not in content:
-        content = content.replace('</activity>', intent_filter + '\n    </activity>', 1)
-        with open(manifest, 'w') as f:
-            f.write(content)
-        print('Patched AndroidManifest.xml with dclugazi:// deep link scheme')
-    else:
-        print('AndroidManifest.xml already has dclugazi:// scheme')
-except Exception as e:
-    print(f'Warning: could not patch manifest: {e}', file=sys.stderr)
-PYEOF
+          echo "aW1wb3J0IHN5cwptYW5pZmVzdCA9ICdhbmRyb2lkL2FwcC9zcmMvbWFpbi9BbmRyb2lkTWFuaWZlc3QueG1sJwp0cnk6CiAgICB3aXRoIG9wZW4obWFuaWZlc3QsICdyJykgYXMgZjoKICAgICAgICBjb250ZW50ID0gZi5yZWFkKCkKICAgIGludGYgPSAoCiAgICAgICAgJwogICAgICAgIDxpbnRlbnQtZmlsdGVyPicKICAgICAgICAnCiAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uVklFVyIvPicKICAgICAgICAnCiAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkRFRkFVTFQiLz4nCiAgICAgICAgJwogICAgICAgICAgICA8Y2F0ZWdvcnkgYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5jYXRlZ29yeS5CUk9XU0FCTEUiLz4nCiAgICAgICAgJwogICAgICAgICAgICA8ZGF0YSBhbmRyb2lkOnNjaGVtZT0iZGNsdWdhemkiLz4nCiAgICAgICAgJwogICAgICAgIDwvaW50ZW50LWZpbHRlcj4nCiAgICApCiAgICBpZiAnZGNsdWdhemknIG5vdCBpbiBjb250ZW50OgogICAgICAgIGNvbnRlbnQgPSBjb250ZW50LnJlcGxhY2UoJzwvYWN0aXZpdHk+JywgaW50ZiArICcKICAgIDwvYWN0aXZpdHk+JywgMSkKICAgICAgICB3aXRoIG9wZW4obWFuaWZlc3QsICd3JykgYXMgZjoKICAgICAgICAgICAgZi53cml0ZShjb250ZW50KQogICAgICAgIHByaW50KCdQYXRjaGVkIEFuZHJvaWRNYW5pZmVzdC54bWwgd2l0aCBkY2x1Z2F6aTovLyBkZWVwIGxpbmsgc2NoZW1lJykKICAgIGVsc2U6CiAgICAgICAgcHJpbnQoJ0FuZHJvaWRNYW5pZmVzdC54bWwgYWxyZWFkeSBoYXMgZGNsdWdhemk6Ly8gc2NoZW1lJykKZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgcHJpbnQoJ1dhcm5pbmc6IGNvdWxkIG5vdCBwYXRjaCBtYW5pZmVzdDogJyArIHN0cihlKSwgZmlsZT1zeXMuc3RkZXJyKQo=" | base64 --decode > /tmp/patch_manifest.py
+          python3 /tmp/patch_manifest.py
           pnpm exec cap sync android
 
       - name: Build Android Debug APK
