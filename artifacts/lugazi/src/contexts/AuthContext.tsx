@@ -67,7 +67,6 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
           setToken(String(fresh.id));
 
           // Role changed since last session — redirect to the correct portal immediately.
-          // This handles the case where an admin upgraded/downgraded this user's role.
           if (cachedRole && cachedRole !== fresh.role) {
             const destination = PORTAL_MAP[fresh.role] ?? "/login";
             window.location.href = destination;
@@ -75,6 +74,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
         })
         .catch(() => {
           localStorage.removeItem("dcl_user");
+          localStorage.removeItem("dcl_token_jwt");
           setUser(null);
           setToken(null);
         })
@@ -83,8 +83,11 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
         });
     }, []);
 
-    function login(_newToken: string, newUser: AuthUser) {
+    function login(newToken: string, newUser: AuthUser) {
       localStorage.setItem("dcl_user", JSON.stringify(newUser));
+      // Store raw JWT so the axios interceptor can send it as a Bearer token
+      // on Capacitor native, where cross-origin HttpOnly cookies are unreliable.
+      if (newToken) localStorage.setItem("dcl_token_jwt", newToken);
       setUser(newUser);
       setToken(String(newUser.id));
     }
@@ -96,6 +99,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
         // Proceed with local cleanup even if the server call fails
       }
       localStorage.removeItem("dcl_user");
+      localStorage.removeItem("dcl_token_jwt");
       setUser(null);
       setToken(null);
       window.location.href = "/login";
