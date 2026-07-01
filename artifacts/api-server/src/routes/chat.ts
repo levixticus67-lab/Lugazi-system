@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { desc, eq, and, ilike, or, sql } from "drizzle-orm";
-import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable } from "@workspace/db";
+import { desc, eq, and, ilike, or, sql, ne } from "drizzle-orm";
+import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable, usersTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -10,7 +10,7 @@ const ARCHIVE_THRESHOLD = 100;
 const GLOBAL = "global";
 const MAX_MESSAGE_LENGTH = 2000;
 
-// FIX: per-user rate limiter for chat to prevent message flooding
+// Per-user rate limiter for chat to prevent message flooding
 const chatRateLimiter = new Map<number, { count: number; resetAt: number }>();
 const CHAT_MAX = 20;
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -34,11 +34,13 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000).unref();
 
+// Get all online statuses
 router.get("/chat/statuses", requireAuth, async (_req, res): Promise<void> => {
   const statuses = await db.select().from(userStatusTable).orderBy(desc(userStatusTable.updatedAt));
   res.json(statuses.map(s => ({ ...s, updatedAt: s.updatedAt.toISOString() })));
 });
 
+// Update own status
 router.patch("/chat/status", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { status, displayName, photoUrl } = req.body;
   const validStatuses = ["online", "offline", "in-service", "dnd"];
@@ -58,6 +60,114 @@ router.patch("/chat/status", requireAuth, async (req: AuthRequest, res): Promise
   }
 });
 
+// Get all users available for DM (all active users except self)
+router.get("/chat/dm/contacts", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const myId = req.userId!;
+
+  // Fetch all active users except self
+  const users = await db
+    .select({
+      userId: usersTable.id,
+      displayName: usersTable.displayName,
+      photoUrl: usersTable.photoUrl,
+      role: usersTable.role,
+    })
+    .from(usersTable)
+    .where(and(eq(usersTable.isActive, true), ne(usersTable.id, myId)))
+    .orderBy(usersTable.displayName);
+
+  // Fetch statuses
+  const statuses = await db.select().from(userStatusTable);
+  const statusMap = new Map(statuses.map(s => [s.userId, s]));
+
+  // Fetch unread counts per sender
+  const unreadRows = await db
+    .select({
+      fromUserId: privateMessagesTable.fromUserId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(privateMessagesTable)
+    .where(
+      and(
+        eq(privateMessagesTable.toUserId, myId),
+        eq(privateMessagesTable.isRead, false),
+        eq(privateMessagesTable.isDeleted, false)
+      )
+    )
+    .groupBy(privateMessagesTable.fromUserId);
+  const unreadMap = new Map(unreadRows.map(r => [r.fromUserId, r.count]));
+
+  // Fetch last message per conversation
+  const convRows = await db
+    .select({
+      fromUserId: privateMessagesTable.fromUserId,
+      toUserId: privateMessagesTable.toUserId,
+      message: privateMessagesTable.message,
+      createdAt: privateMessagesTable.createdAt,
+    })
+    .from(privateMessagesTable)
+    .where(
+      and(
+        eq(privateMessagesTable.isDeleted, false),
+        or(
+          eq(privateMessagesTable.fromUserId, myId),
+          eq(privateMessagesTable.toUserId, myId)
+        )
+      )
+    )
+    .orderBy(desc(privateMessagesTable.createdAt))
+    .limit(500);
+
+  // Build last-message map per partner
+  const lastMsgMap = new Map<number, { message: string; createdAt: string }>();
+  for (const row of convRows) {
+    const partnerId = row.fromUserId === myId ? row.toUserId : row.fromUserId;
+    if (!lastMsgMap.has(partnerId)) {
+      lastMsgMap.set(partnerId, { message: row.message, createdAt: row.createdAt.toISOString() });
+    }
+  }
+
+  const result = users.map(u => {
+    const status = statusMap.get(u.userId);
+    return {
+      ...u,
+      status: status?.status ?? "offline",
+      unreadCount: unreadMap.get(u.userId) ?? 0,
+      lastMessage: lastMsgMap.get(u.userId) ?? null,
+    };
+  });
+
+  // Sort: unread first, then by last message time, then alphabetically
+  result.sort((a, b) => {
+    if (b.unreadCount !== a.unreadCount) return b.unreadCount - a.unreadCount;
+    if (a.lastMessage && b.lastMessage) {
+      return new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime();
+    }
+    if (a.lastMessage) return -1;
+    if (b.lastMessage) return 1;
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  res.json(result);
+});
+
+// Get total unread DM count for badge on floating button
+router.get("/chat/dm/unread-count", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const myId = req.userId!;
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(privateMessagesTable)
+    .where(
+      and(
+        eq(privateMessagesTable.toUserId, myId),
+        eq(privateMessagesTable.isRead, false),
+        eq(privateMessagesTable.isDeleted, false)
+      )
+    );
+  res.json({ count });
+});
+
+// Get DM thread with a specific user
 router.get("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const otherId = Number(req.params.otherUserId);
   const myId = req.userId!;
@@ -74,6 +184,7 @@ router.get("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res): 
     .orderBy(desc(privateMessagesTable.createdAt))
     .limit(100);
 
+  // Mark incoming messages as read
   await db.update(privateMessagesTable)
     .set({ isRead: true })
     .where(and(eq(privateMessagesTable.toUserId, myId), eq(privateMessagesTable.fromUserId, otherId), eq(privateMessagesTable.isRead, false)));
@@ -81,12 +192,11 @@ router.get("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res): 
   res.json(msgs.reverse().map(m => ({ ...m, createdAt: m.createdAt.toISOString(), autoDeleteAt: m.autoDeleteAt?.toISOString() ?? null })));
 });
 
+// Send a DM
 router.post("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const otherId = Number(req.params.otherUserId);
   const { message, fromName, toName, fromPhotoUrl, replyToId, replyToText, isPrivateMode } = req.body;
   if (!message?.trim()) { res.status(400).json({ error: "Message required" }); return; }
-
-  // FIX: enforce message length cap
   if (message.trim().length > MAX_MESSAGE_LENGTH) {
     res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }); return;
   }
@@ -108,6 +218,19 @@ router.post("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res):
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), autoDeleteAt: record.autoDeleteAt?.toISOString() ?? null });
 });
 
+// Soft-delete a DM message (own messages only)
+router.delete("/chat/dm/message/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const [msg] = await db.select().from(privateMessagesTable).where(eq(privateMessagesTable.id, id)).limit(1);
+  if (!msg) { res.status(404).json({ error: "Not found" }); return; }
+  if (msg.fromUserId !== req.userId && req.userRole !== "admin") {
+    res.status(403).json({ error: "You can only delete your own messages" }); return;
+  }
+  await db.update(privateMessagesTable).set({ isDeleted: true }).where(eq(privateMessagesTable.id, id));
+  res.json({ success: true });
+});
+
+// End private mode — delete all private messages in the conversation
 router.delete("/chat/dm/:otherUserId/end-private", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const otherId = Number(req.params.otherUserId);
   const myId = req.userId!;
@@ -125,6 +248,7 @@ router.delete("/chat/dm/:otherUserId/end-private", requireAuth, async (req: Auth
   res.json({ success: true });
 });
 
+// Get global chat messages
 router.get("/chat/:scope", requireAuth, async (_req, res): Promise<void> => {
   const messages = await db
     .select()
@@ -154,6 +278,7 @@ router.get("/chat/:scope", requireAuth, async (_req, res): Promise<void> => {
   });
 });
 
+// Get archived / searchable logs
 router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => {
   const search = (req.query.search as string) || "";
   const page = Math.max(0, Number(req.query.page ?? 0));
@@ -179,21 +304,18 @@ router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => 
   res.json({ messages: rows.map(m => ({ ...m, createdAt: m.createdAt.toISOString() })), total: count, page, pages: Math.ceil(count / limit) });
 });
 
+// Post a global chat message
 router.post("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  // FIX: rate limit chat posts per user — prevents message flooding
   if (!checkChatRateLimit(req.userId!)) {
     res.status(429).json({ error: "Too many messages — please slow down." }); return;
   }
 
   const { message, displayName, photoUrl, replyToId, replyToText, replyToName } = req.body;
   if (!message || !message.trim()) { res.status(400).json({ error: "Message is required" }); return; }
-
-  // FIX: enforce message length cap
   if (message.trim().length > MAX_MESSAGE_LENGTH) {
     res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }); return;
   }
 
-  // FIX: role comes from the verified JWT — never trust the client-supplied role field
   const verifiedRole = req.userRole ?? "member";
 
   const [record] = await db.insert(chatMessagesTable).values({
@@ -210,12 +332,11 @@ router.post("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
+// Edit a global chat message
 router.patch("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id);
   const { message } = req.body;
   if (!message?.trim()) { res.status(400).json({ error: "Message is required" }); return; }
-
-  // FIX: enforce message length cap on edits too
   if (message.trim().length > MAX_MESSAGE_LENGTH) {
     res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }); return;
   }
@@ -231,6 +352,7 @@ router.patch("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Pro
   res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
 });
 
+// Delete a global chat message
 router.delete("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id);
   const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
@@ -240,6 +362,7 @@ router.delete("/chat/:scope/:id", requireAuth, async (req: AuthRequest, res): Pr
   res.json({ success: true });
 });
 
+// React to a global chat message
 router.post("/chat/:scope/:id/react", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const messageId = Number(req.params.id);
   const { emoji, displayName } = req.body;
@@ -263,6 +386,7 @@ router.post("/chat/:scope/:id/react", requireAuth, async (req: AuthRequest, res)
   }
 });
 
+// Get reactions for a specific message
 router.get("/chat/:scope/:id/reactions", requireAuth, async (req, res): Promise<void> => {
   const messageId = Number(req.params.id);
   const reactions = await db.select().from(chatReactionsTable).where(eq(chatReactionsTable.messageId, messageId));
