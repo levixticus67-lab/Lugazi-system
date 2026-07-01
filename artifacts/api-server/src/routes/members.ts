@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db, membersTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
@@ -13,8 +13,19 @@ function mergePhoto(memberPhoto: string | null | undefined, userPhoto: string | 
 
 const SENSITIVE_ROLES = ["admin", "leadership", "workforce", "pastor"];
 
+// GET /members — admins are never shown to non-admin callers
 router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const members = await db.select().from(membersTable).orderBy(membersTable.fullName);
+  const isAdmin = req.userRole === "admin";
+
+  // Non-admin callers never see admin-role members
+  const whereClause = isAdmin
+    ? undefined
+    : ne(membersTable.role, "admin");
+
+  const members = whereClause
+    ? await db.select().from(membersTable).where(whereClause).orderBy(membersTable.fullName)
+    : await db.select().from(membersTable).orderBy(membersTable.fullName);
+
   const userIds = members.map(m => m.userId).filter((id): id is number => id != null);
   let userPhotoMap: Record<number, string | null> = {};
   if (userIds.length > 0) {
@@ -70,12 +81,19 @@ router.post("/members", requireAuth, requireRole(["admin", "pastor", "leadership
   res.status(201).json({ ...member, createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() });
 });
 
+// GET /members/:id — admins are invisible to non-admin callers
 router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
   const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id)).limit(1);
   if (!member) { res.status(404).json({ error: "Member not found" }); return; }
+
+  // Hide admin members from non-admin callers entirely
+  if (member.role === "admin" && req.userRole !== "admin") {
+    res.status(404).json({ error: "Member not found" }); return;
+  }
 
   let userPhoto: string | null = null;
   if (member.userId) {
@@ -83,8 +101,6 @@ router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<v
     userPhoto = u?.photoUrl ?? null;
   }
 
-  // FIX: apply the same role-based filter as the list endpoint —
-  // regular members must not see PII (email, phone, address, qrToken) of other members
   const canSeeSensitive = SENSITIVE_ROLES.includes(req.userRole ?? "member");
   const base = {
     id: member.id,
@@ -110,6 +126,14 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "pastor", "leade
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+  // Non-admin cannot edit an admin-role member
+  const [target] = await db.select({ role: membersTable.role }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
+  if (!target) { res.status(404).json({ error: "Member not found" }); return; }
+  if (target.role === "admin" && req.userRole !== "admin") {
+    res.status(403).json({ error: "You cannot edit an admin account" }); return;
+  }
+
   const { fullName, phone, branchId, department, profession, photoUrl, bio, birthday, address, isActive } = req.body;
   const updateData: Record<string, unknown> = {};
   if (fullName !== undefined) updateData.fullName = fullName;
@@ -122,6 +146,7 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "pastor", "leade
   if (birthday !== undefined) updateData.birthday = birthday;
   if (address !== undefined) updateData.address = address;
   if (isActive !== undefined && req.userRole === "admin") updateData.isActive = isActive;
+
   const [updated] = await db.update(membersTable).set(updateData).where(eq(membersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
   if (photoUrl !== undefined && updated.userId) {
@@ -149,7 +174,14 @@ router.delete("/members/:id", requireAuth, requireRole(["admin", "pastor"]), asy
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
-  const [member] = await db.select({ fullName: membersTable.fullName }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
+
+  // Only admin can delete an admin-role member
+  const [target] = await db.select({ fullName: membersTable.fullName, role: membersTable.role }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
+  if (!target) { res.status(404).json({ error: "Member not found" }); return; }
+  if (target.role === "admin" && req.userRole !== "admin") {
+    res.status(403).json({ error: "You cannot delete an admin account" }); return;
+  }
+
   await db.delete(membersTable).where(eq(membersTable.id, id));
 
   await logActivity({
@@ -158,7 +190,7 @@ router.delete("/members/:id", requireAuth, requireRole(["admin", "pastor"]), asy
     action: "delete_member",
     entityType: "member",
     entityId: id,
-    entityName: member?.fullName ?? `Member #${id}`,
+    entityName: target.fullName ?? `Member #${id}`,
     ipAddress: req.ip ?? "unknown",
   });
 
