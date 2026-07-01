@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogIn, UserPlus, KeyRound, ArrowLeft, CheckCircle2 } from "lucide-react";
 import axios from "@/lib/axios";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 type Tab = "login" | "register";
 type View = "main" | "forgot" | "forgot-sent";
@@ -154,7 +156,15 @@ export default function Login() {
 
   function handleGoogleSignIn() {
     const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
-    window.location.href = `${apiBase}/api/auth/google`;
+    if (Capacitor.isNativePlatform()) {
+      // On native: open an in-app Custom Chrome Tab.
+      // The backend detects source=capacitor and redirects back to
+      // dclugazi://login?oauth_code=... which Android hands to the app
+      // via the appUrlOpen deep link listener in App.tsx.
+      Browser.open({ url: `${apiBase}/api/auth/google?source=capacitor` });
+    } else {
+      window.location.href = `${apiBase}/api/auth/google`;
+    }
   }
 
   const leftPanel = (
@@ -278,7 +288,6 @@ export default function Login() {
                       <h2 className="font-serif text-2xl font-bold text-foreground">Welcome back</h2>
                       <p className="text-muted-foreground text-sm mt-1">Sign in to your account to continue</p>
                     </div>
-                    {/* Google button — dark-mode-aware */}
                     <Button type="button" variant="outline"
                       className="w-full mb-4 gap-2 border-border bg-background hover:bg-muted text-foreground"
                       onClick={handleGoogleSignIn}>
@@ -345,7 +354,6 @@ export default function Login() {
                         Join DCL Lugazi. If your email was pre-registered, it will be automatically linked.
                       </p>
                     </div>
-                    {/* Google button — dark-mode-aware */}
                     <Button type="button" variant="outline"
                       className="w-full mb-4 gap-2 border-border bg-background hover:bg-muted text-foreground"
                       onClick={handleGoogleSignIn}>
