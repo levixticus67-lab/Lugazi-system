@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 
 /**
- * Detects if the app is running as an installed PWA (standalone mode).
+ * Detects if the app is running as an installed PWA (standalone mode)
+ * OR as a Capacitor native app — both use the mobile-first layout.
  *
  * Problem solved: Firebase Google sign-in uses a redirect flow — the browser
  * navigates away to Google and back. That return trip can land in a regular
@@ -11,12 +13,15 @@ import { useState, useEffect } from "react";
  * Fix: once we confirm the app is running as a PWA we persist that in
  * localStorage so every page load within the same install (including OAuth
  * redirect returns) gets the right layout immediately.
+ * Capacitor native is always treated as mobile regardless of matchMedia.
  */
 
 const STORAGE_KEY = "dcl-is-pwa";
 
 function detect(): boolean {
   if (typeof window === "undefined") return false;
+  // Capacitor native app — always use mobile layout (WebView never fires standalone)
+  if (Capacitor.isNativePlatform()) return true;
   // Primary signal — Chromium/Android standalone
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   // iOS Safari standalone
@@ -40,6 +45,9 @@ export function useIsPwa(): boolean {
   });
 
   useEffect(() => {
+    // Capacitor native is always mobile — no need to listen to media queries
+    if (Capacitor.isNativePlatform()) return;
+
     const mq = window.matchMedia("(display-mode: standalone)");
     const handler = (e: MediaQueryListEvent) => {
       if (e.matches) {
