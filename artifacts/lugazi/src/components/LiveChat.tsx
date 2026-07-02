@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useIsPwa } from "@/hooks/use-is-pwa";
+import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   MessageSquare, Send, X, Archive, Search, ChevronLeft, ChevronRight,
@@ -124,7 +124,7 @@ type ChatView = "chat" | "logs" | "dm" | "dm-thread" | "status" | "ai-summary";
 
 export default function LiveChat() {
   const { user, token } = useAuth();
-  const isPwa = useIsPwa();
+  const isPwa = Capacitor.isNativePlatform();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ChatView>("chat");
 
