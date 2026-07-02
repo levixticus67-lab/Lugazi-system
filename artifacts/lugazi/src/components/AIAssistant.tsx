@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useIsPwa } from "@/hooks/use-is-pwa";
+import { Capacitor } from "@capacitor/core";
   import { X, Send, Lightbulb, RefreshCw, AlertCircle } from "lucide-react";
   import axios from "@/lib/axios";
 
@@ -31,7 +31,7 @@ import { useIsPwa } from "@/hooks/use-is-pwa";
     const [messages, setMessages] = useState<Msg[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
-    const isPwa = useIsPwa();
+    const isPwa = Capacitor.isNativePlatform();
 
     const prompts = suggestions ?? defaultSuggestions;
 
