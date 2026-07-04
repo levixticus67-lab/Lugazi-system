@@ -136,13 +136,9 @@ import axios from "@/lib/axios";
           const url = new URL(event.url);
           if (url.protocol !== "dclugazi:") return;
 
-          // Close the in-app browser (Chrome Custom Tab) immediately so the
-          // user sees the app while the OAuth code exchange completes.
-          Browser.close().catch(() => {});
-
           const error = url.searchParams.get("error");
           if (error) {
-            // Surface the error on the login page via the existing error handler
+            Browser.close().catch(() => {});
             window.location.href = `/login?error=${error}`;
             return;
           }
@@ -150,10 +146,23 @@ import axios from "@/lib/axios";
           const code = url.searchParams.get("oauth_code");
           if (!code) return;
 
+          // Do the OAuth exchange FIRST before closing the browser.
+          // Closing the Custom Tab causes the WebView to resume and re-render;
+          // if we haven't written to localStorage yet the user ends up on the
+          // login page with no session. Exchange → persist → close → navigate.
           const res = await axios.post<{ token: string; user: any }>("/api/auth/oauth-exchange", { code });
+
+          // Persist to localStorage so AuthContext reads it even if the page reloads
+          if (res.data.token) localStorage.setItem("dcl_token_jwt", res.data.token);
+          localStorage.setItem("dcl_user", JSON.stringify(res.data.user));
           login(res.data.token, res.data.user);
+
+          // Now safe to close — auth is already persisted
+          await Browser.close().catch(() => {});
+
           window.location.href = ROLE_MAP[res.data.user.role] ?? "/member/dashboard";
         } catch {
+          Browser.close().catch(() => {});
           window.location.href = "/login?error=google_server_error";
         }
       }).then(h => { handle = h; });
