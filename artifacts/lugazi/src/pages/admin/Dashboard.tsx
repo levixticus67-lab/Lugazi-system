@@ -101,12 +101,12 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-slide-in-up">
-              <StatCard title="Total Members"  value={stats.totalMembers}           icon={<Users className="h-5 w-5" />} />
-              <StatCard title="Cell Groups"    value={stats.cellGroups}             icon={<UsersRound className="h-5 w-5" />} />
-              <StatCard title="Attendance Today" value={stats.attendanceToday}      icon={<CalendarCheck className="h-5 w-5" />} />
-              <StatCard title="Pending Welfare" value={stats.pendingWelfareRequests} icon={<Heart className="h-5 w-5" />} />
-              <StatCard title="Role Requests"  value={stats.pendingRoleRequests}    icon={<Bell className="h-5 w-5" />} />
-              <StatCard title="New Members"    value={stats.newMembersThisMonth}    icon={<TrendingUp className="h-5 w-5" />} />
+              <StatCard title="Total Members"    value={stats.totalMembers}           icon={<Users className="h-5 w-5" />} />
+              <StatCard title="Cell Groups"      value={stats.cellGroups}             icon={<UsersRound className="h-5 w-5" />} />
+              <StatCard title="Attendance Today" value={stats.attendanceToday}        icon={<CalendarCheck className="h-5 w-5" />} />
+              <StatCard title="Pending Welfare"  value={stats.pendingWelfareRequests} icon={<Heart className="h-5 w-5" />} />
+              <StatCard title="Role Requests"    value={stats.pendingRoleRequests}    icon={<Bell className="h-5 w-5" />} />
+              <StatCard title="New This Month"   value={stats.newMembersThisMonth}    icon={<TrendingUp className="h-5 w-5" />} />
             </div>
 
             {charts && !chartsLoading && (
