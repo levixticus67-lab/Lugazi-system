@@ -11,11 +11,15 @@ export interface DashboardStats {
   activeMembers: number;
   totalBranches: number;
   totalGroups: number;
+  cellGroups?: number;
   thisWeekAttendance: number;
   lastWeekAttendance?: number;
+  attendanceToday?: number;
+  newMembersThisMonth?: number;
   monthlyIncome: number;
   monthlyExpenses: number;
   pendingWelfare: number;
+  pendingWelfareRequests?: number;
   pendingRoleRequests: number;
   upcomingEvents: number;
 }
