@@ -11,6 +11,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import Privacy from "@/pages/Privacy";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 import axios from "@/lib/axios";
 
   // Pages
@@ -134,6 +135,10 @@ import axios from "@/lib/axios";
         try {
           const url = new URL(event.url);
           if (url.protocol !== "dclugazi:") return;
+
+          // Close the in-app browser (Chrome Custom Tab) immediately so the
+          // user sees the app while the OAuth code exchange completes.
+          Browser.close().catch(() => {});
 
           const error = url.searchParams.get("error");
           if (error) {
