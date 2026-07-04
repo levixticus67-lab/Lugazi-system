@@ -32,12 +32,6 @@ interface Member {
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-const mockCells: CellGroup[] = [
-  { id:1, name:"Zion Cell", type:"cell", leaderName:"Bro. James Okello", leaderUserId:null, location:"Kampala Road, Lugazi", meetingDay:"Wednesday", meetingTime:"18:00", memberCount:12, isActive:true, createdAt: new Date().toISOString() },
-  { id:2, name:"Bethel Cell", type:"cell", leaderName:"Sis. Grace Nakato", leaderUserId:null, location:"Buikwe Road, Lugazi", meetingDay:"Friday", meetingTime:"17:30", memberCount:9, isActive:true, createdAt: new Date().toISOString() },
-  { id:3, name:"Canaan Cell", type:"cell", leaderName:"Bro. Moses Sserunjogi", leaderUserId:null, location:"Njeru, Jinja Road", meetingDay:"Thursday", meetingTime:"18:30", memberCount:15, isActive:true, createdAt: new Date().toISOString() },
-  { id:4, name:"Jordan Cell", type:"cell", leaderName:"Sis. Ruth Akello", leaderUserId:null, location:"Kayunga Road", meetingDay:"Saturday", meetingTime:"10:00", memberCount:7, isActive:false, createdAt: new Date().toISOString() },
-];
 
 export default function LeadershipCellFellowship() {
   const qc = useQueryClient();
@@ -61,7 +55,7 @@ export default function LeadershipCellFellowship() {
     staleTime: 60_000,
   });
 
-  const displayCells = cells.length > 0 ? cells : mockCells;
+  const displayCells = cells;
 
   const create = useMutation({
     mutationFn: (data: { name: string; branchId: number; leaderName: string; leaderUserId: number | null; location: string; meetingDay: string; meetingTime: string; type: string }) =>
