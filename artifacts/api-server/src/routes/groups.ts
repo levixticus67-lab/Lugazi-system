@@ -58,7 +58,19 @@ router.delete("/groups/:id/members/:memberId", requireAuth, async (req: AuthRequ
 
 router.get("/groups", requireAuth, async (_req, res): Promise<void> => {
   const groups = await db.select().from(groupsTable).orderBy(groupsTable.name);
-  res.json(groups.map(g => ({ ...g, createdAt: g.createdAt.toISOString(), updatedAt: g.updatedAt.toISOString() })));
+  // Compute live member counts from the members table instead of relying on the cached counter
+  const liveCounts = await db
+    .select({ cellGroupId: membersTable.cellGroupId, count: sql<number>`count(*)` })
+    .from(membersTable)
+    .where(sql`${membersTable.cellGroupId} IS NOT NULL`)
+    .groupBy(membersTable.cellGroupId);
+  const countMap = new Map(liveCounts.map(r => [r.cellGroupId, Number(r.count)]));
+  res.json(groups.map(g => ({
+    ...g,
+    memberCount: countMap.get(g.id) ?? 0,
+    createdAt: g.createdAt.toISOString(),
+    updatedAt: g.updatedAt.toISOString(),
+  })));
 });
 
 router.post("/groups", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
