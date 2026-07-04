@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sql, eq, desc, inArray } from "drizzle-orm";
+import { sql, eq, desc, inArray, gte, and, lt } from "drizzle-orm";
 import {
   db, usersTable, membersTable, branchesTable, groupsTable,
   attendanceTable, transactionsTable, welfareTable, roleRequestsTable, eventsTable,
@@ -14,6 +14,12 @@ router.get("/dashboard/stats", requireAuth, requireRole(["admin", "leadership", 
   const [activeMembersResult] = await db.select({ count: sql<number>`count(*)` }).from(membersTable).where(eq(membersTable.isActive, true));
   const [branchesResult] = await db.select({ count: sql<number>`count(*)` }).from(branchesTable);
   const [groupsResult] = await db.select({ count: sql<number>`count(*)` }).from(groupsTable);
+  const [cellGroupsResult] = await db.select({ count: sql<number>`count(*)` }).from(groupsTable).where(eq(groupsTable.type, "cell"));
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const [attendanceTodayResult] = await db.select({ count: sql<number>`count(*)` }).from(attendanceTable).where(and(gte(attendanceTable.checkedInAt, todayStart), lt(attendanceTable.checkedInAt, todayEnd)));
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [newMembersResult] = await db.select({ count: sql<number>`count(*)` }).from(membersTable).where(gte(membersTable.createdAt, monthStart));
 
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -43,11 +49,15 @@ router.get("/dashboard/stats", requireAuth, requireRole(["admin", "leadership", 
     activeMembers: Number(activeMembersResult.count),
     totalBranches: Number(branchesResult.count),
     totalGroups: Number(groupsResult.count),
+    cellGroups: Number(cellGroupsResult.count),
     thisWeekAttendance,
     lastWeekAttendance,
+    attendanceToday: Number(attendanceTodayResult.count),
+    newMembersThisMonth: Number(newMembersResult.count),
     monthlyIncome,
     monthlyExpenses,
     pendingWelfare: Number(pendingWelfareResult.count),
+    pendingWelfareRequests: Number(pendingWelfareResult.count),
     pendingRoleRequests: Number(pendingRoleRequestsResult.count),
     upcomingEvents: upcoming,
   });
