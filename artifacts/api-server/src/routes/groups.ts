@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql, isNotNull } from "drizzle-orm";
 import { db, groupsTable, membersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
@@ -62,7 +62,7 @@ router.get("/groups", requireAuth, async (_req, res): Promise<void> => {
   const liveCounts = await db
     .select({ cellGroupId: membersTable.cellGroupId, count: sql<number>`count(*)` })
     .from(membersTable)
-    .where(sql`${membersTable.cellGroupId} IS NOT NULL`)
+    .where(isNotNull(membersTable.cellGroupId))
     .groupBy(membersTable.cellGroupId);
   const countMap = new Map(liveCounts.map(r => [r.cellGroupId, Number(r.count)]));
   res.json(groups.map(g => ({
