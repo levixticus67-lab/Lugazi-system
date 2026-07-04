@@ -63,7 +63,7 @@ export default function MemberFamily() {
   const filteredMembers = memberSearch.length >= 2
     ? (churchMembers as ChurchMember[]).filter(m =>
         m.fullName.toLowerCase().includes(memberSearch.toLowerCase()) ||
-        m.email.toLowerCase().includes(memberSearch.toLowerCase())
+        (m.email ?? "").toLowerCase().includes(memberSearch.toLowerCase())
       ).slice(0, 8)
     : [];
 
