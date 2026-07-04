@@ -2007,15 +2007,23 @@ components:
           type: integer
         totalGroups:
           type: integer
+        cellGroups:
+          type: integer
         thisWeekAttendance:
           type: integer
         lastWeekAttendance:
+          type: integer
+        attendanceToday:
+          type: integer
+        newMembersThisMonth:
           type: integer
         monthlyIncome:
           type: number
         monthlyExpenses:
           type: number
         pendingWelfare:
+          type: integer
+        pendingWelfareRequests:
           type: integer
         pendingRoleRequests:
           type: integer
