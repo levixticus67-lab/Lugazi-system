@@ -67,9 +67,10 @@ export default function LeadershipApprovals() {
           {label:"Approved",value:display.filter(r=>r.status==="approved").length,color:"text-green-500",icon:<CheckCircle2 className="h-4 w-4"/>},
           {label:"Declined",value:display.filter(r=>r.status==="declined").length,color:"text-red-400",icon:<XCircle className="h-4 w-4"/>},
         ].map(s=>(
-          <div key={s.label} className="glass-card p-4 flex items-center gap-3">
-            <div className={`${s.color} p-2 rounded-lg bg-current/10`}>{s.icon}</div>
-            <div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-2xl font-bold">{s.value}</p></div>
+          <div key={s.label} className="glass-card p-4 flex flex-col items-center justify-center text-center gap-1">
+            <div className={`${s.color} mb-1`}>{s.icon}</div>
+            <p className="text-xs text-muted-foreground leading-tight">{s.label}</p>
+            <p className="text-2xl font-bold leading-none">{s.value}</p>
           </div>
         ))}
       </div>
