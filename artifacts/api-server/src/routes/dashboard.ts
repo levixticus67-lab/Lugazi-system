@@ -14,14 +14,13 @@ router.get("/dashboard/stats", requireAuth, requireRole(["admin", "leadership", 
   const [activeMembersResult] = await db.select({ count: sql<number>`count(*)` }).from(membersTable).where(eq(membersTable.isActive, true));
   const [branchesResult] = await db.select({ count: sql<number>`count(*)` }).from(branchesTable);
   const [groupsResult] = await db.select({ count: sql<number>`count(*)` }).from(groupsTable);
+  const now = new Date();
   const [cellGroupsResult] = await db.select({ count: sql<number>`count(*)` }).from(groupsTable).where(eq(groupsTable.type, "cell"));
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const [attendanceTodayResult] = await db.select({ count: sql<number>`count(*)` }).from(attendanceTable).where(and(gte(attendanceTable.checkedInAt, todayStart), lt(attendanceTable.checkedInAt, todayEnd)));
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const [newMembersResult] = await db.select({ count: sql<number>`count(*)` }).from(membersTable).where(gte(membersTable.createdAt, monthStart));
-
-  const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
