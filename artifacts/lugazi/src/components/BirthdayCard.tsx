@@ -5,13 +5,11 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import Avatar from "@/components/Avatar";
 
 interface Member {
   id: number;
   fullName: string;
   birthday: string | null;
-  photoUrl?: string | null;
 }
 
 function getDaysUntilBirthday(birthday: string): number {
@@ -32,124 +30,123 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316","#84cc16"];
 
 export default function BirthdayCard() {
-  const { data: members = [] } = useQuery<Member[]>({
-    queryKey: ["members-birthday"],
-    queryFn: () => axios.get("/api/members").then(r => r.data as Member[]).catch(() => []),
+  const { data: members = [], isLoading } = useQuery<Member[]>({
+    queryKey: ["members-birthdays"],
+    queryFn: () => axios.get("/api/members").then(r => r.data as Member[]).catch(() => [] as Member[]),
     staleTime: 300_000,
   });
 
-  const withBirthday = members.filter(m => m.birthday);
-  const today = new Date();
+  const withBirthday = (members as Member[]).filter(m => m.birthday);
 
-  const upcoming = [...withBirthday]
+  const upcoming = withBirthday
     .map(m => ({ ...m, daysUntil: getDaysUntilBirthday(m.birthday!) }))
+    .filter(m => m.daysUntil <= 90)
     .sort((a, b) => a.daysUntil - b.daysUntil)
-    .slice(0, 6);
+    .slice(0, 10);
 
-  const todayBirthdays = upcoming.filter(m => m.daysUntil === 0);
-  const upcomingOnly = upcoming.filter(m => m.daysUntil > 0);
+  const today = upcoming.filter(m => m.daysUntil === 0);
+  const thisWeek = upcoming.filter(m => m.daysUntil > 0 && m.daysUntil <= 7);
+  const thisMonth = upcoming.filter(m => m.daysUntil > 7 && m.daysUntil <= 30);
+  const later = upcoming.filter(m => m.daysUntil > 30);
 
-  const monthData = MONTH_NAMES.map((name, idx) => ({
-    name,
+  const pieData = [
+    { name: "Today", value: today.length, color: "#ef4444" },
+    { name: "This week", value: thisWeek.length, color: "#f59e0b" },
+    { name: "This month", value: thisMonth.length, color: "#3b82f6" },
+    { name: "Next 3 months", value: later.length, color: "#10b981" },
+  ].filter(d => d.value > 0);
+
+  const monthData = MONTH_NAMES.map((name, i) => ({
+    month: name,
     count: withBirthday.filter(m => {
-      const [, month] = m.birthday!.split("-").map(Number);
-      return month === idx + 1;
+      const parts = m.birthday!.split("-");
+      return Number(parts[1]) - 1 === i;
     }).length,
   }));
 
-  const pieData = monthData.filter(d => d.count > 0);
-
-  const currentMonth = today.getMonth();
-  const nextFewMonths = Array.from({ length: 6 }, (_, i) => {
-    const idx = (currentMonth + i) % 12;
-    return { name: MONTH_NAMES[idx], count: monthData[idx].count };
-  });
+  const hasPieData = pieData.length > 0;
+  const hasMonthData = withBirthday.length > 0;
 
   return (
-    <div className="space-y-4">
-      {todayBirthdays.length > 0 && (
-        <div className="glass-card p-4 border border-pink-200 dark:border-pink-800 bg-pink-50/60 dark:bg-pink-950/30">
-          <div className="flex items-center gap-2 mb-3">
-            <Cake className="h-4 w-4 text-pink-500" />
-            <span className="font-semibold text-sm text-pink-700 dark:text-pink-300">🎂 Today's Birthdays</span>
-          </div>
-          <div className="space-y-2">
-            {todayBirthdays.map(m => (
-              <div key={m.id} className="flex items-center gap-3">
-                <Avatar name={m.fullName} photoUrl={m.photoUrl} size="md" />
-                <div>
-                  <p className="text-sm font-semibold">{m.fullName}</p>
-                  <p className="text-xs text-muted-foreground">🎉 Happy Birthday!</p>
-                </div>
+    <div className="glass-card p-5 animate-slide-in-up">
+      <div className="flex items-center gap-2 mb-4">
+        <Cake className="h-4 w-4 text-pink-500" />
+        <h2 className="font-serif text-sm font-semibold">Upcoming Birthdays</h2>
+        {withBirthday.length > 0 && (
+          <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            {withBirthday.length} with birthday set
+          </span>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="h-40 animate-pulse bg-muted rounded-lg" />
+      ) : !hasMonthData ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground gap-2">
+          <Users className="h-8 w-8 opacity-30" />
+          <p className="text-sm font-medium">No birthday data yet</p>
+          <p className="text-xs">Birthdays will appear once members set their date of birth.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {hasPieData ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">Next 90 days</p>
+                <ResponsiveContainer width="100%" height={150}>
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={62} paddingAngle={3} dataKey="value">
+                      {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number, name: string) => [`${v} birthday${v !== 1 ? "s" : ""}`, name]} />
+                    <Legend iconType="circle" iconSize={7} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {upcomingOnly.length > 0 && (
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="h-4 w-4 text-blue-500" />
-            <span className="font-semibold text-sm">Upcoming Birthdays</span>
-          </div>
-          <div className="space-y-2.5">
-            {upcomingOnly.map(m => (
-              <div key={m.id} className="flex items-center gap-3">
-                <Avatar name={m.fullName} photoUrl={m.photoUrl} size="md" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{m.fullName}</p>
-                  <p className="text-xs text-muted-foreground">{formatBirthday(m.birthday!)}</p>
-                </div>
-                <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  {m.daysUntil === 1 ? "tomorrow" : `in ${m.daysUntil}d`}
-                </span>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {upcoming.map((m, i) => (
+                  <div key={m.id} className="flex items-center gap-2 text-xs">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                      style={{ background: COLORS[i % COLORS.length] }}>
+                      {m.fullName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{m.fullName}</p>
+                      <p className="text-muted-foreground">{formatBirthday(m.birthday!)}</p>
+                    </div>
+                    <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      m.daysUntil === 0 ? "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400" :
+                      m.daysUntil <= 7 ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" :
+                      "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                    }`}>
+                      {m.daysUntil === 0 ? "🎂 Today!" : `${m.daysUntil}d`}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-2">No birthdays in the next 90 days.</p>
+          )}
+
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">Birthdays by month</p>
+            <ResponsiveContainer width="100%" height={120}>
+              <AreaChart data={monthData} margin={{ top: 0, right: 4, left: -24, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad-bday" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f472b6" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#f472b6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(v: number) => [`${v}`, "Members"]} />
+                <Area type="monotone" dataKey="count" stroke="#f472b6" strokeWidth={2} fill="url(#grad-bday)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-        </div>
-      )}
-
-      {withBirthday.length === 0 && (
-        <div className="glass-card p-6 text-center">
-          <Cake className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-          <p className="text-sm text-muted-foreground">No birthday data available</p>
-        </div>
-      )}
-
-      {pieData.length > 0 && (
-        <div className="glass-card p-4">
-          <p className="font-semibold text-sm mb-3">Birthdays by Month</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" outerRadius={70} dataKey="count" nameKey="name" label={({ name, count }) => `${name}: ${count}`} labelLine={false}>
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {nextFewMonths.some(m => m.count > 0) && (
-        <div className="glass-card p-4">
-          <p className="font-semibold text-sm mb-3">Next 6 Months</p>
-          <ResponsiveContainer width="100%" height={160}>
-            <AreaChart data={nextFewMonths}>
-              <defs>
-                <linearGradient id="bdayGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-              <Tooltip />
-              <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="url(#bdayGrad)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
         </div>
       )}
     </div>
