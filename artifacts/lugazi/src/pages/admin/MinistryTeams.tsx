@@ -11,11 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Users, Crown, UserPlus, UserMinus, ChevronDown, ChevronUp, Pencil, Search, X, Power } from "lucide-react";
-import Avatar from "@/components/Avatar";
 
-interface TeamMember { id: number; userId: number; memberName: string; role: string | null; joinedAt: string; photoUrl?: string | null; }
+interface TeamMember { id: number; userId: number; memberName: string; role: string | null; joinedAt: string; }
 interface Team { id: number; name: string; description: string | null; leaderName: string | null; leaderId: number | null; isActive: boolean; members: TeamMember[]; createdAt: string; }
-interface UserOption { id: number; displayName: string; role: string; photoUrl?: string | null; }
+interface UserOption { id: number; displayName: string; role: string; }
 
 export default function AdminMinistryTeams() {
   const qc = useQueryClient();
@@ -156,7 +155,9 @@ export default function AdminMinistryTeams() {
                 <div className="border-t border-border/50 bg-muted/30 divide-y divide-border/30">
                   {team.members.map(m => (
                     <div key={m.id} className="flex items-center gap-3 px-5 py-3">
-                      <Avatar name={m.memberName} photoUrl={m.photoUrl} size="sm" />
+                      <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        {m.memberName.charAt(0)}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{m.memberName}</p>
                         <p className="text-[10px] text-muted-foreground capitalize">{m.role ?? "Member"}</p>
@@ -190,7 +191,7 @@ export default function AdminMinistryTeams() {
               )}
               {selectedNewLeader ? (
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/20">
-                  <Avatar name={selectedNewLeader.displayName} photoUrl={selectedNewLeader.photoUrl} size="sm" />
+                  <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">{selectedNewLeader.displayName.charAt(0)}</div>
                   <span className="text-sm flex-1 font-medium">{selectedNewLeader.displayName}</span>
                   <span className="text-[10px] text-muted-foreground capitalize">{selectedNewLeader.role}</span>
                   <button onClick={() => { setSelectedNewLeader(null); setLeaderSearch(""); }}><X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" /></button>
@@ -206,7 +207,7 @@ export default function AdminMinistryTeams() {
                       {filteredLeaders.length > 0 ? filteredLeaders.map(u => (
                         <button key={u.id} onClick={() => { setSelectedNewLeader(u); setLeaderSearch(""); }}
                           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left">
-                          <Avatar name={u.displayName} photoUrl={u.photoUrl} size="xs" />
+                          <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
                           <span className="text-sm flex-1">{u.displayName}</span>
                           <span className="text-[10px] text-muted-foreground capitalize">{u.role}</span>
                         </button>
@@ -241,7 +242,7 @@ export default function AdminMinistryTeams() {
                 {filteredUsersForAdd.map(u => (
                   <button key={u.id} onClick={() => setNewMember({userId:String(u.id),memberName:u.displayName})}
                     className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left ${newMember.userId===String(u.id)?"bg-primary/5":""}`}>
-                    <Avatar name={u.displayName} photoUrl={u.photoUrl} size="xs" />
+                    <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
                     <span className="text-sm flex-1">{u.displayName}</span>
                     <span className="text-[10px] text-muted-foreground capitalize">{u.role}</span>
                   </button>
@@ -250,7 +251,7 @@ export default function AdminMinistryTeams() {
             )}
             {newMember.userId && (
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-sm">
-                <Avatar name={newMember.memberName} size="xs" />
+                <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold">{newMember.memberName.charAt(0)}</div>
                 <span className="font-medium">{newMember.memberName}</span>
                 <button onClick={() => setNewMember({userId:"",memberName:""})} className="ml-auto"><X className="h-3.5 w-3.5 text-muted-foreground"/></button>
               </div>
