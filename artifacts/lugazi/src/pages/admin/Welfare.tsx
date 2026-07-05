@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Heart, Trash2, Pencil, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
-type WelfareRequest = { id: number; memberName: string; category: string; description: string; amountRequested?: number | null; status: string; adminNote?: string | null; createdAt: string };
+type WelfareRequest = { id: number; memberName: string; memberPhotoUrl?: string | null; category: string; description: string; amountRequested?: number | null; status: string; adminNote?: string | null; createdAt: string };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   pending:  { label: "Pending",  color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",  icon: <Clock className="h-3.5 w-3.5" /> },
@@ -92,10 +93,7 @@ export default function AdminWelfare() {
             const cfg = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.pending;
             return (
               <div key={r.id} className="glass-card p-4 flex gap-3">
-                {/* Left icon */}
-                <div className={`p-2.5 rounded-xl shrink-0 self-start ${cfg.color.replace("text-","text-").split(" ")[0]}`}>
-                  <Heart className="h-4 w-4" />
-                </div>
+                <Avatar name={r.memberName} photoUrl={r.memberPhotoUrl} size="md" className="self-start mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div>
