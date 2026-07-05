@@ -8,10 +8,12 @@ import AIAssistant from "@/components/AIAssistant";
 import { adminNavItems } from "./navItems";
 import { DollarSign, TrendingUp, Plus, X, Trash2, Heart, HandCoins, Coins } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import Avatar from "@/components/Avatar";
 
 interface Contribution {
   id: number;
   memberName: string;
+  memberPhotoUrl?: string | null;
   email: string | null;
   type: string;
   amount: number;
@@ -107,9 +109,7 @@ export default function AdminGiving() {
           {isLoading ? [...Array(5)].map((_,i)=><div key={i} className="glass-card h-14 animate-pulse" />) :
             display.slice(0,10).map(c => (
               <div key={c.id} className="glass-card p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
-                <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {c.memberName.charAt(0)}
-                </div>
+                <Avatar name={c.memberName} photoUrl={c.memberPhotoUrl} size="md" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-medium text-sm truncate">{c.memberName}</span>
