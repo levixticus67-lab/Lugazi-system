@@ -1,9 +1,19 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, inductionTracksTable, inductionEnrollmentsTable } from "@workspace/db";
+import { eq, desc, inArray } from "drizzle-orm";
+import { db, inductionTracksTable, inductionEnrollmentsTable, membersTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
+
+async function addMemberPhotos<T extends { memberId?: number | null }>(records: T[]): Promise<(T & { memberPhotoUrl: string | null })[]> {
+  const ids = [...new Set(records.map(r => r.memberId).filter((id): id is number => !!id))];
+  let photoMap: Record<number, string | null> = {};
+  if (ids.length > 0) {
+    const rows = await db.select({ id: membersTable.id, photoUrl: membersTable.photoUrl }).from(membersTable).where(inArray(membersTable.id, ids));
+    photoMap = Object.fromEntries(rows.map(r => [r.id, r.photoUrl]));
+  }
+  return records.map(r => ({ ...r, memberPhotoUrl: r.memberId ? (photoMap[r.memberId] ?? null) : null }));
+}
 
 // ─── Tracks ───────────────────────────────────────────────────────────────────
 
@@ -51,7 +61,8 @@ router.get("/induction/enrollments", requireAuth, async (req: AuthRequest, res):
   let query = db.select().from(inductionEnrollmentsTable).orderBy(desc(inductionEnrollmentsTable.enrolledAt)).$dynamic();
   if (memberId) query = query.where(eq(inductionEnrollmentsTable.memberId, memberId));
   const records = await query;
-  res.json(records.map(r => ({
+  const enriched = await addMemberPhotos(records);
+  res.json(enriched.map(r => ({
     ...r,
     enrolledAt: r.enrolledAt.toISOString(),
     completedAt: r.completedAt?.toISOString() ?? null,
@@ -66,7 +77,8 @@ router.post("/induction/enrollments", requireAuth, async (req: AuthRequest, res)
     memberId: Number(memberId), memberName: memberName.trim(),
     trackId: Number(trackId), trackName,
   }).returning();
-  res.status(201).json({ ...record, enrolledAt: record.enrolledAt.toISOString(), completedAt: null });
+  const memberPhotoUrl = (await db.select({ photoUrl: membersTable.photoUrl }).from(membersTable).where(eq(membersTable.id, Number(memberId))).limit(1))[0]?.photoUrl ?? null;
+  res.status(201).json({ ...record, memberPhotoUrl, enrolledAt: record.enrolledAt.toISOString(), completedAt: null });
 });
 
 router.patch("/induction/enrollments/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
@@ -81,7 +93,10 @@ router.patch("/induction/enrollments/:id", requireAuth, async (req: AuthRequest,
   }
   const [record] = await db.update(inductionEnrollmentsTable).set(updates).where(eq(inductionEnrollmentsTable.id, id)).returning();
   if (!record) { res.status(404).json({ error: "Enrollment not found" }); return; }
-  res.json({ ...record, enrolledAt: record.enrolledAt.toISOString(), completedAt: record.completedAt?.toISOString() ?? null });
+  const memberPhotoUrl = record.memberId
+    ? ((await db.select({ photoUrl: membersTable.photoUrl }).from(membersTable).where(eq(membersTable.id, record.memberId)).limit(1))[0]?.photoUrl ?? null)
+    : null;
+  res.json({ ...record, memberPhotoUrl, enrolledAt: record.enrolledAt.toISOString(), completedAt: record.completedAt?.toISOString() ?? null });
 });
 
 router.delete("/induction/enrollments/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
