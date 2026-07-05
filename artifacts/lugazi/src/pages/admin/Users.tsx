@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check, UserCheck, UserX } from "lucide-react";
 import axios from "@/lib/axios";
+import Avatar from "@/components/Avatar";
 
-type User = { id: number; email: string; displayName: string; role: string; isActive: boolean; createdAt: string };
+type User = { id: number; email: string; displayName: string; role: string; photoUrl?: string | null; isActive: boolean; createdAt: string };
 
 const ROLE_CONFIG: Record<string, { color: string; bg: string }> = {
   admin:      { color: "text-red-700 dark:text-red-300",     bg: "bg-red-100 dark:bg-red-950" },
@@ -152,9 +153,7 @@ export default function AdminUsers() {
             const cfg = ROLE_CONFIG[u.role] ?? ROLE_CONFIG.member;
             return (
               <div key={u.id} className={`glass-card p-4 flex gap-3 ${!u.isActive ? "opacity-60" : ""}`}>
-                <div className="w-11 h-11 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-base shrink-0 shadow">
-                  {u.displayName.charAt(0).toUpperCase()}
-                </div>
+                <Avatar name={u.displayName} photoUrl={u.photoUrl} size="lg" className="shadow" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <p className="font-semibold text-sm truncate">{u.displayName}</p>
