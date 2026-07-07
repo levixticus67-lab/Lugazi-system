@@ -53,6 +53,7 @@ import axios from "@/lib/axios";
   import PastorReports from "@/pages/pastor/Reports";
   import PastorMembers from "@/pages/pastor/Members";
   import PastorRoleRequests from "@/pages/pastor/RoleRequests";
+  import PastorMeetings from "@/pages/pastor/Meetings";
 
   // Leadership pages
   import LeadershipDashboard from "@/pages/leadership/Dashboard";
@@ -266,6 +267,7 @@ import axios from "@/lib/axios";
         <Route path="/pastor/induction"><RequireAuth roles={["admin", "pastor"]}><AdminInduction /></RequireAuth></Route>
         <Route path="/pastor/attendance"><RequireAuth roles={["admin", "pastor"]}><PastorAttendance /></RequireAuth></Route>
         <Route path="/pastor/events"><RequireAuth roles={["admin", "pastor"]}><AdminEvents /></RequireAuth></Route>
+        <Route path="/pastor/meetings"><RequireAuth roles={["admin", "pastor"]}><PastorMeetings /></RequireAuth></Route>
         <Route path="/pastor/giving"><RequireAuth roles={["admin", "pastor"]}><AdminGiving /></RequireAuth></Route>
         <Route path="/pastor/welfare"><RequireAuth roles={["admin", "pastor"]}><AdminWelfare /></RequireAuth></Route>
         <Route path="/pastor/prayer-requests"><RequireAuth roles={["admin", "pastor"]}><AdminPrayerRequests /></RequireAuth></Route>
