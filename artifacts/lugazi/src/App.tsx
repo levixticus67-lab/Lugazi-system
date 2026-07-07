@@ -67,7 +67,6 @@ import axios from "@/lib/axios";
   import LeadershipPipeline from "@/pages/leadership/Pipeline";
   import LeadershipMeetings from "@/pages/leadership/Meetings";
   import LeadershipTeams from "@/pages/leadership/Teams";
-  import LeadershipApprovals from "@/pages/leadership/Approvals";
   import LeadershipMedia from "@/pages/leadership/Media";
   import LeadershipGiving from "@/pages/leadership/Giving";
   import LeadershipQrCode from "@/pages/leadership/QrCode";
@@ -288,7 +287,6 @@ import axios from "@/lib/axios";
         <Route path="/leadership/attendance"><RequireAuth roles={["admin", "leadership"]}><LeadershipAttendance /></RequireAuth></Route>
         <Route path="/leadership/events"><RequireAuth roles={["admin", "leadership"]}><LeadershipEvents /></RequireAuth></Route>
         <Route path="/leadership/meetings"><RequireAuth roles={["admin", "leadership"]}><LeadershipMeetings /></RequireAuth></Route>
-        <Route path="/leadership/approvals"><RequireAuth roles={["admin", "leadership"]}><LeadershipApprovals /></RequireAuth></Route>
         <Route path="/leadership/welfare"><RequireAuth roles={["admin", "leadership"]}><LeadershipWelfare /></RequireAuth></Route>
         <Route path="/leadership/prayer-requests"><RequireAuth roles={["admin", "leadership"]}><LeadershipPrayerRequests /></RequireAuth></Route>
         <Route path="/leadership/sermons"><RequireAuth roles={["admin", "leadership"]}><LeadershipSermons /></RequireAuth></Route>
