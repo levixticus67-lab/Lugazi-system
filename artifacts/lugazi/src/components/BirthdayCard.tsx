@@ -10,6 +10,7 @@ interface Member {
   id: number;
   fullName: string;
   birthday: string | null;
+  photoUrl?: string | null;
 }
 
 function getDaysUntilBirthday(birthday: string): number {
@@ -106,10 +107,14 @@ export default function BirthdayCard() {
               <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                 {upcoming.map((m, i) => (
                   <div key={m.id} className="flex items-center gap-2 text-xs">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                      style={{ background: COLORS[i % COLORS.length] }}>
-                      {m.fullName.charAt(0).toUpperCase()}
-                    </div>
+                    {m.photoUrl ? (
+                      <img src={m.photoUrl} alt={m.fullName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                        style={{ background: COLORS[i % COLORS.length] }}>
+                        {m.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{m.fullName}</p>
                       <p className="text-muted-foreground">{formatBirthday(m.birthday!)}</p>
