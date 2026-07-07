@@ -209,9 +209,13 @@ export default function MemberFamily() {
                           className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-primary/5 text-left transition-colors"
                           onClick={() => selectChurchMember(cm)}
                         >
-                          <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
-                            {cm.fullName.charAt(0)}
-                          </div>
+                          {cm.photoUrl ? (
+                            <img src={cm.photoUrl} alt={cm.fullName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
+                              {cm.fullName.charAt(0)}
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{cm.fullName}</p>
                             <p className="text-xs text-muted-foreground truncate">{cm.email}</p>
