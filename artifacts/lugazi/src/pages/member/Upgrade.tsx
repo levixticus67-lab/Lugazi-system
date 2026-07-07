@@ -48,7 +48,6 @@ export default function MemberUpgrade() {
                   <SelectContent>
                     <SelectItem value="workforce">Workforce</SelectItem>
                     <SelectItem value="leadership">Leadership</SelectItem>
-                    <SelectItem value="pastor">Pastor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
