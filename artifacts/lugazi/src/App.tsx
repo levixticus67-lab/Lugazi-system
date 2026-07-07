@@ -6,6 +6,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { ReactNode, useEffect } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
+import InAppNotifications from "@/components/InAppNotifications";
 import Terms from "@/pages/Terms";
 import ResetPassword from "@/pages/ResetPassword";
 import Privacy from "@/pages/Privacy";
@@ -346,6 +347,7 @@ import axios from "@/lib/axios";
         <TooltipProvider>
           <AuthProvider>
             <DeepLinkHandler />
+            <InAppNotifications />
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>

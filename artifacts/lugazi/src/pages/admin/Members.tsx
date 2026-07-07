@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "@/lib/axios";
 import { useListMembers, useCreateMember, useDeleteMember, getListMembersQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { adminNavItems } from "./navItems";
@@ -11,13 +11,24 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search, UserCheck, UserX } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search, UserCheck, UserX, Heart, X, Cake } from "lucide-react";
 
 type Member = {
   id: number; fullName: string; email: string; phone?: string | null;
   role: string; branchId: number; department?: string | null;
   isActive: boolean; photoUrl?: string | null; createdAt: string; qrToken: string;
 };
+
+interface FamilyMember {
+  id: number;
+  fullName: string;
+  relationship: string;
+  birthday: string | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  linkedUserId: number | null;
+}
 
 const blankForm = { fullName: "", email: "", phone: "", branchId: "1", department: "" };
 
@@ -29,6 +40,11 @@ const ROLE_COLORS: Record<string, string> = {
   member:     "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
 };
 
+const relColors: Record<string, string> = {
+  Spouse:"bg-rose-100 text-rose-700", Child:"bg-blue-100 text-blue-700", Parent:"bg-purple-100 text-purple-700",
+  Sibling:"bg-green-100 text-green-700", Other:"bg-slate-100 text-slate-600",
+};
+
 export default function AdminMembers() {
   const { data: members = [], isLoading } = useListMembers();
   const createMutation = useCreateMember();
@@ -38,12 +54,20 @@ export default function AdminMembers() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
+  const [familyMember, setFamilyMember] = useState<Member | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
   const [editPhotoResult, setEditPhotoResult] = useState<UploadResult | null>(null);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+
+  // Fetch family members for whichever member the admin is viewing
+  const { data: familyRecords = [], isLoading: familyLoading } = useQuery<FamilyMember[]>({
+    queryKey: ["admin-member-family", familyMember?.id],
+    queryFn: () => axios.get(`/api/admin/members/${familyMember!.id}/family`).then(r => r.data),
+    enabled: !!familyMember,
+  });
 
   function resetForm() { setForm(blankForm); setPhotoResult(null); }
 
@@ -113,7 +137,7 @@ export default function AdminMembers() {
           <Input className="pl-9" placeholder="Search by name, email, department…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+      <div className="flex gap-2 flex-wrap mb-4">
         <button onClick={() => setFilterRole("all")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterRole === "all" ? "blue-gradient-bg text-white shadow" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>All ({all.length})</button>
         {roles.map(r => (
           <button key={r} onClick={() => setFilterRole(r)} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${filterRole === r ? `${ROLE_COLORS[r] ?? "bg-muted text-foreground"} ring-1 ring-current/30 shadow` : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
@@ -126,43 +150,40 @@ export default function AdminMembers() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{Array.from({length:6}).map((_,i) => <div key={i} className="glass-card h-24 animate-pulse" />)}</div>
       ) : displayed.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <Users className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-muted-foreground font-medium">No members found</p>
-          <p className="text-sm text-muted-foreground mt-1">{search ? "Try a different search." : "Add your first church member to get started."}</p>
+          <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+          <p className="text-muted-foreground">No members found</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {displayed.map(m => (
             <div key={m.id} className={`glass-card p-4 flex gap-3 hover:shadow-md transition-all ${!m.isActive ? "opacity-60" : ""}`}>
-              {/* Avatar */}
               {m.photoUrl ? (
                 <img src={m.photoUrl} alt={m.fullName} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-background shadow" />
               ) : (
-                <div className="w-12 h-12 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-base shrink-0 shadow">
-                  {m.fullName.charAt(0).toUpperCase()}
+                <div className="w-12 h-12 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-lg shrink-0 shadow">
+                  {m.fullName.charAt(0)}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-1">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{m.fullName}</p>
-                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize ${ROLE_COLORS[m.role] ?? "bg-muted text-muted-foreground"}`}>{m.role}</span>
-                      {!m.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Inactive</span>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => handleToggleActive(m)} className={`p-1.5 rounded-lg transition-colors ${m.isActive ? "hover:bg-amber-100 text-muted-foreground hover:text-amber-600" : "hover:bg-green-100 text-muted-foreground hover:text-green-600"}`} title={m.isActive ? "Deactivate member" : "Activate member"}>
-                      {m.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-                    </button>
-                    <button onClick={() => handleDelete(m.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
-                  </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold truncate">{m.fullName}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${ROLE_COLORS[m.role] ?? "bg-muted text-muted-foreground"}`}>{m.role}</span>
+                  {!m.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Inactive</span>}
                 </div>
                 <div className="mt-1.5 space-y-0.5">
                   <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><Mail className="h-3 w-3 shrink-0"/>{m.email}</p>
                   {m.phone && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3 shrink-0"/>{m.phone}</p>}
                   {m.department && <p className="text-xs text-muted-foreground flex items-center gap-1 truncate"><Building2 className="h-3 w-3 shrink-0"/>{m.department}</p>}
+                </div>
+                <div className="flex gap-1 mt-2 flex-wrap">
+                  <button onClick={() => openEdit(m)} className="p-1 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition" title="Edit"><Pencil className="h-3.5 w-3.5"/></button>
+                  <button onClick={() => handleToggleActive(m)} className="p-1 rounded-md hover:bg-amber-100 text-muted-foreground hover:text-amber-700 transition" title={m.isActive ? "Deactivate" : "Activate"}>
+                    {m.isActive ? <UserX className="h-3.5 w-3.5"/> : <UserCheck className="h-3.5 w-3.5"/>}
+                  </button>
+                  <button onClick={() => setFamilyMember(m)} className="p-1 rounded-md hover:bg-rose-100 text-muted-foreground hover:text-rose-600 transition" title="View family">
+                    <Heart className="h-3.5 w-3.5"/>
+                  </button>
+                  <button onClick={() => handleDelete(m.id)} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition" title="Delete"><Trash2 className="h-3.5 w-3.5"/></button>
                 </div>
               </div>
             </div>
@@ -170,7 +191,7 @@ export default function AdminMembers() {
         </div>
       )}
 
-      {/* Add Dialog */}
+      {/* ── Add Member Dialog ── */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add Member</DialogTitle></DialogHeader>
@@ -188,7 +209,7 @@ export default function AdminMembers() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* ── Edit Member Dialog ── */}
       <Dialog open={!!editMember} onOpenChange={v => { if(!v) setEditMember(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Edit Member</DialogTitle></DialogHeader>
@@ -201,6 +222,52 @@ export default function AdminMembers() {
           <DialogFooter>
             <Button variant="outline" onClick={()=>setEditMember(null)}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={saving}>{saving?"Saving…":"Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Family Members Dialog ── */}
+      <Dialog open={!!familyMember} onOpenChange={v => { if(!v) setFamilyMember(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="h-4 w-4 text-rose-500"/>
+              {familyMember?.fullName}'s Family
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3 max-h-[60vh] overflow-y-auto">
+            {familyLoading ? (
+              <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-14 rounded-xl bg-muted animate-pulse"/>)}</div>
+            ) : familyRecords.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-40"/>
+                <p className="text-sm">No family members added yet</p>
+              </div>
+            ) : (
+              familyRecords.map(f => (
+                <div key={f.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                  <div className="w-9 h-9 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {f.fullName.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{f.fullName}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${relColors[f.relationship] ?? "bg-slate-100 text-slate-600"}`}>{f.relationship}</span>
+                      {f.linkedUserId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1"><UserCheck className="h-2.5 w-2.5"/>Church member</span>}
+                    </div>
+                    <div className="mt-1 space-y-0.5">
+                      {f.birthday && <p className="text-xs text-muted-foreground flex items-center gap-1"><Cake className="h-3 w-3"/>{new Date(f.birthday).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                      {f.phone && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3"/>{f.phone}</p>}
+                      {f.email && <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3 shrink-0"/><span className="truncate">{f.email}</span></p>}
+                      {f.notes && <p className="text-xs text-muted-foreground italic">{f.notes}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFamilyMember(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -11,6 +11,9 @@ export const familyMembersTable = pgTable("family_members", {
   phone: text("phone"),
   email: text("email"),
   notes: text("notes"),
+  // If the family member is an existing church member, store their IDs
+  linkedMemberId: integer("linked_member_id"),
+  linkedUserId: integer("linked_user_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

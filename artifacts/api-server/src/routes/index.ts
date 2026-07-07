@@ -31,6 +31,7 @@ import dutyRosterRouter from "./dutyRoster";
 import ministryTeamsRouter from "./ministryTeams";
 import activityLogsRouter from "./activityLogs";
 import notificationsRouter from "./notifications";
+import inAppNotificationsRouter from "./inAppNotifications";
 
 const router: IRouter = Router();
 
@@ -66,5 +67,6 @@ router.use(dutyRosterRouter);
 router.use(ministryTeamsRouter);
 router.use(activityLogsRouter);
 router.use(notificationsRouter);
+router.use(inAppNotificationsRouter);
 
 export default router;
