@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db, familyMembersTable, membersTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
@@ -18,17 +18,15 @@ router.get("/family/linked-to-me", requireAuth, async (req: AuthRequest, res): P
   const userId = req.userId!;
   const records = await db.select().from(familyMembersTable).where(eq(familyMembersTable.linkedUserId, userId));
 
-  // Attach the name of the person who added this record
+  // Resolve owner display names in a single bounded query (no full-table scan)
   const ownerIds = [...new Set(records.map(r => r.userId))];
   let ownerNames: Record<number, string> = {};
   if (ownerIds.length > 0) {
-    const users = await db.select({ id: usersTable.id, displayName: usersTable.displayName })
+    const owners = await db
+      .select({ id: usersTable.id, displayName: usersTable.displayName })
       .from(usersTable)
-      .where(eq(usersTable.id, ownerIds[0])); // simple for now; works for typical small sets
-    // fetch all owners
-    const allUsers = await db.select({ id: usersTable.id, displayName: usersTable.displayName }).from(usersTable);
-    const idSet = new Set(ownerIds);
-    allUsers.filter(u => idSet.has(u.id)).forEach(u => { ownerNames[u.id] = u.displayName; });
+      .where(inArray(usersTable.id, ownerIds));
+    owners.forEach(u => { ownerNames[u.id] = u.displayName; });
   }
 
   res.json(records.map(r => ({
@@ -140,8 +138,11 @@ router.delete("/family/:id", requireAuth, async (req: AuthRequest, res): Promise
   const [existing] = await db.select().from(familyMembersTable)
     .where(and(eq(familyMembersTable.id, id), eq(familyMembersTable.userId, req.userId!)))
     .limit(1);
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  await db.delete(familyMembersTable).where(eq(familyMembersTable.id, id));
+  // Ownership constraint on DELETE — prevents IDOR (any user deleting another's record)
+  await db.delete(familyMembersTable)
+    .where(and(eq(familyMembersTable.id, id), eq(familyMembersTable.userId, req.userId!)));
 
   await logActivity({
     userId: req.userId,
