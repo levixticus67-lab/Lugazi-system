@@ -70,6 +70,11 @@ export default function PastorMeetings() {
     },
   });
 
+  const deleteMeeting = useMutation({
+    mutationFn: (id: number) => axios.delete(`/api/meetings/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["meetings"] }); setSelected(null); },
+  });
+
   function toggle(list: string[], setList: (v: string[]) => void, name: string) {
     setList(list.includes(name) ? list.filter(n => n !== name) : [...list, name]);
   }
@@ -196,6 +201,12 @@ export default function PastorMeetings() {
                     Cancel
                   </button>
                 )}
+                <button
+                  onClick={() => { if (window.confirm("Delete this meeting permanently?")) deleteMeeting.mutate(selected.id); }}
+                  disabled={deleteMeeting.isPending}
+                  className="text-xs px-3 py-1 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:opacity-60 ml-auto">
+                  {deleteMeeting.isPending ? "Deleting…" : "Delete"}
+                </button>
               </div>
 
               <div>

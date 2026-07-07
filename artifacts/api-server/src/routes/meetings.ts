@@ -1,11 +1,24 @@
 import { Router } from "express";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, or, and, lt } from "drizzle-orm";
 import { db, meetingsTable, usersTable, inAppNotificationsTable, ministryTeamMembersTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
 router.get("/meetings", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  // Auto-clean: remove cancelled meetings and stale "scheduled" meetings
+  // whose date passed more than 7 days ago (forgotten/never closed out)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await db.delete(meetingsTable).where(
+    or(
+      eq(meetingsTable.status, "cancelled"),
+      and(
+        eq(meetingsTable.status, "scheduled"),
+        lt(meetingsTable.scheduledAt, sevenDaysAgo)
+      )
+    )
+  );
+
   const target = req.query.target as string | undefined;
   let query = db.select().from(meetingsTable).orderBy(desc(meetingsTable.scheduledAt)).$dynamic();
   if (target) query = query.where(eq(meetingsTable.portalTarget, target));
