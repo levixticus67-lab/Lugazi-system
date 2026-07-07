@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface TeamMember { id: number; userId: number; memberName: string; role: string | null; joinedAt: string; }
 interface Team { id: number; name: string; description: string | null; leaderName: string | null; leaderId: number | null; isActive: boolean; members: TeamMember[]; createdAt: string; }
-interface UserOption { id: number; displayName: string; role: string; }
+interface UserOption { id: number; displayName: string; role: string; photoUrl?: string | null; }
 
 export default function LeadershipMinistryTeams() {
   const { user } = useAuth();
@@ -130,9 +130,13 @@ export default function LeadershipMinistryTeams() {
                   <div className="border-t border-border/50 bg-muted/30 divide-y divide-border/30">
                     {team.members.map(m => (
                       <div key={m.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                          {m.memberName.charAt(0)}
-                        </div>
+                        {(() => { const u = (users as UserOption[]).find(u => u.id === m.userId); return u?.photoUrl ? (
+                          <img src={u.photoUrl} alt={m.memberName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                            {m.memberName.charAt(0)}
+                          </div>
+                        ); })()}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{m.memberName}</p>
                           <p className="text-[10px] text-muted-foreground capitalize">{m.role ?? "Member"}</p>
@@ -165,7 +169,11 @@ export default function LeadershipMinistryTeams() {
             </div>
             {selectedUser ? (
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/20">
-                <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold">{selectedUser.displayName.charAt(0)}</div>
+                {selectedUser.photoUrl ? (
+                  <img src={selectedUser.photoUrl} alt={selectedUser.displayName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold">{selectedUser.displayName.charAt(0)}</div>
+                )}
                 <span className="text-sm flex-1 font-medium">{selectedUser.displayName}</span>
                 <button onClick={() => { setSelectedUser(null); setMemberSearch(""); }}><X className="h-3.5 w-3.5 text-muted-foreground"/></button>
               </div>
@@ -182,7 +190,11 @@ export default function LeadershipMinistryTeams() {
                     {filteredUsers.length > 0 ? filteredUsers.map(u => (
                       <button key={u.id} onClick={() => { setSelectedUser(u); setMemberSearch(""); }}
                         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left">
-                        <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
+                        {u.photoUrl ? (
+                          <img src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
+                        )}
                         <span className="text-sm flex-1">{u.displayName}</span>
                         <span className="text-[10px] text-muted-foreground capitalize">{u.role}</span>
                       </button>
