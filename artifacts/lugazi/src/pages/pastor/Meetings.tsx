@@ -153,7 +153,7 @@ export default function PastorMeetings() {
 
       {/* Meeting Detail Drawer */}
       {selected && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end md:items-center justify-center p-4">
           <div className="glass-card w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-border/50">
               <div>
