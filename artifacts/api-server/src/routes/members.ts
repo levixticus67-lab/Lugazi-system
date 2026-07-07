@@ -62,6 +62,13 @@ router.post("/members", requireAuth, requireRole(["admin", "pastor", "leadership
   if (!fullName || !email || !branchId) {
     res.status(400).json({ error: "fullName, email, and branchId are required" }); return;
   }
+
+  // Prevent re-adding members whose accounts have been blocked after deletion
+  const [blocked] = await db.select({ id: usersTable.id, isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (blocked && !blocked.isActive) {
+    res.status(403).json({ error: "This person has been removed and blocked from re-entry. Contact an admin to reinstate them." }); return;
+  }
+
   const [member] = await db.insert(membersTable).values({
     fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address,
     role: "member", qrToken: uuidv4(), isActive: true,
@@ -176,10 +183,19 @@ router.delete("/members/:id", requireAuth, requireRole(["admin", "pastor"]), asy
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   // Only admin can delete an admin-role member
-  const [target] = await db.select({ fullName: membersTable.fullName, role: membersTable.role }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
+  const [target] = await db.select({ fullName: membersTable.fullName, role: membersTable.role, userId: membersTable.userId, email: membersTable.email }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
   if (!target) { res.status(404).json({ error: "Member not found" }); return; }
   if (target.role === "admin" && req.userRole !== "admin") {
     res.status(403).json({ error: "You cannot delete an admin account" }); return;
+  }
+
+  // Block the linked user account so they cannot log in or be re-added
+  if (target.userId) {
+    await db.update(usersTable).set({ isActive: false }).where(eq(usersTable.id, target.userId)).catch(() => {});
+  }
+  // Also block by email in case the user has no linked account yet
+  if (target.email) {
+    await db.update(usersTable).set({ isActive: false }).where(eq(usersTable.email, target.email)).catch(() => {});
   }
 
   await db.delete(membersTable).where(eq(membersTable.id, id));
