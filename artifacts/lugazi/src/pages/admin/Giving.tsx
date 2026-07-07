@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface Contribution {
   id: number;
+  memberId?: number | null;
   memberName: string;
   email: string | null;
   type: string;
@@ -20,6 +21,7 @@ interface Contribution {
   notes: string | null;
   createdAt: string;
 }
+interface Member { id: number; fullName: string; photoUrl?: string | null; }
 
 const TYPES = ["tithe","offering","seed","donation","project"];
 const CURRENCIES = ["UGX","USD","EUR","GBP","KES"];
@@ -43,6 +45,11 @@ export default function AdminGiving() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ memberName:"", email:"", type:"tithe", amount:"", currency:"UGX", reference:"", notes:"" });
+
+  const { data: membersList = [] } = useQuery<Member[]>({
+    queryKey: ["members-list"],
+    queryFn: () => axios.get("/api/members").then(r => r.data),
+  });
 
   const { data: contributions = [], isLoading } = useQuery<Contribution[]>({
     queryKey: ["contributions"],
@@ -107,9 +114,13 @@ export default function AdminGiving() {
           {isLoading ? [...Array(5)].map((_,i)=><div key={i} className="glass-card h-14 animate-pulse" />) :
             display.slice(0,10).map(c => (
               <div key={c.id} className="glass-card p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
-                <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {c.memberName.charAt(0)}
-                </div>
+                {(() => { const m = c.memberId ? membersList.find(m => m.id === c.memberId) : null; return m?.photoUrl ? (
+                  <img src={m.photoUrl} alt={c.memberName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {c.memberName.charAt(0)}
+                  </div>
+                ); })()}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-medium text-sm truncate">{c.memberName}</span>
