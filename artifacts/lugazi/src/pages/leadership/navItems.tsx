@@ -17,7 +17,6 @@ import { NavItem } from "@/components/PortalLayout";
     { label: "Attendance", href: "/leadership/attendance", icon: <CalendarCheck className="h-4 w-4" /> },
     { label: "Events", href: "/leadership/events", icon: <CalendarDays className="h-4 w-4" /> },
     { label: "Meetings", href: "/leadership/meetings", icon: <Calendar className="h-4 w-4" /> },
-    { label: "Approvals", href: "/leadership/approvals", icon: <CheckCircle2 className="h-4 w-4" /> },
     { label: "Prayer Requests", href: "/leadership/prayer-requests", icon: <HandHeart className="h-4 w-4" /> },
     { label: "Welfare", href: "/leadership/welfare", icon: <Heart className="h-4 w-4" /> },
     { label: "Sermon Library", href: "/leadership/sermons", icon: <Mic2 className="h-4 w-4" /> },
