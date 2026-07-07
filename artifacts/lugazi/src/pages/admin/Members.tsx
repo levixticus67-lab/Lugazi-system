@@ -28,6 +28,12 @@ interface FamilyMember {
   email: string | null;
   notes: string | null;
   linkedUserId: number | null;
+  addedByName?: string | null; // only present in "linked" side
+}
+
+interface FamilyResponse {
+  added: FamilyMember[];
+  linked: FamilyMember[];
 }
 
 const blankForm = { fullName: "", email: "", phone: "", branchId: "1", department: "" };
@@ -44,6 +50,32 @@ const relColors: Record<string, string> = {
   Spouse:"bg-rose-100 text-rose-700", Child:"bg-blue-100 text-blue-700", Parent:"bg-purple-100 text-purple-700",
   Sibling:"bg-green-100 text-green-700", Other:"bg-slate-100 text-slate-600",
 };
+
+function FamilyCard({ f, showAddedBy = false }: { f: FamilyMember; showAddedBy?: boolean }) {
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+      <div className="w-9 h-9 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
+        {f.fullName.charAt(0)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-sm">{f.fullName}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${relColors[f.relationship] ?? "bg-slate-100 text-slate-600"}`}>{f.relationship}</span>
+          {f.linkedUserId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1"><UserCheck className="h-2.5 w-2.5"/>Church member</span>}
+        </div>
+        <div className="mt-1 space-y-0.5">
+          {showAddedBy && f.addedByName && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Heart className="h-3 w-3 text-rose-400"/>Listed by {f.addedByName}</p>
+          )}
+          {f.birthday && <p className="text-xs text-muted-foreground flex items-center gap-1"><Cake className="h-3 w-3"/>{new Date(f.birthday).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</p>}
+          {f.phone && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3"/>{f.phone}</p>}
+          {f.email && <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3 shrink-0"/><span className="truncate">{f.email}</span></p>}
+          {f.notes && <p className="text-xs text-muted-foreground italic">{f.notes}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminMembers() {
   const { data: members = [], isLoading } = useListMembers();
@@ -63,11 +95,13 @@ export default function AdminMembers() {
   const [filterRole, setFilterRole] = useState("all");
 
   // Fetch family members for whichever member the admin is viewing
-  const { data: familyRecords = [], isLoading: familyLoading } = useQuery<FamilyMember[]>({
+  const { data: familyData, isLoading: familyLoading } = useQuery<FamilyResponse>({
     queryKey: ["admin-member-family", familyMember?.id],
     queryFn: () => axios.get(`/api/admin/members/${familyMember!.id}/family`).then(r => r.data),
     enabled: !!familyMember,
   });
+  const familyAdded = familyData?.added ?? [];
+  const familyLinked = familyData?.linked ?? [];
 
   function resetForm() { setForm(blankForm); setPhotoResult(null); }
 
@@ -235,35 +269,40 @@ export default function AdminMembers() {
               {familyMember?.fullName}'s Family
             </DialogTitle>
           </DialogHeader>
-          <div className="py-2 space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="py-2 space-y-4 max-h-[60vh] overflow-y-auto">
             {familyLoading ? (
               <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-14 rounded-xl bg-muted animate-pulse"/>)}</div>
-            ) : familyRecords.length === 0 ? (
+            ) : familyAdded.length === 0 && familyLinked.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-8 w-8 mx-auto mb-2 opacity-40"/>
-                <p className="text-sm">No family members added yet</p>
+                <p className="text-sm">No family connections found</p>
               </div>
             ) : (
-              familyRecords.map(f => (
-                <div key={f.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-                  <div className="w-9 h-9 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
-                    {f.fullName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm">{f.fullName}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${relColors[f.relationship] ?? "bg-slate-100 text-slate-600"}`}>{f.relationship}</span>
-                      {f.linkedUserId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1"><UserCheck className="h-2.5 w-2.5"/>Church member</span>}
-                    </div>
-                    <div className="mt-1 space-y-0.5">
-                      {f.birthday && <p className="text-xs text-muted-foreground flex items-center gap-1"><Cake className="h-3 w-3"/>{new Date(f.birthday).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</p>}
-                      {f.phone && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3"/>{f.phone}</p>}
-                      {f.email && <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3 shrink-0"/><span className="truncate">{f.email}</span></p>}
-                      {f.notes && <p className="text-xs text-muted-foreground italic">{f.notes}</p>}
+              <>
+                {/* Records this member added themselves */}
+                {familyAdded.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Added by {familyMember?.fullName}</p>
+                    <div className="space-y-2">
+                      {familyAdded.map(f => (
+                        <FamilyCard key={f.id} f={f} />
+                      ))}
                     </div>
                   </div>
-                </div>
-              ))
+                )}
+
+                {/* Records where others listed this member as family */}
+                {familyLinked.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Listed as family by others</p>
+                    <div className="space-y-2">
+                      {familyLinked.map(f => (
+                        <FamilyCard key={f.id} f={f} showAddedBy />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
           <DialogFooter>
