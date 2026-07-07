@@ -68,7 +68,7 @@ import { Capacitor } from "@capacitor/core";
     return (
       <div className={`fixed z-50 ${isPwa ? "bottom-24 left-4 lg:bottom-6 lg:left-6" : "bottom-6 left-6"}`}>
         {open ? (
-          <div className="glass-card w-80 flex flex-col shadow-2xl" style={{ height: 460 }}>
+          <div className="glass-card w-80 flex flex-col shadow-2xl" style={{ height: 460, background: "hsl(var(--card))", backdropFilter: "none", WebkitBackdropFilter: "none" }}>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/20 rounded-t-[calc(var(--radius)-1px)]"
                  style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)" }}>
               <GeminiIcon className="h-4 w-4 text-white" />
