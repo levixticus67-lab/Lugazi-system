@@ -14,6 +14,7 @@ export const meetingsTable = pgTable("meetings", {
   status: text("status").notNull().default("scheduled"),
   notes: text("notes"),
   attendees: text("attendees"),
+  notifyAudience: text("notify_audience"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

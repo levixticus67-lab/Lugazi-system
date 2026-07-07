@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import LiveChat from "@/components/LiveChat";
 import AIAssistant from "@/components/AIAssistant";
 import { leadershipNavItems } from "./navItems";
-import { Calendar, Clock, MapPin, Users, Plus, X, CheckCircle2, XCircle, Search, UserCheck, ChevronRight } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, X, CheckCircle2, XCircle, Search, UserCheck, ChevronRight, Bell } from "lucide-react";
 
 interface Meeting {
   id: number; title: string; description: string | null; agenda: string | null;
@@ -14,6 +14,7 @@ interface Meeting {
   notes: string | null; attendees: string | null; createdAt: string;
 }
 interface Member { id: number; fullName: string; photoUrl: string | null; role: string; }
+interface MinistryTeam { id: number; name: string; }
 
 
 const statusConfig: Record<string,{label:string;icon:React.ReactNode;color:string}> = {
@@ -26,7 +27,7 @@ export default function LeadershipMeetings() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<Meeting|null>(null);
-  const [form, setForm] = useState({ title:"", description:"", agenda:"", scheduledAt:"", location:"Main Hall", notes:"" });
+  const [form, setForm] = useState({ title:"", description:"", agenda:"", scheduledAt:"", location:"Main Hall", notes:"", notifyAudience:"none" });
   const [attendeeSearch, setAttendeeSearch] = useState("");
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -46,6 +47,12 @@ export default function LeadershipMeetings() {
     staleTime: 60_000,
   });
 
+  const { data: ministryTeams = [] } = useQuery<MinistryTeam[]>({
+    queryKey: ["ministry-teams-list"],
+    queryFn: () => axios.get("/api/ministry-teams").then(r => r.data as MinistryTeam[]).catch(() => [] as MinistryTeam[]),
+    staleTime: 120_000,
+  });
+
   const allMeetings = meetings as Meeting[];
   const now = new Date();
   const upcoming = allMeetings.filter(m => new Date(m.scheduledAt) >= now).sort((a,b)=>a.scheduledAt.localeCompare(b.scheduledAt));
@@ -53,7 +60,7 @@ export default function LeadershipMeetings() {
 
   const create = useMutation({
     mutationFn: (data: typeof form & { attendees: string }) => axios.post("/api/meetings", { ...data, portalTarget:"leadership" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["meetings"] }); setShowForm(false); setSelectedAttendees([]); setForm({title:"",description:"",agenda:"",scheduledAt:"",location:"Main Hall",notes:""}); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["meetings"] }); setShowForm(false); setSelectedAttendees([]); setForm({title:"",description:"",agenda:"",scheduledAt:"",location:"Main Hall",notes:"",notifyAudience:"none"}); },
   });
 
   const update = useMutation({
@@ -168,6 +175,19 @@ export default function LeadershipMeetings() {
             </div>
 
             <div className="p-5 space-y-5">
+              {/* Description */}
+              {selected.description && (
+                <p className="text-sm text-muted-foreground">{selected.description}</p>
+              )}
+
+              {/* Agenda */}
+              {selected.agenda && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Agenda</p>
+                  <pre className="text-sm text-foreground whitespace-pre-wrap font-sans bg-muted/40 rounded-xl p-3">{selected.agenda}</pre>
+                </div>
+              )}
+
               {/* Status + mark complete */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full font-medium ${statusConfig[selected.status]?.color}`}>
@@ -186,14 +206,6 @@ export default function LeadershipMeetings() {
                   </button>
                 )}
               </div>
-
-              {/* Agenda */}
-              {selected.agenda && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Agenda</p>
-                  <pre className="text-sm text-foreground whitespace-pre-wrap font-sans bg-muted/40 rounded-xl p-3">{selected.agenda}</pre>
-                </div>
-              )}
 
               {/* Attendance marking */}
               <div>
@@ -333,6 +345,23 @@ export default function LeadershipMeetings() {
                 </div>
               )}
             </div>
+            {/* Notify audience */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Bell className="h-3 w-3"/>Notify audience</label>
+              <select className="w-full bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                value={form.notifyAudience} onChange={e=>setForm(p=>({...p,notifyAudience:e.target.value}))}>
+                <option value="none">No notification</option>
+                <option value="all">Entire congregation</option>
+                <option value="role:leadership">All Leadership</option>
+                <option value="role:pastor">All Pastors</option>
+                <option value="role:workforce">All Workforce</option>
+                <option value="role:member">All Members</option>
+                {(ministryTeams as MinistryTeam[]).map(t => (
+                  <option key={t.id} value={`team:${t.id}`}>{t.name} (ministry team)</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button onClick={()=>setShowForm(false)} className="flex-1 py-2.5 rounded-xl text-sm bg-muted">Cancel</button>
               <button onClick={()=>{ if(form.title&&form.scheduledAt) create.mutate({ ...form, attendees: selectedAttendees.join(", ") }); }}
