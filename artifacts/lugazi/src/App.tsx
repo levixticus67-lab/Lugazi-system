@@ -50,6 +50,8 @@ import axios from "@/lib/axios";
   import PastorDashboard from "@/pages/pastor/Dashboard";
   import PastorAttendance from "@/pages/pastor/Attendance";
   import PastorReports from "@/pages/pastor/Reports";
+  import PastorMembers from "@/pages/pastor/Members";
+  import PastorRoleRequests from "@/pages/pastor/RoleRequests";
 
   // Leadership pages
   import LeadershipDashboard from "@/pages/leadership/Dashboard";
@@ -255,7 +257,8 @@ import axios from "@/lib/axios";
         {/* ── Pastor portal ── */}
         <Route path="/pastor/dashboard"><RequireAuth roles={["admin", "pastor"]}><PastorDashboard /></RequireAuth></Route>
         <Route path="/pastor/profile"><RequireAuth roles={["admin", "pastor"]}><AdminProfile /></RequireAuth></Route>
-        <Route path="/pastor/members"><RequireAuth roles={["admin", "pastor"]}><AdminMembers /></RequireAuth></Route>
+        <Route path="/pastor/members"><RequireAuth roles={["admin", "pastor"]}><PastorMembers /></RequireAuth></Route>
+        <Route path="/pastor/role-requests"><RequireAuth roles={["admin", "pastor"]}><PastorRoleRequests /></RequireAuth></Route>
         <Route path="/pastor/cell-fellowship"><RequireAuth roles={["admin", "pastor"]}><AdminCellFellowship /></RequireAuth></Route>
         <Route path="/pastor/ministry-teams"><RequireAuth roles={["admin", "pastor"]}><AdminMinistryTeams /></RequireAuth></Route>
         <Route path="/pastor/tasks"><RequireAuth roles={["admin", "pastor"]}><AdminTasks /></RequireAuth></Route>
