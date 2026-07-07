@@ -46,8 +46,9 @@ export default function MemberUpgrade() {
                 <Select value={requestedRole} onValueChange={setRequestedRole}>
                   <SelectTrigger data-testid="select-requested-role"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="workforce">Workforce (Volunteer/Deacon)</SelectItem>
-                    <SelectItem value="leadership">Leadership (Pastor/Elder)</SelectItem>
+                    <SelectItem value="workforce">Workforce</SelectItem>
+                    <SelectItem value="leadership">Leadership</SelectItem>
+                    <SelectItem value="pastor">Pastor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
