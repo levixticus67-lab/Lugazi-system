@@ -670,7 +670,7 @@ export default function LiveChat() {
   return (
     <div className={`fixed z-50 ${isPwa ? "bottom-24 right-4 lg:bottom-6 lg:right-6" : "bottom-6 right-6"}`}>
       {open ? (
-        <div className="glass-card flex flex-col shadow-2xl animate-fade-in-scale" style={{ width: 340, height: 520 }}>
+        <div className="glass-card flex flex-col shadow-2xl animate-fade-in-scale" style={{ width: 340, height: 520, background: "hsl(var(--card))", backdropFilter: "none", WebkitBackdropFilter: "none" }}>
 
           {/* ── Header ── */}
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/20 blue-gradient-bg rounded-t-[calc(var(--radius)-1px)] shrink-0">
