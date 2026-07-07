@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, roleRequestsTable, usersTable, membersTable } from "@workspace/db";
+import { db, roleRequestsTable, usersTable, membersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
 
@@ -63,6 +63,20 @@ router.post("/role-requests", requireAuth, async (req: AuthRequest, res): Promis
   }).returning();
 
   await logActivity({ userId: req.userId!, displayName: user?.displayName ?? "Member", action: "role_request_submitted", entityType: "role_request", entityId: created.id, entityName: requestedRole, details: reason ?? undefined, ipAddress: req.ip ?? "unknown" });
+
+  // Notify all admin users so they see it immediately in their inbox
+  const admins = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "admin"));
+  if (admins.length > 0) {
+    await db.insert(inAppNotificationsTable).values(
+      admins.map(a => ({
+        userId: a.id,
+        title: "New role upgrade request",
+        message: `${user?.displayName ?? "A member"} has requested the ${requestedRole} role.`,
+        relatedEntityType: "role_request",
+        relatedEntityId: created.id,
+      }))
+    );
+  }
 
   res.status(201).json({
     ...created,

@@ -15,11 +15,6 @@ interface Meeting {
 }
 interface Member { id: number; fullName: string; photoUrl: string | null; role: string; }
 
-const mockMeetings: Meeting[] = [
-  { id:1, title:"Leadership Council Meeting", description:"Monthly leadership review", agenda:"1. Ministry updates\n2. Member welfare\n3. Upcoming events\n4. Financial report", scheduledAt: new Date(Date.now()+3*86400000).toISOString(), location:"Main Hall", portalTarget:"leadership", status:"scheduled", notes:null, attendees:null, createdAt: new Date().toISOString() },
-  { id:2, title:"Department Heads Briefing", description:"Weekly check-in", agenda:"Department activity reports", scheduledAt: new Date(Date.now()+7*86400000).toISOString(), location:"Conference Room", portalTarget:"all", status:"scheduled", notes:null, attendees:null, createdAt: new Date().toISOString() },
-  { id:3, title:"Evangelism Committee", description:"Plan for upcoming outreach", agenda:"1. Outreach targets\n2. Resource allocation\n3. Team assignments", scheduledAt: new Date(Date.now()-2*86400000).toISOString(), location:"Room B", portalTarget:"leadership", status:"completed", notes:"Great session. Action items assigned.", attendees:"James, Grace, Moses, Ruth", createdAt: new Date().toISOString() },
-];
 
 const statusConfig: Record<string,{label:string;icon:React.ReactNode;color:string}> = {
   scheduled: { label:"Upcoming", icon:<Clock className="h-3.5 w-3.5"/>, color:"bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
@@ -51,10 +46,10 @@ export default function LeadershipMeetings() {
     staleTime: 60_000,
   });
 
-  const display = (meetings as Meeting[]).length > 0 ? (meetings as Meeting[]) : mockMeetings;
+  const allMeetings = meetings as Meeting[];
   const now = new Date();
-  const upcoming = display.filter(m => new Date(m.scheduledAt) >= now).sort((a,b)=>a.scheduledAt.localeCompare(b.scheduledAt));
-  const past = display.filter(m => new Date(m.scheduledAt) < now).sort((a,b)=>b.scheduledAt.localeCompare(a.scheduledAt));
+  const upcoming = allMeetings.filter(m => new Date(m.scheduledAt) >= now).sort((a,b)=>a.scheduledAt.localeCompare(b.scheduledAt));
+  const past = allMeetings.filter(m => new Date(m.scheduledAt) < now).sort((a,b)=>b.scheduledAt.localeCompare(a.scheduledAt));
 
   const create = useMutation({
     mutationFn: (data: typeof form & { attendees: string }) => axios.post("/api/meetings", { ...data, portalTarget:"leadership" }),
@@ -102,7 +97,7 @@ export default function LeadershipMeetings() {
       <PageHeader title="Meetings" description={`${upcoming.length} upcoming · ${past.length} completed`}
         actions={<button onClick={() => setShowForm(true)} className="blue-gradient-bg text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"><Plus className="h-4 w-4" />Schedule Meeting</button>} />
 
-      {display.length === 0 ? (
+      {allMeetings.length === 0 ? (
         <div className="glass-card p-12 text-center"><Calendar className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3"/><p className="text-muted-foreground">No meetings scheduled yet.</p></div>
       ) : (
         <div className="space-y-6 p-6">

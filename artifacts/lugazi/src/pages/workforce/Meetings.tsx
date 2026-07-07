@@ -17,11 +17,6 @@ interface Meeting {
   agenda: string | null;
 }
 
-const mockMeetings: Meeting[] = [
-  { id:1, title:"Workforce Briefing", description:"Monthly workforce team update", scheduledAt: new Date(Date.now()+2*86400000).toISOString(), location:"Main Hall", status:"scheduled", agenda:"1. Department updates\n2. Upcoming events\n3. Service roster" },
-  { id:2, title:"Media Team Meeting", description:"Planning for Sunday service coverage", scheduledAt: new Date(Date.now()+5*86400000).toISOString(), location:"Media Room", status:"scheduled", agenda:"Review equipment checklist" },
-  { id:3, title:"Ushering Department", description:"Review entry procedures", scheduledAt: new Date(Date.now()-3*86400000).toISOString(), location:"Church Foyer", status:"completed", agenda:"Seating arrangements for special services" },
-];
 
 export default function WorkforceMeetings() {
   const { data: meetings = [], isLoading } = useQuery<Meeting[]>({
@@ -29,9 +24,8 @@ export default function WorkforceMeetings() {
     queryFn: () => axios.get("/api/meetings?target=workforce").then(r=>r.data).catch(()=>[] as Meeting[]),
   });
 
-  const display = meetings.length > 0 ? meetings : mockMeetings;
-  const upcoming = display.filter(m=>m.status==="scheduled" && new Date(m.scheduledAt)>=new Date());
-  const past = display.filter(m=>m.status==="completed" || new Date(m.scheduledAt)<new Date());
+  const upcoming = meetings.filter(m=>m.status==="scheduled" && new Date(m.scheduledAt)>=new Date());
+  const past = meetings.filter(m=>m.status==="completed" || new Date(m.scheduledAt)<new Date());
 
   return (
     <PortalLayout title="DCL Lugazi ERP" navItems={workforceNavItems}>

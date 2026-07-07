@@ -18,13 +18,6 @@ interface WelfareRequest {
   createdAt: string;
 }
 
-const mockRequests: WelfareRequest[] = [
-  { id:1, memberName:"Sis. Sarah Namusoke", category:"Medical", description:"Hospital bills for emergency surgery. Requesting financial support for UGX 800,000 shortfall.", amount:800000, status:"pending", createdAt: new Date(Date.now()-86400000).toISOString() },
-  { id:2, memberName:"Bro. David Ssemakula", category:"Education", description:"School fees for 3 children for next term. The family lost their main income source.", amount:450000, status:"pending", createdAt: new Date(Date.now()-172800000).toISOString() },
-  { id:3, memberName:"Sis. Rose Nakku", category:"Food", description:"Family of 5 in need of basic food provisions for the month.", amount:null, status:"pending", createdAt: new Date(Date.now()-259200000).toISOString() },
-  { id:4, memberName:"Bro. Moses Sserunjogi", category:"Housing", description:"Roof repair needed before rainy season. House is leaking badly.", amount:300000, status:"approved", createdAt: new Date(Date.now()-432000000).toISOString() },
-  { id:5, memberName:"Sis. Prossy Nakirya", category:"Medical", description:"Diabetes medication for 3 months.", amount:150000, status:"declined", createdAt: new Date(Date.now()-604800000).toISOString() },
-];
 
 const statusConfig: Record<string,{color:string;icon:any;bg:string}> = {
   pending: { color:"text-yellow-600", icon:<Clock className="h-3.5 w-3.5"/>, bg:"bg-yellow-100" },
@@ -53,9 +46,8 @@ export default function LeadershipApprovals() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["welfare-all"] }); setSelected(null); },
   });
 
-  const display = requests.length > 0 ? requests : mockRequests;
-  const pending = display.filter(r=>r.status==="pending");
-  const shown = tab === "pending" ? pending : display;
+  const pending = requests.filter(r=>r.status==="pending");
+  const shown = tab === "pending" ? pending : requests;
 
   return (
     <PortalLayout title="DCL Lugazi ERP" navItems={leadershipNavItems}>
@@ -64,8 +56,8 @@ export default function LeadershipApprovals() {
       <div className="px-6 pt-4 grid grid-cols-3 gap-4">
         {[
           {label:"Pending",value:pending.length,color:"text-yellow-500",icon:<Clock className="h-4 w-4"/>},
-          {label:"Approved",value:display.filter(r=>r.status==="approved").length,color:"text-green-500",icon:<CheckCircle2 className="h-4 w-4"/>},
-          {label:"Declined",value:display.filter(r=>r.status==="declined").length,color:"text-red-400",icon:<XCircle className="h-4 w-4"/>},
+          {label:"Approved",value:requests.filter(r=>r.status==="approved").length,color:"text-green-500",icon:<CheckCircle2 className="h-4 w-4"/>},
+          {label:"Declined",value:requests.filter(r=>r.status==="declined").length,color:"text-red-400",icon:<XCircle className="h-4 w-4"/>},
         ].map(s=>(
           <div key={s.label} className="glass-card p-4 flex flex-col items-center justify-center text-center gap-1">
             <div className={`${s.color} mb-1`}>{s.icon}</div>
