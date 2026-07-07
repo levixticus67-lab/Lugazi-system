@@ -17,7 +17,7 @@ interface Enrollment {
   trackId: number; trackName: string; progress: number;
   status: string; enrolledAt: string; completedAt: string | null;
 }
-interface Member { id: number; fullName: string; phone: string | null; }
+interface Member { id: number; fullName: string; phone: string | null; photoUrl?: string | null; }
 
 const LEVEL_LABELS: Record<number, string> = { 1: "Foundation", 2: "Growth", 3: "Leadership" };
 const levelColors = ["","bg-blue-500/10 text-blue-600 border-blue-200","bg-indigo-500/10 text-indigo-600 border-indigo-200","bg-purple-500/10 text-purple-600 border-purple-200"];
@@ -50,7 +50,6 @@ export default function AdminInduction() {
   const { data: members = [] } = useQuery<Member[]>({
     queryKey: ["members-list"],
     queryFn: () => axios.get("/api/members").then(r => r.data),
-    enabled: showEnrollForm,
   });
 
   const filteredMembers = useMemo(() =>
@@ -232,9 +231,13 @@ export default function AdminInduction() {
               {enrollments.map(e => (
                 <div key={e.id} className="glass-card p-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
-                      {e.memberName.charAt(0).toUpperCase()}
-                    </div>
+                    {(() => { const m = members.find(m => m.id === e.memberId); return m?.photoUrl ? (
+                      <img src={m.photoUrl} alt={e.memberName} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {e.memberName.charAt(0).toUpperCase()}
+                      </div>
+                    ); })()}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                         <span className="font-semibold text-sm">{e.memberName}</span>
@@ -338,9 +341,13 @@ export default function AdminInduction() {
               <label className="text-xs text-muted-foreground mb-1 block">Select Member *</label>
               {selectedMember ? (
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
-                  <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
-                    {selectedMember.fullName.charAt(0)}
-                  </div>
+                  {selectedMember.photoUrl ? (
+                    <img src={selectedMember.photoUrl} alt={selectedMember.fullName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {selectedMember.fullName.charAt(0)}
+                    </div>
+                  )}
                   <span className="flex-1 text-sm font-medium">{selectedMember.fullName}</span>
                   <button onClick={()=>{setSelectedMember(null);setMemberSearch("");}}><X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground"/></button>
                 </div>
@@ -355,9 +362,13 @@ export default function AdminInduction() {
                       {filteredMembers.map(m => (
                         <button key={m.id} onClick={()=>{setSelectedMember(m);setMemberSearch("");}}
                           className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex items-center gap-2.5 transition-colors">
-                          <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
-                            {m.fullName.charAt(0)}
-                          </div>
+                          {m.photoUrl ? (
+                            <img src={m.photoUrl} alt={m.fullName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
+                              {m.fullName.charAt(0)}
+                            </div>
+                          )}
                           {m.fullName}
                         </button>
                       ))}
