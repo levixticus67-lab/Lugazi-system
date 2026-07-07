@@ -21,6 +21,7 @@ interface Announcement {
 const audienceOptions = [
   { value: "all", label: "Entire Congregation", icon: <UsersRound className="h-4 w-4" /> },
   { value: "admin", label: "Admins Only", icon: <User className="h-4 w-4" /> },
+  { value: "pastor", label: "Pastors", icon: <Users className="h-4 w-4" /> },
   { value: "leadership", label: "Leadership Team", icon: <Users className="h-4 w-4" /> },
   { value: "workforce", label: "Workforce", icon: <Users className="h-4 w-4" /> },
   { value: "member", label: "Members Only", icon: <User className="h-4 w-4" /> },
