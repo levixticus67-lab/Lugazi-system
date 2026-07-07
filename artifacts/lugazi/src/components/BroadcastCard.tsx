@@ -16,6 +16,7 @@ interface Announcement {
 const audienceLabel: Record<string, string> = {
   all: "Everyone",
   admin: "Admins",
+  pastor: "Pastors",
   leadership: "Leadership",
   workforce: "Workforce",
   member: "Members",
@@ -24,6 +25,7 @@ const audienceLabel: Record<string, string> = {
 const audienceBadge: Record<string, string> = {
   all: "bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300",
   admin: "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300",
+  pastor: "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300",
   leadership: "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300",
   workforce: "bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300",
   member: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
