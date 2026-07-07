@@ -47,6 +47,14 @@ export default function MemberFamily() {
   const [memberSearch, setMemberSearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{top:number;left:number;width:number}|null>(null);
+
+  function computeDropdownPos() {
+    if (searchRef.current) {
+      const rect = searchRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }
 
   const { data: family = [], isLoading } = useQuery<FamilyMember[]>({
     queryKey: ["family-members"],
@@ -194,20 +202,21 @@ export default function MemberFamily() {
                     className="w-full bg-muted rounded-lg px-3 py-2 text-sm pr-8"
                     placeholder="Type a name to search church members…"
                     value={memberSearch}
-                    onChange={e => { setMemberSearch(e.target.value); setShowSuggestions(true); }}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    onChange={e => { setMemberSearch(e.target.value); setShowSuggestions(true); computeDropdownPos(); }}
+                    onFocus={() => { setShowSuggestions(true); computeDropdownPos(); }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     autoComplete="off"
                   />
                   <Search className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  {showSuggestions && filteredMembers.length > 0 && (
-                    <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+                  {showSuggestions && filteredMembers.length > 0 && dropdownPos && (
+                    <div style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+                      className="bg-card border border-border rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
                       {filteredMembers.map(cm => (
                         <button
                           key={cm.id}
                           type="button"
                           className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-primary/5 text-left transition-colors"
-                          onClick={() => selectChurchMember(cm)}
+                          onPointerDown={() => selectChurchMember(cm)}
                         >
                           {cm.photoUrl ? (
                             <img src={cm.photoUrl} alt={cm.fullName} className="w-8 h-8 rounded-full object-cover shrink-0" />
