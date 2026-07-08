@@ -57,7 +57,7 @@ export default function PastorDashboard() {
         <div className="space-y-6">
           <HeroBanner />
           <BroadcastCard />
-          <MeetingDashCard portalTarget="all" />
+          <MeetingDashCard />
           <CellLeaderCard />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

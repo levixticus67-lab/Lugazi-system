@@ -48,8 +48,7 @@ export default function MemberDashboard() {
           <HeroBanner />
           <BroadcastCard />
 
-          <MeetingDashCard portalTarget="congregation" />
-          <MeetingDashCard portalTarget="all" />
+          <MeetingDashCard />
           <CellLeaderCard />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

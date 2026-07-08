@@ -26,6 +26,30 @@ router.get("/meetings", requireAuth, async (req: AuthRequest, res): Promise<void
   res.json(meetings.map(m => ({ ...m, scheduledAt: m.scheduledAt.toISOString(), createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() })));
 });
 
+// Meetings relevant to the logged-in user: their own portal's meetings,
+// plus any meeting whose notifyAudience targets their role or one of
+// their ministry teams (regardless of which portal scheduled it).
+router.get("/meetings/mine", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  const role = user?.role;
+
+  const teamRows = await db.select({ teamId: ministryTeamMembersTable.teamId }).from(ministryTeamMembersTable).where(eq(ministryTeamMembersTable.userId, req.userId!));
+  const teamIds = new Set(teamRows.map(t => t.teamId));
+
+  const all = await db.select().from(meetingsTable).orderBy(desc(meetingsTable.scheduledAt));
+
+  const relevant = role === "admin" ? all : all.filter(m => {
+    if (m.portalTarget === role) return true;
+    if (!m.notifyAudience) return false;
+    if (m.notifyAudience === "all") return true;
+    if (m.notifyAudience === `role:${role}`) return true;
+    if (m.notifyAudience.startsWith("team:")) return teamIds.has(Number(m.notifyAudience.slice(5)));
+    return false;
+  });
+
+  res.json(relevant.map(m => ({ ...m, scheduledAt: m.scheduledAt.toISOString(), createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() })));
+});
+
 router.post("/meetings", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { title, description, agenda, scheduledAt, location, portalTarget, notes, notifyAudience } = req.body;
   if (!title || !scheduledAt) { res.status(400).json({ error: "title and scheduledAt required" }); return; }

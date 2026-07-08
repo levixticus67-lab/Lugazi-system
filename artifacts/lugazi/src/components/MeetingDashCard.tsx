@@ -16,11 +16,7 @@ interface Meeting {
 
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
-interface MeetingDashCardProps {
-  portalTarget: string;
-}
-
-export default function MeetingDashCard({ portalTarget }: MeetingDashCardProps) {
+export default function MeetingDashCard() {
   const [dismissed, setDismissed] = useState<Set<number>>(() => {
     try {
       const s = localStorage.getItem("dismissed_meetings");
@@ -28,10 +24,12 @@ export default function MeetingDashCard({ portalTarget }: MeetingDashCardProps) 
     } catch { return new Set(); }
   });
 
+  // Meetings relevant to the logged-in user: their own portal's meetings,
+  // plus anything scheduled elsewhere but targeted at their role/ministry team.
   const { data: meetings = [] } = useQuery<Meeting[]>({
-    queryKey: ["meetings-dash", portalTarget],
+    queryKey: ["meetings-dash-mine"],
     queryFn: () =>
-      axios.get(`/api/meetings?target=${portalTarget}`).then(r => r.data as Meeting[]).catch(() => [] as Meeting[]),
+      axios.get(`/api/meetings/mine`).then(r => r.data as Meeting[]).catch(() => [] as Meeting[]),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
