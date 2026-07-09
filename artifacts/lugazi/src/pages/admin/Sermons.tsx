@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cldThumb } from "@/lib/cloudinary";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import PortalLayout from "@/components/PortalLayout";
@@ -109,7 +110,7 @@ export default function AdminSermons() {
               <div className="flex gap-3">
                 {s.thumbnailUrl ? (
                   <button onClick={() => openViewer(s.thumbnailUrl!, "image", s.title)} className="shrink-0">
-                    <img loading="lazy" src={s.thumbnailUrl} alt={s.title} className="w-16 h-16 rounded-lg object-cover" />
+                    <img loading="lazy" src={cldThumb(s.thumbnailUrl)} alt={s.title} className="w-16 h-16 rounded-lg object-cover" />
                   </button>
                 ) : (
                   <div className="w-16 h-16 rounded-lg blue-gradient-bg flex items-center justify-center flex-shrink-0">

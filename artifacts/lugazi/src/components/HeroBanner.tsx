@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { cldAvatar } from "@/lib/cloudinary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,7 +100,7 @@ function BirthdayAvatar({ member }: { member: Member }) {
       >
         {member.photoUrl && !failed ? (
           <img loading="lazy"
-            src={member.photoUrl}
+            src={cldAvatar(member.photoUrl)}
             alt={member.fullName}
             className="w-full h-full object-cover"
             onError={() => setFailed(true)}

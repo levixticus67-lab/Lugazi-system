@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
+import { cldFull, cldThumb } from "@/lib/cloudinary";
 
 type MediaType = "image" | "audio" | "video" | "document" | "unknown";
 
@@ -78,7 +79,7 @@ export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps
       <div className="flex-1 overflow-auto flex items-center justify-center p-4">
         {type === "image" && (
           <img loading="lazy"
-            src={url}
+            src={cldFull(url)}
             alt={title ?? "Media"}
             className="max-w-full max-h-full object-contain select-none"
             style={{ transform: `scale(${imgScale}) rotate(${imgRotation}deg)`, transition: "transform 0.2s ease" }}
@@ -153,7 +154,7 @@ export function MediaThumbnail({ url, title, mediaType, className = "" }: MediaT
         title={`View ${title ?? "media"}`}
       >
         {type === "image" ? (
-          <img loading="lazy" src={url} alt={title} className="w-full h-full object-cover" />
+          <img loading="lazy" src={cldThumb(url, 320)} alt={title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground p-4">
             {type === "audio" && <Music className="h-8 w-8 text-primary" />}

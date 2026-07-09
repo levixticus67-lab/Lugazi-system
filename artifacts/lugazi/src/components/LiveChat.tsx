@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { cldAvatar } from "@/lib/cloudinary";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -112,7 +113,7 @@ const roleLabel: Record<string, string> = {
 
 function Avatar({ name, photoUrl, size = "sm" }: { name: string; photoUrl?: string | null; size?: "sm" | "xs" }) {
   const sz = size === "xs" ? "w-5 h-5 text-[9px]" : "w-7 h-7 text-xs";
-  if (photoUrl) return <img loading="lazy" src={photoUrl} alt={name} className={`${sz} rounded-full object-cover shrink-0`} />;
+  if (photoUrl) return <img loading="lazy" src={cldAvatar(photoUrl)} alt={name} className={`${sz} rounded-full object-cover shrink-0`} />;
   return (
     <div className={`${sz} rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold shrink-0`}>
       {name.charAt(0).toUpperCase()}

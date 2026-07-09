@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cldAvatar } from "@/lib/cloudinary";
 import { useListUsers, useUpdateUserRole, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
@@ -153,7 +154,7 @@ export default function AdminUsers() {
             return (
               <div key={u.id} className={`glass-card p-4 flex gap-3 ${!u.isActive ? "opacity-60" : ""}`}>
                 {u.photoUrl ? (
-                  <img loading="lazy" src={u.photoUrl} alt={u.displayName} className="w-11 h-11 rounded-full object-cover shrink-0 shadow" />
+                  <img loading="lazy" src={cldAvatar(u.photoUrl)} alt={u.displayName} className="w-11 h-11 rounded-full object-cover shrink-0 shadow" />
                 ) : (
                   <div className="w-11 h-11 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-base shrink-0 shadow">
                     {u.displayName.charAt(0).toUpperCase()}

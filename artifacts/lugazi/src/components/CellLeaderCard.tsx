@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cldAvatar } from "@/lib/cloudinary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +31,7 @@ interface AllMember {
 }
 
 function Avatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
-  if (photoUrl) return <img loading="lazy" src={photoUrl} alt={name} className="w-8 h-8 rounded-full object-cover shrink-0" />;
+  if (photoUrl) return <img loading="lazy" src={cldAvatar(photoUrl)} alt={name} className="w-8 h-8 rounded-full object-cover shrink-0" />;
   return (
     <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
       {name.charAt(0).toUpperCase()}

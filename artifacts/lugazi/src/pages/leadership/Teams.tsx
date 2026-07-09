@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { cldAvatar } from "@/lib/cloudinary";
   import axios from "@/lib/axios";
   import PortalLayout from "@/components/PortalLayout";
   import PageHeader from "@/components/PageHeader";
@@ -64,7 +65,7 @@ import { useQuery } from "@tanstack/react-query";
               <div key={m.id} className={`glass-card p-5 hover:shadow-md transition-shadow ${!m.isActive ? "opacity-60" : ""}`}>
                 <div className="flex items-start gap-3">
                   {m.photoUrl ? (
-                    <img loading="lazy" src={m.photoUrl} alt={m.fullName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border" />
+                    <img loading="lazy" src={cldAvatar(m.photoUrl)} alt={m.fullName} className="w-10 h-10 rounded-full object-cover shrink-0 border border-border" />
                   ) : (
                     <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
                       {m.fullName.charAt(0)}

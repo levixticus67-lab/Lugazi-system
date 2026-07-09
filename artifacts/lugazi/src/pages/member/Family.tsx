@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { cldAvatar } from "@/lib/cloudinary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
@@ -267,7 +268,7 @@ export default function MemberFamily() {
                         <button key={cm.id} onMouseDown={()=>selectChurchMember(cm)}
                           className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted text-left transition">
                           <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
-                            {cm.photoUrl ? <img loading="lazy" src={cm.photoUrl} className="w-8 h-8 rounded-full object-cover"/> : cm.fullName.charAt(0)}
+                            {cm.photoUrl ? <img loading="lazy" src={cldAvatar(cm.photoUrl)} className="w-8 h-8 rounded-full object-cover"/> : cm.fullName.charAt(0)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{cm.fullName}</p>

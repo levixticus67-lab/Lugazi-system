@@ -1,4 +1,5 @@
 import { useListMembers } from "@workspace/api-client-react";
+import { cldAvatar } from "@/lib/cloudinary";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { adminNavItems } from "./navItems";
@@ -38,7 +39,7 @@ export default function AdminBirthdays() {
     return (
       <div className="glass-card p-4 card-hover flex items-center gap-3">
         {member.photoUrl ? (
-          <img loading="lazy" src={member.photoUrl} alt={member.fullName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+          <img loading="lazy" src={cldAvatar(member.photoUrl)} alt={member.fullName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
         ) : (
           <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold flex-shrink-0">
             {member.fullName.charAt(0).toUpperCase()}

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { cldAvatar } from "@/lib/cloudinary";
 import axios from "@/lib/axios";
 import { Cake, Users } from "lucide-react";
 import {
@@ -108,7 +109,7 @@ export default function BirthdayCard() {
                 {upcoming.map((m, i) => (
                   <div key={m.id} className="flex items-center gap-2 text-xs">
                     {m.photoUrl ? (
-                      <img loading="lazy" src={m.photoUrl} alt={m.fullName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                      <img loading="lazy" src={cldAvatar(m.photoUrl)} alt={m.fullName} className="w-6 h-6 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                         style={{ background: COLORS[i % COLORS.length] }}>

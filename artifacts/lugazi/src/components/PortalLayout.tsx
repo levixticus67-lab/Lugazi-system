@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
+import { cldAvatar } from "@/lib/cloudinary";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
   const UserAvatar = ({ size = "sm" }: { size?: "sm" | "md" }) => {
     const sz = size === "md" ? "w-9 h-9" : "w-8 h-8";
     return user?.photoUrl
-      ? <img loading="lazy" src={user.photoUrl} alt={user.displayName} className={`${sz} rounded-full object-cover border border-border shrink-0`} />
+      ? <img loading="lazy" src={cldAvatar(user.photoUrl)} alt={user.displayName} className={`${sz} rounded-full object-cover border border-border shrink-0`} />
       : <div className={`${sz} rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0`}>
           {user?.displayName?.charAt(0).toUpperCase()}
         </div>;
@@ -134,7 +135,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
       <div className="p-3 border-t border-sidebar-border shrink-0">
         <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-sidebar-accent">
           {user?.photoUrl
-            ? <img loading="lazy" src={user.photoUrl} alt={user.displayName} className="w-7 h-7 rounded-full object-cover shrink-0 border border-sidebar-border" />
+            ? <img loading="lazy" src={cldAvatar(user.photoUrl)} alt={user.displayName} className="w-7 h-7 rounded-full object-cover shrink-0 border border-sidebar-border" />
             : <div className="w-7 h-7 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sidebar-primary font-semibold text-xs shrink-0">
                 {user?.displayName?.charAt(0).toUpperCase()}
               </div>}
