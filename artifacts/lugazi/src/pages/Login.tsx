@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogIn, UserPlus, KeyRound, ArrowLeft, CheckCircle2 } from "lucide-react";
@@ -316,7 +317,7 @@ export default function Login() {
                             Forgot password?
                           </button>
                         </div>
-                        <Input type="password" placeholder="Enter your password" value={password}
+                        <PasswordInput placeholder="Enter your password" value={password}
                           onChange={e => setPassword(e.target.value)} required data-testid="input-password"
                           className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
@@ -381,13 +382,13 @@ export default function Login() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>Password</Label>
-                        <Input type="password" placeholder="At least 8 characters + a number" value={password}
+                        <PasswordInput placeholder="At least 8 characters + a number" value={password}
                           onChange={e => setPassword(e.target.value)} required
                           className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Confirm Password</Label>
-                        <Input type="password" placeholder="Repeat your password" value={confirmPassword}
+                        <PasswordInput placeholder="Repeat your password" value={confirmPassword}
                           onChange={e => setConfirmPassword(e.target.value)} required
                           className="bg-background/80 dark:bg-muted/40 border-border focus:border-primary" />
                       </div>

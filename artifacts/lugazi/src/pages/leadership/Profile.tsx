@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
   import { leadershipNavItems } from "./navItems";
   import { Button } from "@/components/ui/button";
   import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
   import { Label } from "@/components/ui/label";
   import { useToast } from "@/hooks/use-toast";
   import { useAuth } from "@/contexts/AuthContext";
@@ -128,9 +129,9 @@ import { useState, useEffect } from "react";
 
           <div className="glass-card p-6 space-y-4">
             <h2 className="font-serif text-lg font-semibold">Change Password</h2>
-            <div><Label>Current Password</Label><Input type="password" value={pwForm.currentPassword} onChange={e => setPwForm(f => ({ ...f, currentPassword: e.target.value }))} className="mt-1" placeholder="Enter current password" /></div>
-            <div><Label>New Password</Label><Input type="password" value={pwForm.newPassword} onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))} className="mt-1" placeholder="Min. 8 characters" /></div>
-            <div><Label>Confirm New Password</Label><Input type="password" value={pwForm.confirmPassword} onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))} className="mt-1" placeholder="Repeat new password" /></div>
+            <div><Label>Current Password</Label><PasswordInput value={pwForm.currentPassword} onChange={e => setPwForm(f => ({ ...f, currentPassword: e.target.value }))} className="mt-1" placeholder="Enter current password" /></div>
+            <div><Label>New Password</Label><PasswordInput value={pwForm.newPassword} onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))} className="mt-1" placeholder="Min. 8 characters" /></div>
+            <div><Label>Confirm New Password</Label><PasswordInput value={pwForm.confirmPassword} onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))} className="mt-1" placeholder="Repeat new password" /></div>
             <Button onClick={handlePasswordChange} disabled={changePasswordMutation.isPending} className="blue-gradient-bg text-white border-0 hover:opacity-90">
               {changePasswordMutation.isPending ? "Updating…" : "Change Password"}
             </Button>
