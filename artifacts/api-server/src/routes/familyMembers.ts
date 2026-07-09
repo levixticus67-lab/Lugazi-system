@@ -71,7 +71,6 @@ router.post("/family", requireAuth, async (req: AuthRequest, res): Promise<void>
 
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
     action: "add_family_member",
     entityType: "family_member",
     entityId: record.id,
@@ -118,7 +117,6 @@ router.patch("/family/:id", requireAuth, async (req: AuthRequest, res): Promise<
 
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
     action: "update_family_member",
     entityType: "family_member",
     entityId: record.id,
@@ -146,7 +144,6 @@ router.delete("/family/:id", requireAuth, async (req: AuthRequest, res): Promise
 
   await logActivity({
     userId: req.userId,
-    displayName: `User #${req.userId}`,
     action: "delete_family_member",
     entityType: "family_member",
     entityId: id,
@@ -158,14 +155,10 @@ router.delete("/family/:id", requireAuth, async (req: AuthRequest, res): Promise
 });
 
 // GET /admin/members/:memberId/family — admin: full bidirectional family view for any member
-// Returns two sets:
-//   "added"  — family records the member created (they are the owner)
-//   "linked" — records where OTHER members listed this person as their family
 router.get("/admin/members/:memberId/family", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
   const memberId = parseInt(req.params.memberId, 10);
   if (isNaN(memberId)) { res.status(400).json({ error: "Invalid member ID" }); return; }
 
-  // Look up the member to get their userId
   const [member] = await db.select({ userId: membersTable.userId, fullName: membersTable.fullName })
     .from(membersTable).where(eq(membersTable.id, memberId)).limit(1);
   if (!member) { res.status(404).json({ error: "Member not found" }); return; }
@@ -173,11 +166,9 @@ router.get("/admin/members/:memberId/family", requireAuth, requireRole(["admin"]
   const serialize = (r: typeof familyMembersTable.$inferSelect) => ({ ...r, createdAt: r.createdAt.toISOString() });
 
   if (!member.userId) {
-    // No linked user account — can only check linkedMemberId side
     const linkedRecords = await db.select().from(familyMembersTable)
       .where(eq(familyMembersTable.linkedMemberId, memberId));
 
-    // Resolve owner names
     const ownerIds = [...new Set(linkedRecords.map(r => r.userId))];
     let ownerNames: Record<number, string> = {};
     if (ownerIds.length > 0) {
@@ -193,24 +184,17 @@ router.get("/admin/members/:memberId/family", requireAuth, requireRole(["admin"]
     return;
   }
 
-  // Fetch both sides in parallel
   const [addedRecords, linkedByUserIdRecords, linkedByMemberIdRecords] = await Promise.all([
-    // Records the member added themselves (owner side)
     db.select().from(familyMembersTable).where(eq(familyMembersTable.userId, member.userId)),
-    // Records where someone listed this person via their userId (has an account)
     db.select().from(familyMembersTable).where(eq(familyMembersTable.linkedUserId, member.userId)),
-    // Records where someone linked via memberId (may or may not overlap — deduplicate below)
     db.select().from(familyMembersTable).where(eq(familyMembersTable.linkedMemberId, memberId)),
   ]);
 
-  // Merge linkedByUserId and linkedByMemberId, deduplicate by record id
   const linkedMap = new Map<number, typeof familyMembersTable.$inferSelect>();
   [...linkedByUserIdRecords, ...linkedByMemberIdRecords].forEach(r => linkedMap.set(r.id, r));
-  // Remove any records the member themselves added (those belong in "added" not "linked")
   const addedIds = new Set(addedRecords.map(r => r.id));
   const linkedRecords = [...linkedMap.values()].filter(r => !addedIds.has(r.id));
 
-  // Resolve display names for the owners of linked records
   const ownerIds = [...new Set(linkedRecords.map(r => r.userId))];
   let ownerNames: Record<number, string> = {};
   if (ownerIds.length > 0) {
