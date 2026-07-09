@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, eventsTable, attendanceTable, usersTable } from "@workspace/db";
+import { db, eventsTable, attendanceTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
 
@@ -19,6 +19,23 @@ router.post("/events", requireAuth, requireRole(["admin", "pastor", "leadership"
   const [event] = await db.insert(eventsTable).values({ title, description, date, time, location, branchId, category, createdBy: req.userId }).returning();
   const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "create_event", entityType: "event", entityId: event.id, entityName: title, ipAddress: req.ip ?? "unknown" });
+  // Notify all active users about the new event
+  const activeUsers = await db.select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.isActive, true));
+  const notifyUsers = activeUsers.filter(u => u.id !== req.userId);
+  if (notifyUsers.length > 0) {
+    const datePart = " on " + date + " at " + time + ".";
+    await db.insert(inAppNotificationsTable).values(
+      notifyUsers.map(u => ({
+        userId: u.id,
+        title: "New event: " + title,
+        message: "A new " + category + " event has been scheduled: \"" + title + "\"" + datePart,
+        relatedEntityType: "event",
+        relatedEntityId: event.id,
+      }))
+    );
+  }
   res.status(201).json({ ...event, createdAt: event.createdAt.toISOString(), updatedAt: event.updatedAt.toISOString() });
 });
 
