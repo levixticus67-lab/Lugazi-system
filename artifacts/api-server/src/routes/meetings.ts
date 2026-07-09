@@ -33,20 +33,25 @@ router.get("/meetings/mine", requireAuth, async (req: AuthRequest, res): Promise
   const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   const role = user?.role;
 
-  const teamRows = await db.select({ teamId: ministryTeamMembersTable.teamId }).from(ministryTeamMembersTable).where(eq(ministryTeamMembersTable.userId, req.userId!));
-  const teamIds = new Set(teamRows.map(t => t.teamId));
+  let query = db.select().from(meetingsTable).orderBy(desc(meetingsTable.scheduledAt)).$dynamic();
 
-  const all = await db.select().from(meetingsTable).orderBy(desc(meetingsTable.scheduledAt));
+  if (role !== "admin") {
+    const teamRows = await db.select({ teamId: ministryTeamMembersTable.teamId }).from(ministryTeamMembersTable).where(eq(ministryTeamMembersTable.userId, req.userId!));
+    const teamTargets = teamRows.map(t => `team:${t.teamId}`);
 
-  const relevant = role === "admin" ? all : all.filter(m => {
-    if (m.portalTarget === role) return true;
-    if (!m.notifyAudience) return false;
-    if (m.notifyAudience === "all") return true;
-    if (m.notifyAudience === `role:${role}`) return true;
-    if (m.notifyAudience.startsWith("team:")) return teamIds.has(Number(m.notifyAudience.slice(5)));
-    return false;
-  });
+    // Push the audience match into SQL instead of loading every meeting into
+    // memory and filtering in JS — keeps this cheap as the meetings table grows.
+    const conditions = [
+      eq(meetingsTable.portalTarget, role ?? ""),
+      eq(meetingsTable.notifyAudience, "all"),
+      eq(meetingsTable.notifyAudience, `role:${role}`),
+    ];
+    if (teamTargets.length > 0) conditions.push(inArray(meetingsTable.notifyAudience, teamTargets));
 
+    query = query.where(or(...conditions));
+  }
+
+  const relevant = await query;
   res.json(relevant.map(m => ({ ...m, scheduledAt: m.scheduledAt.toISOString(), createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() })));
 });
 

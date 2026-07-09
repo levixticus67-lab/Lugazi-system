@@ -77,7 +77,7 @@ export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps
       {/* Content */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-4">
         {type === "image" && (
-          <img
+          <img loading="lazy"
             src={url}
             alt={title ?? "Media"}
             className="max-w-full max-h-full object-contain select-none"
@@ -153,7 +153,7 @@ export function MediaThumbnail({ url, title, mediaType, className = "" }: MediaT
         title={`View ${title ?? "media"}`}
       >
         {type === "image" ? (
-          <img src={url} alt={title} className="w-full h-full object-cover" />
+          <img loading="lazy" src={url} alt={title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground p-4">
             {type === "audio" && <Music className="h-8 w-8 text-primary" />}

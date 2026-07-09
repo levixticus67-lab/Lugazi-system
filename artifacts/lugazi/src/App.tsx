@@ -3,13 +3,13 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { Toaster } from "@/components/ui/toaster";
   import { TooltipProvider } from "@/components/ui/tooltip";
   import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-  import { ReactNode, useEffect } from "react";
+  import { ReactNode, useEffect, lazy, Suspense } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
 import InAppNotifications from "@/components/InAppNotifications";
-import Terms from "@/pages/Terms";
-import ResetPassword from "@/pages/ResetPassword";
-import Privacy from "@/pages/Privacy";
+const Terms = lazy(() => import("@/pages/Terms"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
@@ -20,94 +20,94 @@ import axios from "@/lib/axios";
   import NotFound from "@/pages/not-found";
 
   // Admin pages
-  import AdminDashboard from "@/pages/admin/Dashboard";
-  import AdminProfile from "@/pages/admin/Profile";
-  import AdminMembers from "@/pages/admin/Members";
-  import AdminUsers from "@/pages/admin/Users";
-  import AdminRoleRequests from "@/pages/admin/RoleRequests";
-  import AdminGroups from "@/pages/admin/Groups";
-  import AdminAttendance from "@/pages/admin/Attendance";
-  import AdminEvents from "@/pages/admin/Events";
-  import AdminMedia from "@/pages/admin/Media";
-  import AdminWelfare from "@/pages/admin/Welfare";
-  import AdminPrayerRequests from "@/pages/admin/PrayerRequests";
-  import AdminSermons from "@/pages/admin/Sermons";
-  import AdminBirthdays from "@/pages/admin/Birthdays";
-  import AdminReports from "@/pages/admin/Reports";
-  import AdminPipeline from "@/pages/admin/Pipeline";
-  import AdminDocuments from "@/pages/admin/Documents";
-  import AdminSettings from "@/pages/admin/Settings";
-  import AdminCommunication from "@/pages/admin/Communication";
-  import AdminCellFellowship from "@/pages/admin/CellFellowship";
-  import AdminInduction from "@/pages/admin/Induction";
-  import AdminGiving from "@/pages/admin/Giving";
-  import AdminTestimonies from "@/pages/admin/Testimonies";
-  import AdminTasks from "@/pages/admin/Tasks";
-  import AdminMinistryTeams from "@/pages/admin/MinistryTeams";
-  import AdminDutyRoster from "@/pages/admin/DutyRoster";
-  import AdminActivityLogs from "@/pages/admin/ActivityLogs";
+  const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
+  const AdminProfile = lazy(() => import("@/pages/admin/Profile"));
+  const AdminMembers = lazy(() => import("@/pages/admin/Members"));
+  const AdminUsers = lazy(() => import("@/pages/admin/Users"));
+  const AdminRoleRequests = lazy(() => import("@/pages/admin/RoleRequests"));
+  const AdminGroups = lazy(() => import("@/pages/admin/Groups"));
+  const AdminAttendance = lazy(() => import("@/pages/admin/Attendance"));
+  const AdminEvents = lazy(() => import("@/pages/admin/Events"));
+  const AdminMedia = lazy(() => import("@/pages/admin/Media"));
+  const AdminWelfare = lazy(() => import("@/pages/admin/Welfare"));
+  const AdminPrayerRequests = lazy(() => import("@/pages/admin/PrayerRequests"));
+  const AdminSermons = lazy(() => import("@/pages/admin/Sermons"));
+  const AdminBirthdays = lazy(() => import("@/pages/admin/Birthdays"));
+  const AdminReports = lazy(() => import("@/pages/admin/Reports"));
+  const AdminPipeline = lazy(() => import("@/pages/admin/Pipeline"));
+  const AdminDocuments = lazy(() => import("@/pages/admin/Documents"));
+  const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
+  const AdminCommunication = lazy(() => import("@/pages/admin/Communication"));
+  const AdminCellFellowship = lazy(() => import("@/pages/admin/CellFellowship"));
+  const AdminInduction = lazy(() => import("@/pages/admin/Induction"));
+  const AdminGiving = lazy(() => import("@/pages/admin/Giving"));
+  const AdminTestimonies = lazy(() => import("@/pages/admin/Testimonies"));
+  const AdminTasks = lazy(() => import("@/pages/admin/Tasks"));
+  const AdminMinistryTeams = lazy(() => import("@/pages/admin/MinistryTeams"));
+  const AdminDutyRoster = lazy(() => import("@/pages/admin/DutyRoster"));
+  const AdminActivityLogs = lazy(() => import("@/pages/admin/ActivityLogs"));
 
   // Pastor pages
-  import PastorDashboard from "@/pages/pastor/Dashboard";
-  import PastorAttendance from "@/pages/pastor/Attendance";
-  import PastorReports from "@/pages/pastor/Reports";
-  import PastorMembers from "@/pages/pastor/Members";
-  import PastorRoleRequests from "@/pages/pastor/RoleRequests";
-  import PastorMeetings from "@/pages/pastor/Meetings";
+  const PastorDashboard = lazy(() => import("@/pages/pastor/Dashboard"));
+  const PastorAttendance = lazy(() => import("@/pages/pastor/Attendance"));
+  const PastorReports = lazy(() => import("@/pages/pastor/Reports"));
+  const PastorMembers = lazy(() => import("@/pages/pastor/Members"));
+  const PastorRoleRequests = lazy(() => import("@/pages/pastor/RoleRequests"));
+  const PastorMeetings = lazy(() => import("@/pages/pastor/Meetings"));
 
   // Leadership pages
-  import LeadershipDashboard from "@/pages/leadership/Dashboard";
-  import LeadershipProfile from "@/pages/leadership/Profile";
-  import LeadershipMembers from "@/pages/leadership/Members";
-  import LeadershipGroups from "@/pages/leadership/Groups";
-  import LeadershipAttendance from "@/pages/leadership/Attendance";
-  import LeadershipEvents from "@/pages/leadership/Events";
-  import LeadershipWelfare from "@/pages/leadership/Welfare";
-  import LeadershipPrayerRequests from "@/pages/leadership/PrayerRequests";
-  import LeadershipSermons from "@/pages/leadership/Sermons";
-  import LeadershipReports from "@/pages/leadership/Reports";
-  import LeadershipPipeline from "@/pages/leadership/Pipeline";
-  import LeadershipMeetings from "@/pages/leadership/Meetings";
-  import LeadershipTeams from "@/pages/leadership/Teams";
-  import LeadershipMedia from "@/pages/leadership/Media";
-  import LeadershipGiving from "@/pages/leadership/Giving";
-  import LeadershipQrCode from "@/pages/leadership/QrCode";
-  import LeadershipTasks from "@/pages/leadership/Tasks";
-  import LeadershipDutyRoster from "@/pages/leadership/DutyRoster";
-  import LeadershipMinistryTeams from "@/pages/leadership/MinistryTeams";
+  const LeadershipDashboard = lazy(() => import("@/pages/leadership/Dashboard"));
+  const LeadershipProfile = lazy(() => import("@/pages/leadership/Profile"));
+  const LeadershipMembers = lazy(() => import("@/pages/leadership/Members"));
+  const LeadershipGroups = lazy(() => import("@/pages/leadership/Groups"));
+  const LeadershipAttendance = lazy(() => import("@/pages/leadership/Attendance"));
+  const LeadershipEvents = lazy(() => import("@/pages/leadership/Events"));
+  const LeadershipWelfare = lazy(() => import("@/pages/leadership/Welfare"));
+  const LeadershipPrayerRequests = lazy(() => import("@/pages/leadership/PrayerRequests"));
+  const LeadershipSermons = lazy(() => import("@/pages/leadership/Sermons"));
+  const LeadershipReports = lazy(() => import("@/pages/leadership/Reports"));
+  const LeadershipPipeline = lazy(() => import("@/pages/leadership/Pipeline"));
+  const LeadershipMeetings = lazy(() => import("@/pages/leadership/Meetings"));
+  const LeadershipTeams = lazy(() => import("@/pages/leadership/Teams"));
+  const LeadershipMedia = lazy(() => import("@/pages/leadership/Media"));
+  const LeadershipGiving = lazy(() => import("@/pages/leadership/Giving"));
+  const LeadershipQrCode = lazy(() => import("@/pages/leadership/QrCode"));
+  const LeadershipTasks = lazy(() => import("@/pages/leadership/Tasks"));
+  const LeadershipDutyRoster = lazy(() => import("@/pages/leadership/DutyRoster"));
+  const LeadershipMinistryTeams = lazy(() => import("@/pages/leadership/MinistryTeams"));
 
   // Workforce pages
-  import WorkforceDashboard from "@/pages/workforce/Dashboard";
-  import WorkforceProfile from "@/pages/workforce/Profile";
-  import WorkforceAttendance from "@/pages/workforce/Attendance";
-  import WorkforceEvents from "@/pages/workforce/Events";
-  import WorkforceSermons from "@/pages/workforce/Sermons";
-  import WorkforceReports from "@/pages/workforce/Reports";
-  import WorkforceMedia from "@/pages/workforce/Media";
-  import WorkforceMeetings from "@/pages/workforce/Meetings";
-  import WorkforceGiving from "@/pages/workforce/Giving";
-  import WorkforceQrCode from "@/pages/workforce/QrCode";
-  import WorkforcePrayerRequests from "@/pages/workforce/PrayerRequests";
-  import WorkforceTasks from "@/pages/workforce/Tasks";
-  import WorkforceDutyRoster from "@/pages/workforce/DutyRoster";
-  import WorkforceMinistryTeams from "@/pages/workforce/MinistryTeams";
-  import WorkforceWelfare from "@/pages/workforce/Welfare";
-  import WorkforceTestimonies from "@/pages/workforce/Testimonies";
+  const WorkforceDashboard = lazy(() => import("@/pages/workforce/Dashboard"));
+  const WorkforceProfile = lazy(() => import("@/pages/workforce/Profile"));
+  const WorkforceAttendance = lazy(() => import("@/pages/workforce/Attendance"));
+  const WorkforceEvents = lazy(() => import("@/pages/workforce/Events"));
+  const WorkforceSermons = lazy(() => import("@/pages/workforce/Sermons"));
+  const WorkforceReports = lazy(() => import("@/pages/workforce/Reports"));
+  const WorkforceMedia = lazy(() => import("@/pages/workforce/Media"));
+  const WorkforceMeetings = lazy(() => import("@/pages/workforce/Meetings"));
+  const WorkforceGiving = lazy(() => import("@/pages/workforce/Giving"));
+  const WorkforceQrCode = lazy(() => import("@/pages/workforce/QrCode"));
+  const WorkforcePrayerRequests = lazy(() => import("@/pages/workforce/PrayerRequests"));
+  const WorkforceTasks = lazy(() => import("@/pages/workforce/Tasks"));
+  const WorkforceDutyRoster = lazy(() => import("@/pages/workforce/DutyRoster"));
+  const WorkforceMinistryTeams = lazy(() => import("@/pages/workforce/MinistryTeams"));
+  const WorkforceWelfare = lazy(() => import("@/pages/workforce/Welfare"));
+  const WorkforceTestimonies = lazy(() => import("@/pages/workforce/Testimonies"));
 
   // Member pages
-  import MemberDashboard from "@/pages/member/Dashboard";
-  import MemberProfile from "@/pages/member/Profile";
-  import MemberAttendance from "@/pages/member/Attendance";
-  import MemberEvents from "@/pages/member/Events";
-  import MemberSermons from "@/pages/member/Sermons";
-  import MemberPrayerRequest from "@/pages/member/PrayerRequest";
-  import MemberWelfare from "@/pages/member/Welfare";
-  import MemberUpgrade from "@/pages/member/Upgrade";
-  import MemberQrCode from "@/pages/member/QrCode";
-  import MemberFamily from "@/pages/member/Family";
-  import MemberGiving from "@/pages/member/Giving";
-  import MemberTestimonies from "@/pages/member/Testimonies";
-  import MemberMedia from "@/pages/member/Media";
+  const MemberDashboard = lazy(() => import("@/pages/member/Dashboard"));
+  const MemberProfile = lazy(() => import("@/pages/member/Profile"));
+  const MemberAttendance = lazy(() => import("@/pages/member/Attendance"));
+  const MemberEvents = lazy(() => import("@/pages/member/Events"));
+  const MemberSermons = lazy(() => import("@/pages/member/Sermons"));
+  const MemberPrayerRequest = lazy(() => import("@/pages/member/PrayerRequest"));
+  const MemberWelfare = lazy(() => import("@/pages/member/Welfare"));
+  const MemberUpgrade = lazy(() => import("@/pages/member/Upgrade"));
+  const MemberQrCode = lazy(() => import("@/pages/member/QrCode"));
+  const MemberFamily = lazy(() => import("@/pages/member/Family"));
+  const MemberGiving = lazy(() => import("@/pages/member/Giving"));
+  const MemberTestimonies = lazy(() => import("@/pages/member/Testimonies"));
+  const MemberMedia = lazy(() => import("@/pages/member/Media"));
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -342,6 +342,14 @@ import axios from "@/lib/axios";
     );
   }
 
+  function PageLoadingFallback() {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm animate-pulse">DCL</div>
+      </div>
+    );
+  }
+
   function App() {
     useKeepAlive();
     return (
@@ -351,7 +359,9 @@ import axios from "@/lib/axios";
             <DeepLinkHandler />
             <InAppNotifications />
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <Router />
+              </Suspense>
             </WouterRouter>
           </AuthProvider>
           <Toaster />

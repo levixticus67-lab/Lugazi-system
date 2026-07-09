@@ -192,7 +192,7 @@ export default function AdminMembers() {
           {displayed.map(m => (
             <div key={m.id} className={`glass-card p-4 flex gap-3 hover:shadow-md transition-all ${!m.isActive ? "opacity-60" : ""}`}>
               {m.photoUrl ? (
-                <img src={m.photoUrl} alt={m.fullName} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-background shadow" />
+                <img loading="lazy" src={m.photoUrl} alt={m.fullName} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-background shadow" />
               ) : (
                 <div className="w-12 h-12 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-lg shrink-0 shadow">
                   {m.fullName.charAt(0)}

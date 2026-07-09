@@ -38,7 +38,7 @@ export default function WorkforceMedia() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(items as MediaItem[]).map(item => (
             <div key={item.id} className="bg-card border border-card-border rounded-xl overflow-hidden shadow-sm" data-testid={`media-${item.id}`}>
-              {item.type === "image" && <div className="aspect-square bg-muted overflow-hidden"><img src={item.url} alt={item.title} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /></div>}
+              {item.type === "image" && <div className="aspect-square bg-muted overflow-hidden"><img loading="lazy" src={item.url} alt={item.title} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /></div>}
               {item.type !== "image" && <div className="aspect-square bg-muted flex items-center justify-center text-xs uppercase font-medium text-muted-foreground">{item.type}</div>}
               <div className="p-3 flex items-center justify-between gap-2">
                 <p className="text-sm truncate">{item.title}</p>

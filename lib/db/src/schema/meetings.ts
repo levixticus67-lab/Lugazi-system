@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -17,7 +17,12 @@ export const meetingsTable = pgTable("meetings", {
   notifyAudience: text("notify_audience"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("meetings_scheduled_at_idx").on(table.scheduledAt),
+  index("meetings_portal_target_idx").on(table.portalTarget),
+  index("meetings_status_idx").on(table.status),
+  index("meetings_notify_audience_idx").on(table.notifyAudience),
+]);
 
 export const insertMeetingSchema = createInsertSchema(meetingsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;

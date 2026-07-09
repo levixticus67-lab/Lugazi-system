@@ -156,7 +156,7 @@ export default function AdminMinistryTeams() {
                   {team.members.map(m => (
                     <div key={m.id} className="flex items-center gap-3 px-5 py-3">
                       {(() => { const u = (users as UserOption[]).find(u => u.id === m.userId); return u?.photoUrl ? (
-                        <img src={u.photoUrl} alt={m.memberName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        <img loading="lazy" src={u.photoUrl} alt={m.memberName} className="w-7 h-7 rounded-full object-cover shrink-0" />
                       ) : (
                         <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                           {m.memberName.charAt(0)}
@@ -196,7 +196,7 @@ export default function AdminMinistryTeams() {
               {selectedNewLeader ? (
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/20">
                   {selectedNewLeader.photoUrl ? (
-                    <img src={selectedNewLeader.photoUrl} alt={selectedNewLeader.displayName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    <img loading="lazy" src={selectedNewLeader.photoUrl} alt={selectedNewLeader.displayName} className="w-7 h-7 rounded-full object-cover shrink-0" />
                   ) : (
                     <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">{selectedNewLeader.displayName.charAt(0)}</div>
                   )}
@@ -216,7 +216,7 @@ export default function AdminMinistryTeams() {
                         <button key={u.id} onClick={() => { setSelectedNewLeader(u); setLeaderSearch(""); }}
                           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left">
                           {u.photoUrl ? (
-                            <img src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                            <img loading="lazy" src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
                           ) : (
                             <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
                           )}
@@ -255,7 +255,7 @@ export default function AdminMinistryTeams() {
                   <button key={u.id} onClick={() => setNewMember({userId:String(u.id),memberName:u.displayName})}
                     className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left ${newMember.userId===String(u.id)?"bg-primary/5":""}`}>
                     {u.photoUrl ? (
-                      <img src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                      <img loading="lazy" src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
                     )}
@@ -268,7 +268,7 @@ export default function AdminMinistryTeams() {
             {newMember.userId && (
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-sm">
                 {(users as UserOption[]).find(u => String(u.id) === newMember.userId)?.photoUrl ? (
-                  <img src={(users as UserOption[]).find(u => String(u.id) === newMember.userId)!.photoUrl!} alt={newMember.memberName} className="w-6 h-6 rounded-full object-cover" />
+                  <img loading="lazy" src={(users as UserOption[]).find(u => String(u.id) === newMember.userId)!.photoUrl!} alt={newMember.memberName} className="w-6 h-6 rounded-full object-cover" />
                 ) : (
                   <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold">{newMember.memberName.charAt(0)}</div>
                 )}

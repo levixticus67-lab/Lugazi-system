@@ -232,7 +232,7 @@ export default function AdminInduction() {
                 <div key={e.id} className="glass-card p-4">
                   <div className="flex items-center gap-4">
                     {(() => { const m = members.find(m => m.id === e.memberId); return m?.photoUrl ? (
-                      <img src={m.photoUrl} alt={e.memberName} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                      <img loading="lazy" src={m.photoUrl} alt={e.memberName} className="w-10 h-10 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">
                         {e.memberName.charAt(0).toUpperCase()}
@@ -342,7 +342,7 @@ export default function AdminInduction() {
               {selectedMember ? (
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
                   {selectedMember.photoUrl ? (
-                    <img src={selectedMember.photoUrl} alt={selectedMember.fullName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    <img loading="lazy" src={selectedMember.photoUrl} alt={selectedMember.fullName} className="w-8 h-8 rounded-full object-cover shrink-0" />
                   ) : (
                     <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
                       {selectedMember.fullName.charAt(0)}
@@ -363,7 +363,7 @@ export default function AdminInduction() {
                         <button key={m.id} onClick={()=>{setSelectedMember(m);setMemberSearch("");}}
                           className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex items-center gap-2.5 transition-colors">
                           {m.photoUrl ? (
-                            <img src={m.photoUrl} alt={m.fullName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            <img loading="lazy" src={m.photoUrl} alt={m.fullName} className="w-7 h-7 rounded-full object-cover shrink-0" />
                           ) : (
                             <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
                               {m.fullName.charAt(0)}

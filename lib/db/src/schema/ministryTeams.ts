@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, timestamp, integer, index } from "drizzle-orm/pg-core";
   import { createInsertSchema } from "drizzle-zod";
   import { z } from "zod/v4";
 
@@ -19,7 +19,10 @@ import { pgTable, serial, text, boolean, timestamp, integer } from "drizzle-orm/
     memberName: text("member_name").notNull(),
     role: text("role").default("Member"),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
-  });
+  }, (table) => [
+    index("ministry_team_members_team_id_idx").on(table.teamId),
+    index("ministry_team_members_user_id_idx").on(table.userId),
+  ]);
 
   export const insertMinistryTeamSchema = createInsertSchema(ministryTeamsTable).omit({ id: true, createdAt: true });
   export type InsertMinistryTeam = z.infer<typeof insertMinistryTeamSchema>;

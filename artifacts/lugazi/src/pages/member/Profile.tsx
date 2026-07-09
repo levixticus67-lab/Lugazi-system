@@ -81,7 +81,7 @@ import { useState, useEffect } from "react";
             {/* Current avatar preview */}
             <div className="flex items-center gap-3 py-2">
               {effectivePhotoUrl ? (
-                <img src={effectivePhotoUrl} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+                <img loading="lazy" src={effectivePhotoUrl} alt={me?.displayName} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
               ) : (
                 <div className="w-16 h-16 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-2xl">
                   {me?.displayName?.charAt(0).toUpperCase()}

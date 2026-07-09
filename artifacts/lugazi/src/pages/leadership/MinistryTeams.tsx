@@ -131,7 +131,7 @@ export default function LeadershipMinistryTeams() {
                     {team.members.map(m => (
                       <div key={m.id} className="flex items-center gap-3 px-5 py-3">
                         {(() => { const u = (users as UserOption[]).find(u => u.id === m.userId); return u?.photoUrl ? (
-                          <img src={u.photoUrl} alt={m.memberName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                          <img loading="lazy" src={u.photoUrl} alt={m.memberName} className="w-7 h-7 rounded-full object-cover shrink-0" />
                         ) : (
                           <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                             {m.memberName.charAt(0)}
@@ -170,7 +170,7 @@ export default function LeadershipMinistryTeams() {
             {selectedUser ? (
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/20">
                 {selectedUser.photoUrl ? (
-                  <img src={selectedUser.photoUrl} alt={selectedUser.displayName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  <img loading="lazy" src={selectedUser.photoUrl} alt={selectedUser.displayName} className="w-7 h-7 rounded-full object-cover shrink-0" />
                 ) : (
                   <div className="w-7 h-7 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold">{selectedUser.displayName.charAt(0)}</div>
                 )}
@@ -191,7 +191,7 @@ export default function LeadershipMinistryTeams() {
                       <button key={u.id} onClick={() => { setSelectedUser(u); setMemberSearch(""); }}
                         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left">
                         {u.photoUrl ? (
-                          <img src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                          <img loading="lazy" src={u.photoUrl} alt={u.displayName} className="w-6 h-6 rounded-full object-cover shrink-0" />
                         ) : (
                           <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[10px] font-bold shrink-0">{u.displayName.charAt(0)}</div>
                         )}

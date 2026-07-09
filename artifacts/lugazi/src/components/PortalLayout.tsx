@@ -58,7 +58,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
   const UserAvatar = ({ size = "sm" }: { size?: "sm" | "md" }) => {
     const sz = size === "md" ? "w-9 h-9" : "w-8 h-8";
     return user?.photoUrl
-      ? <img src={user.photoUrl} alt={user.displayName} className={`${sz} rounded-full object-cover border border-border shrink-0`} />
+      ? <img loading="lazy" src={user.photoUrl} alt={user.displayName} className={`${sz} rounded-full object-cover border border-border shrink-0`} />
       : <div className={`${sz} rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0`}>
           {user?.displayName?.charAt(0).toUpperCase()}
         </div>;
@@ -76,7 +76,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
   const SidebarInner = ({ onNav }: { onNav?: () => void }) => (
     <>
       <div className="flex items-center gap-3 p-5 border-b border-sidebar-border shrink-0">
-        <img src="/dcl-logo.png" alt="DCL" className="w-9 h-9 rounded-full object-contain bg-white p-1 shrink-0" />
+        <img loading="lazy" src="/dcl-logo.png" alt="DCL" className="w-9 h-9 rounded-full object-contain bg-white p-1 shrink-0" />
         <div className="min-w-0">
           <p className="text-sidebar-foreground font-semibold text-sm truncate">DCL Lugazi</p>
           <p className="text-sidebar-foreground/50 text-xs truncate">{effectiveLabel}</p>
@@ -134,7 +134,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
       <div className="p-3 border-t border-sidebar-border shrink-0">
         <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-sidebar-accent">
           {user?.photoUrl
-            ? <img src={user.photoUrl} alt={user.displayName} className="w-7 h-7 rounded-full object-cover shrink-0 border border-sidebar-border" />
+            ? <img loading="lazy" src={user.photoUrl} alt={user.displayName} className="w-7 h-7 rounded-full object-cover shrink-0 border border-sidebar-border" />
             : <div className="w-7 h-7 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sidebar-primary font-semibold text-xs shrink-0">
                 {user?.displayName?.charAt(0).toUpperCase()}
               </div>}
@@ -201,7 +201,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
               <Menu className="h-5 w-5" />
             </button>
             <div className="lg:hidden flex items-center gap-2 min-w-0">
-              <img src="/dcl-logo.png" alt="DCL" className="w-7 h-7 rounded-full object-contain bg-white p-0.5 shrink-0" />
+              <img loading="lazy" src="/dcl-logo.png" alt="DCL" className="w-7 h-7 rounded-full object-contain bg-white p-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-foreground font-semibold text-sm leading-tight truncate">DCL Lugazi</p>
                 <p className="text-muted-foreground text-[10px] leading-tight truncate">{effectiveLabel}</p>
@@ -219,7 +219,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
         {/* Native mobile topbar (<lg) */}
         {isNative && (
           <header className="h-14 border-b border-border bg-card flex lg:hidden items-center px-4 gap-3 shrink-0">
-            <img src="/dcl-logo.png" alt="DCL" className="w-8 h-8 rounded-full object-contain bg-white p-0.5 shrink-0" />
+            <img loading="lazy" src="/dcl-logo.png" alt="DCL" className="w-8 h-8 rounded-full object-contain bg-white p-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-foreground font-semibold text-sm leading-tight">DCL Lugazi</p>
               <p className="text-muted-foreground text-xs leading-tight truncate">{effectiveLabel}</p>
@@ -330,7 +330,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
             </div>
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
               <div className="flex items-center gap-2.5">
-                <img src="/dcl-logo.png" alt="DCL" className="w-8 h-8 rounded-full object-contain bg-white p-0.5 shrink-0" />
+                <img loading="lazy" src="/dcl-logo.png" alt="DCL" className="w-8 h-8 rounded-full object-contain bg-white p-0.5 shrink-0" />
                 <div>
                   <p className="font-semibold text-sm leading-tight">DCL Lugazi</p>
                   <p className="text-muted-foreground text-xs leading-tight">{effectiveLabel}</p>

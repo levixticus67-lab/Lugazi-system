@@ -129,7 +129,7 @@ export default function QrScanner({ onScan, label = "Scan QR Code" }: QrScannerP
         <div className="flex flex-col gap-2">
           {preview && (
             <div className="relative">
-              <img src={preview} alt="QR preview" className="rounded-lg max-h-40 object-contain border border-border w-full" />
+              <img loading="lazy" src={preview} alt="QR preview" className="rounded-lg max-h-40 object-contain border border-border w-full" />
               <button
                 onClick={() => { setPreview(null); setError(null); }}
                 className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5"

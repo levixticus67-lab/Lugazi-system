@@ -93,7 +93,7 @@ export function PwaInstallBanner() {
         <div className="m-3 rounded-2xl shadow-2xl border border-border/60 bg-card overflow-hidden">
           {/* Top bar */}
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-            <img
+            <img loading="lazy"
               src="/icons/icon-96x96.png"
               alt="DC Lugazi"
               className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0"

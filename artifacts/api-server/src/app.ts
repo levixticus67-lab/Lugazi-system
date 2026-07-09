@@ -1,11 +1,16 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+// Gzip/brotli-eligible compression for all responses — cheap win for JSON
+// payloads and any static assets served through this app.
+app.use(compression());
 
 // Security headers — covers what helmet provides without adding a dependency
 app.use((_req: Request, res: Response, next: NextFunction) => {

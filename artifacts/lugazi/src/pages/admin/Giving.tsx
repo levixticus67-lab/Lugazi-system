@@ -115,7 +115,7 @@ export default function AdminGiving() {
             display.slice(0,10).map(c => (
               <div key={c.id} className="glass-card p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
                 {(() => { const m = c.memberId ? membersList.find(m => m.id === c.memberId) : null; return m?.photoUrl ? (
-                  <img src={m.photoUrl} alt={c.memberName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                  <img loading="lazy" src={m.photoUrl} alt={c.memberName} className="w-8 h-8 rounded-full object-cover shrink-0" />
                 ) : (
                   <div className="w-8 h-8 rounded-full blue-gradient-bg flex items-center justify-center text-white text-xs font-bold shrink-0">
                     {c.memberName.charAt(0)}

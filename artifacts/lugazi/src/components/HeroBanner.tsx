@@ -98,7 +98,7 @@ function BirthdayAvatar({ member }: { member: Member }) {
         style={{ boxShadow: "0 0 0 4px rgba(255,255,255,0.15), 0 0 30px rgba(255,255,255,0.3)" }}
       >
         {member.photoUrl && !failed ? (
-          <img
+          <img loading="lazy"
             src={member.photoUrl}
             alt={member.fullName}
             className="w-full h-full object-cover"
@@ -457,7 +457,7 @@ export default function HeroBanner() {
           />
         )}
         {hasMedia && !isVideo && (
-          <img
+          <img loading="lazy"
             key={banner!.mediaUrl!}
             src={banner!.mediaUrl!}
             alt=""
@@ -536,7 +536,7 @@ export default function HeroBanner() {
             {isBirthday && member && <BirthdayAvatar member={member} />}
             {!isBirthday && banner?.mediaUrl && !isVideo && (
               <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl">
-                <img src={banner.mediaUrl} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" src={banner.mediaUrl} alt="" className="w-full h-full object-cover" />
               </div>
             )}
           </div>

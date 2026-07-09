@@ -143,7 +143,7 @@ export default function LeadershipCellFellowship() {
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cell Leader</label>
               {selectedLeader ? (
                 <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
-                  {selectedLeader.photoUrl ? <img src={selectedLeader.photoUrl} className="w-6 h-6 rounded-full object-cover" alt={selectedLeader.fullName} /> :
+                  {selectedLeader.photoUrl ? <img loading="lazy" src={selectedLeader.photoUrl} className="w-6 h-6 rounded-full object-cover" alt={selectedLeader.fullName} /> :
                     <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[9px] font-bold">{selectedLeader.fullName.charAt(0)}</div>}
                   <span className="text-sm flex-1">{selectedLeader.fullName}</span>
                   <button onClick={() => { setSelectedLeader(null); setLeaderSearch(""); }} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
@@ -160,7 +160,7 @@ export default function LeadershipCellFellowship() {
                       {filteredLeaders.length > 0 ? filteredLeaders.map(m => (
                         <button key={m.id} onClick={() => { setSelectedLeader(m); setLeaderSearch(""); }}
                           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition text-left">
-                          {m.photoUrl ? <img src={m.photoUrl} className="w-5 h-5 rounded-full object-cover" alt={m.fullName} /> :
+                          {m.photoUrl ? <img loading="lazy" src={m.photoUrl} className="w-5 h-5 rounded-full object-cover" alt={m.fullName} /> :
                             <div className="w-5 h-5 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[9px] font-bold">{m.fullName.charAt(0)}</div>}
                           <span className="text-xs">{m.fullName}</span>
                           <span className="text-[10px] text-muted-foreground ml-auto capitalize">{m.role}</span>
@@ -212,7 +212,7 @@ export default function LeadershipCellFellowship() {
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Change Leader</label>
               {editSelectedLeader ? (
                 <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
-                  {editSelectedLeader.photoUrl ? <img src={editSelectedLeader.photoUrl} className="w-6 h-6 rounded-full object-cover" alt={editSelectedLeader.fullName} /> :
+                  {editSelectedLeader.photoUrl ? <img loading="lazy" src={editSelectedLeader.photoUrl} className="w-6 h-6 rounded-full object-cover" alt={editSelectedLeader.fullName} /> :
                     <div className="w-6 h-6 rounded-full blue-gradient-bg flex items-center justify-center text-white text-[9px] font-bold">{editSelectedLeader.fullName.charAt(0)}</div>}
                   <span className="text-sm flex-1">{editSelectedLeader.fullName}</span>
                   <button onClick={() => { setEditSelectedLeader(null); setEditLeaderSearch(""); }}><X className="h-3.5 w-3.5" /></button>

@@ -161,7 +161,7 @@ export default function CloudinaryUploader({
 
         {previewUrl && isImage ? (
           <div className="relative flex items-center justify-center overflow-hidden rounded-xl min-h-[100px]">
-            <img src={previewUrl} alt="Preview" className="max-h-48 w-full object-contain rounded-xl p-1" />
+            <img loading="lazy" src={previewUrl} alt="Preview" className="max-h-48 w-full object-contain rounded-xl p-1" />
             {status !== "uploading" && (
               <button
                 className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"

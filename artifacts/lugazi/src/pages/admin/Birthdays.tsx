@@ -38,7 +38,7 @@ export default function AdminBirthdays() {
     return (
       <div className="glass-card p-4 card-hover flex items-center gap-3">
         {member.photoUrl ? (
-          <img src={member.photoUrl} alt={member.fullName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+          <img loading="lazy" src={member.photoUrl} alt={member.fullName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
         ) : (
           <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold flex-shrink-0">
             {member.fullName.charAt(0).toUpperCase()}

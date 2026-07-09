@@ -207,7 +207,7 @@ export default function Login() {
         <div className="w-full max-w-md animate-fade-in-scale">
           <div className="lg:hidden mb-8 text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <img src="/dcl-logo.png" alt="DCL" className="w-10 h-10 rounded-full object-contain bg-white p-1 shrink-0 glow-blue" />
+              <img loading="lazy" src="/dcl-logo.png" alt="DCL" className="w-10 h-10 rounded-full object-contain bg-white p-1 shrink-0 glow-blue" />
             </div>
             <h1 className="font-serif text-2xl font-bold text-foreground">Deliverance Church Lugazi</h1>
             <p className="text-muted-foreground text-sm">The House of Kingdom Giants</p>

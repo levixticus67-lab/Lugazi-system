@@ -34,7 +34,7 @@ function MediaPreview({ item, onClick }: { item: MediaItem; onClick: () => void 
   if (item.type === "image") {
     return (
       <div className="aspect-video bg-muted overflow-hidden relative cursor-pointer group" onClick={onClick}>
-        <img src={item.url} alt={item.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        <img loading="lazy" src={item.url} alt={item.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
           <Expand className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>

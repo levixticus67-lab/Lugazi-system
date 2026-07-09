@@ -49,7 +49,7 @@ export default function MemberMedia() {
                   <button key={item.id} onClick={() => openViewer(item.url, "image", item.title)}
                     className="group glass-card overflow-hidden rounded-xl hover:shadow-lg transition-shadow text-left relative">
                     <div className="aspect-square bg-muted overflow-hidden">
-                      <img src={item.url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      <img loading="lazy" src={item.url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -74,7 +74,7 @@ export default function MemberMedia() {
                     className="glass-card overflow-hidden rounded-xl text-left hover:shadow-lg transition-shadow group w-full">
                     <div className="aspect-video bg-black overflow-hidden flex items-center justify-center relative">
                       {item.thumbnailUrl ? (
-                        <img src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
+                        <img loading="lazy" src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
                       ) : (
                         <Video className="h-12 w-12 text-white/30" />
                       )}

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, integer, timestamp, index } from "drizzle-orm/pg-core";
 
 export const inAppNotificationsTable = pgTable("in_app_notifications", {
   id: serial("id").primaryKey(),
@@ -9,6 +9,9 @@ export const inAppNotificationsTable = pgTable("in_app_notifications", {
   relatedEntityType: text("related_entity_type"), // e.g. "family_member"
   relatedEntityId: integer("related_entity_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("in_app_notifications_user_id_idx").on(table.userId),
+  index("in_app_notifications_created_at_idx").on(table.createdAt),
+]);
 
 export type InAppNotification = typeof inAppNotificationsTable.$inferSelect;
