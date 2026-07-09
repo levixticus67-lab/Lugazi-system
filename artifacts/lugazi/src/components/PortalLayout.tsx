@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { LogOut, Menu, X, ChevronDown, Shield, Sun, Moon } from "lucide-react";
 import { pastorNavItems } from "@/pages/pastor/navItems";
 import { Capacitor } from "@capacitor/core";
+import NotificationBell from "./NotificationBell";
 
 export interface NavItem {
   label: string;
@@ -211,6 +212,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
             <div className="flex-1" />
             <div className="flex items-center gap-3">
               <ThemeToggle className="hidden lg:flex" />
+              <NotificationBell />
               <span className="hidden lg:block text-sm text-muted-foreground">{user?.displayName}</span>
               <UserAvatar />
             </div>
@@ -226,6 +228,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
               <p className="text-muted-foreground text-xs leading-tight truncate">{effectiveLabel}</p>
             </div>
             <ThemeToggle />
+            <NotificationBell />
             <UserAvatar />
           </header>
         )}
@@ -235,6 +238,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
           <header className="h-14 border-b border-border bg-card hidden lg:flex items-center px-4 gap-4 shrink-0">
             <div className="flex-1" />
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <span className="text-sm text-muted-foreground">{user?.displayName}</span>
               <UserAvatar />
             </div>
