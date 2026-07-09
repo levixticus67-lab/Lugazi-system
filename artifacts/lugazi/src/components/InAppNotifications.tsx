@@ -15,12 +15,31 @@ interface InAppNotification {
   createdAt: string;
 }
 
+/** Plays a short soft chime using the Web Audio API. No file dependencies. */
+function playChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.28, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.55);
+    osc.onended = () => ctx.close();
+  } catch {
+    // Audio blocked or unsupported — silent fail
+  }
+}
+
 /**
- * Polls for unread in-app notifications and surfaces each one as a toast pop-up.
- * Mount this once inside AuthProvider so it has access to the current user.
- * - Query key is scoped by user ID to avoid cross-user cache leaks.
- * - shownIds ref is cleared on user change to prevent duplicate/missing toasts.
- * - Uses mark-all-read in one request instead of per-notification calls.
+ * Polls for unread in-app notifications, shows each one as a toast, and plays
+ * a soft chime. Mount once inside AuthProvider.
  */
 export default function InAppNotifications() {
   const { user } = useAuth();
@@ -28,18 +47,18 @@ export default function InAppNotifications() {
   const qc = useQueryClient();
   const shownIds = useRef<Set<number>>(new Set());
   const prevUserId = useRef<number | null>(null);
+  const isFirstLoad = useRef(true);
 
-  // Clear shown state when the logged-in user changes (logout / account switch)
   useEffect(() => {
     const currentId = user?.id ?? null;
     if (prevUserId.current !== currentId) {
       shownIds.current = new Set();
       prevUserId.current = currentId;
+      isFirstLoad.current = true;
     }
   }, [user?.id]);
 
   const { data: notifications = [] } = useQuery<InAppNotification[]>({
-    // Scope query key by user ID — prevents stale cache from one user leaking into another
     queryKey: ["inbox-notifications", user?.id],
     queryFn: () => axios.get("/api/notifications/inbox").then(r => r.data),
     enabled: !!user,
@@ -56,6 +75,17 @@ export default function InAppNotifications() {
     const unseen = notifications.filter(n => !shownIds.current.has(n.id));
     if (unseen.length === 0) return;
 
+    // On the very first load after login, silently mark existing ones read
+    // (they were already shown in previous sessions) without toasting or chiming.
+    if (isFirstLoad.current) {
+      unseen.forEach(n => shownIds.current.add(n.id));
+      isFirstLoad.current = false;
+      markAllRead.mutate();
+      return;
+    }
+
+    // New notifications arrived after the first load — toast + chime
+    playChime();
     unseen.forEach(n => {
       shownIds.current.add(n.id);
       toast({
@@ -65,7 +95,6 @@ export default function InAppNotifications() {
       });
     });
 
-    // Mark all shown notifications as read in a single request
     markAllRead.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications]);
