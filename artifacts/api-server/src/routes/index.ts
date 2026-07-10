@@ -32,6 +32,7 @@ import ministryTeamsRouter from "./ministryTeams";
 import activityLogsRouter from "./activityLogs";
 import notificationsRouter from "./notifications";
 import inAppNotificationsRouter from "./inAppNotifications";
+import fcmTokensRouter from "./fcmTokens";
 
 const router: IRouter = Router();
 
@@ -68,5 +69,6 @@ router.use(ministryTeamsRouter);
 router.use(activityLogsRouter);
 router.use(notificationsRouter);
 router.use(inAppNotificationsRouter);
+router.use(fcmTokensRouter);
 
 export default router;
