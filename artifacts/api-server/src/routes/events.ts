@@ -33,6 +33,7 @@ router.post("/events", requireAuth, requireRole(["admin", "pastor", "leadership"
         message: "A new " + category + " event has been scheduled: \"" + title + "\"" + datePart,
         relatedEntityType: "event",
         relatedEntityId: event.id,
+        eventDate: date ? new Date(date) : null,
       }))
     );
   }
