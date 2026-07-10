@@ -51,6 +51,11 @@ export default function NotificationBell() {
 
   function handleOpen(val: boolean) {
     setOpen(val);
+    // Mark all as read when the user opens the popover so the bell clears
+    // after they've seen the notifications. They persist until opened.
+    if (val && hasNew) {
+      markAllRead.mutate();
+    }
   }
 
   return (
