@@ -98,6 +98,7 @@ router.post("/meetings", requireAuth, async (req: AuthRequest, res): Promise<voi
           message: `${record.title} — ${dateLabel} at ${record.location}`,
           relatedEntityType: "meeting",
           relatedEntityId: record.id,
+          eventDate: record.scheduledAt,
         }))
       );
     }
