@@ -8,7 +8,7 @@ let _messaging: admin.messaging.Messaging | null = null;
 function getMessaging(): admin.messaging.Messaging | null {
   if (_messaging) return _messaging;
 
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return null;
 
   try {
@@ -19,7 +19,7 @@ function getMessaging(): admin.messaging.Messaging | null {
     _messaging = admin.messaging();
     return _messaging;
   } catch (err) {
-    logger.error(err, "firebase-admin: failed to initialise — check FIREBASE_SERVICE_ACCOUNT_JSON");
+    logger.error(err, "firebase-admin: failed to initialise — check FIREBASE_SERVICE_ACCOUNT");
     return null;
   }
 }
@@ -94,7 +94,7 @@ async function tick(messaging: admin.messaging.Messaging): Promise<void> {
 /**
  * Starts the FCM background worker using the Firebase Admin SDK (FCM HTTP v1 API).
  *
- * Required env var: FIREBASE_SERVICE_ACCOUNT_JSON
+ * Required env var: FIREBASE_SERVICE_ACCOUNT
  *   → Paste the full contents of your Firebase service account JSON key file.
  *   → The service account needs the "Firebase Cloud Messaging API (V1)" permission.
  *   → Generate one at: Firebase Console → Project Settings → Service Accounts →
@@ -106,7 +106,7 @@ export function startFcmWorker(): void {
   const messaging = getMessaging();
   if (!messaging) {
     logger.info(
-      "FIREBASE_SERVICE_ACCOUNT_JSON not set — push notifications disabled. " +
+      "FIREBASE_SERVICE_ACCOUNT not set — push notifications disabled. " +
         "Set this env var on Render to enable FCM HTTP v1 pushes.",
     );
     return;
