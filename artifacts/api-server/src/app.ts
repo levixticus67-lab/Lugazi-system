@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import { startFcmWorker } from "./lib/fcm";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -69,6 +70,9 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 app.use("/api", router);
+
+// Start FCM background worker (no-op if FCM_SERVER_KEY is not set)
+startFcmWorker();
 
 // FIX: global error handler — catches any unhandled async errors from Express 5 routes
 // and returns a clean JSON response instead of hanging or crashing
