@@ -6,8 +6,9 @@ export const inAppNotificationsTable = pgTable("in_app_notifications", {
   title: text("title").notNull(),
   message: text("message").notNull(),
   isRead: boolean("is_read").notNull().default(false),
-  relatedEntityType: text("related_entity_type"), // e.g. "family_member"
+  relatedEntityType: text("related_entity_type"), // e.g. "task"
   relatedEntityId: integer("related_entity_id"),
+  fcmSentAt: timestamp("fcm_sent_at", { withTimezone: true }), // null = not yet sent via FCM push
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("in_app_notifications_user_id_idx").on(table.userId),
