@@ -3,6 +3,26 @@ import { Capacitor } from "@capacitor/core";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
+const REMINDERS_CHANNEL_ID = "dcl-reminders";
+
+async function ensureRemindersChannel() {
+  try {
+    await LocalNotifications.createChannel({
+      id: REMINDERS_CHANNEL_ID,
+      name: "DC Lugazi Reminders",
+      description: "Scheduled reminders for meetings, events, birthdays and tasks",
+      importance: 5,
+      sound: "default",
+      vibration: true,
+      lights: true,
+      lightColor: "#2563eb",
+      visibility: 1,
+    });
+  } catch {
+    // channel already exists or platform doesn't support it — safe to ignore
+  }
+}
+
 interface ScheduleItem {
   id: number;
   title: string;
@@ -41,6 +61,9 @@ export async function scheduleAllNotifications(): Promise<void> {
 
   const { display } = await LocalNotifications.requestPermissions();
   if (display !== "granted") return;
+
+  // Ensure the high-importance channel exists before scheduling
+  await ensureRemindersChannel();
 
   // Cancel all previously scheduled notifications
   const { notifications: pending } = await LocalNotifications.getPending();
@@ -145,7 +168,7 @@ export async function scheduleAllNotifications(): Promise<void> {
       schedule: { at: n.at },
       sound: "default",
       smallIcon: "ic_stat_notification",
-      channelId: "dcl-reminders",
+      channelId: REMINDERS_CHANNEL_ID,
     })),
   });
 }
