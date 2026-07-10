@@ -3,6 +3,8 @@ import { db, fcmTokensTable, inAppNotificationsTable } from "@workspace/db";
 import { eq, and, isNull, gte } from "drizzle-orm";
 import { logger } from "./logger";
 
+const PUSH_CHANNEL_ID = "dcl-push";
+
 let _messaging: admin.messaging.Messaging | null = null;
 
 function getMessaging(): admin.messaging.Messaging | null {
@@ -33,13 +35,29 @@ async function sendFcmPush(
   try {
     await messaging.send({
       token,
+      // Notification payload — shown by the OS when the app is in the background/closed
       notification: { title, body },
+      // Data payload — delivered even on aggressive battery-saver phones (Samsung/Xiaomi/Oppo)
+      // that block notification messages. The app can read these fields in the foreground handler.
+      data: { title, body, channelId: PUSH_CHANNEL_ID },
       android: {
         priority: "high",
-        notification: { sound: "default", channelId: "default" },
+        notification: {
+          sound: "default",
+          channelId: PUSH_CHANNEL_ID,
+          // Show a heads-up popup even when the screen is on
+          notificationPriority: "PRIORITY_MAX",
+          visibility: "PUBLIC",
+          defaultSound: true,
+          defaultVibrateTimings: true,
+        },
       },
       apns: {
-        payload: { aps: { sound: "default", badge: 1 } },
+        headers: {
+          // Highest priority for APNs (iOS)
+          "apns-priority": "10",
+        },
+        payload: { aps: { sound: "default", badge: 1, contentAvailable: true } },
       },
     });
   } catch (err: any) {
