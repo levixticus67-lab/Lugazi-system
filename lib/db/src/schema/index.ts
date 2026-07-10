@@ -26,3 +26,4 @@ export * from "./dutyRoster";
 export * from "./ministryTeams";
 export * from "./activityLogs";
 export * from "./inAppNotifications";
+export * from "./fcmTokens";
