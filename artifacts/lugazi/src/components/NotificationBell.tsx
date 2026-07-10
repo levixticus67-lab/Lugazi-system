@@ -112,7 +112,7 @@ export default function NotificationBell() {
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">No new notifications</p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[360px]">
+          <ScrollArea className="h-[min(360px,55vh)] overflow-y-auto">
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {notifications.map(n => (
                 <div
