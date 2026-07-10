@@ -6,8 +6,10 @@ export const inAppNotificationsTable = pgTable("in_app_notifications", {
   title: text("title").notNull(),
   message: text("message").notNull(),
   isRead: boolean("is_read").notNull().default(false),
-  relatedEntityType: text("related_entity_type"), // e.g. "task"
+  readAt: timestamp("read_at", { withTimezone: true }),        // set when marked read; notification persists 2 days after this
+  relatedEntityType: text("related_entity_type"),              // e.g. "task", "event", "meeting"
   relatedEntityId: integer("related_entity_id"),
+  eventDate: timestamp("event_date", { withTimezone: true }),  // for events/meetings: the scheduled date; notification deleted 2 days after this
   fcmSentAt: timestamp("fcm_sent_at", { withTimezone: true }), // null = not yet sent via FCM push
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
