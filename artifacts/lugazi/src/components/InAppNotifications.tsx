@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -38,8 +38,9 @@ function playChime() {
 }
 
 /**
- * Polls for unread in-app notifications, shows each one as a toast, and plays
- * a soft chime. Mount once inside AuthProvider.
+ * Polls for unread in-app notifications and shows each NEW one as a toast
+ * with a soft chime. Does NOT mark notifications as read — the bell handles
+ * that when the user opens it. Mount once inside AuthProvider.
  */
 export default function InAppNotifications() {
   const { user } = useAuth();
@@ -49,6 +50,7 @@ export default function InAppNotifications() {
   const prevUserId = useRef<number | null>(null);
   const isFirstLoad = useRef(true);
 
+  // Reset tracking state when the logged-in user changes
   useEffect(() => {
     const currentId = user?.id ?? null;
     if (prevUserId.current !== currentId) {
@@ -66,25 +68,20 @@ export default function InAppNotifications() {
     refetchIntervalInBackground: false,
   });
 
-  const markAllRead = useMutation({
-    mutationFn: () => axios.patch("/api/notifications/inbox/read-all"),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["inbox-notifications", user?.id] }),
-  });
-
   useEffect(() => {
     const unseen = notifications.filter(n => !shownIds.current.has(n.id));
     if (unseen.length === 0) return;
 
-    // On the very first load after login, silently mark existing ones read
-    // (they were already shown in previous sessions) without toasting or chiming.
     if (isFirstLoad.current) {
+      // On the very first fetch after login, silently record existing unread IDs
+      // so we don't toast stale notifications that arrived before this session.
+      // Do NOT mark them as read — they must stay visible in the bell.
       unseen.forEach(n => shownIds.current.add(n.id));
       isFirstLoad.current = false;
-      markAllRead.mutate();
       return;
     }
 
-    // New notifications arrived after the first load — toast + chime
+    // Genuinely new notifications arrived during this session — toast + chime
     playChime();
     unseen.forEach(n => {
       shownIds.current.add(n.id);
@@ -95,7 +92,8 @@ export default function InAppNotifications() {
       });
     });
 
-    markAllRead.mutate();
+    // Refresh the bell badge immediately after toasting
+    qc.invalidateQueries({ queryKey: ["inbox-notifications", user?.id] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications]);
 
