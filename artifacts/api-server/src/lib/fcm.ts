@@ -26,26 +26,26 @@ function getMessaging(): admin.messaging.Messaging | null {
   }
 }
 
+/**
+ * Sends one FCM push.
+ * Returns true if the token is permanently dead and should be deleted from the DB.
+ */
 async function sendFcmPush(
   token: string,
   title: string,
   body: string,
   messaging: admin.messaging.Messaging,
-): Promise<void> {
+): Promise<boolean> {
   try {
     await messaging.send({
       token,
-      // Notification payload — shown by the OS when the app is in the background/closed
       notification: { title, body },
-      // Data payload — delivered even on aggressive battery-saver phones (Samsung/Xiaomi/Oppo)
-      // that block notification messages. The app can read these fields in the foreground handler.
       data: { title, body, channelId: PUSH_CHANNEL_ID },
       android: {
         priority: "high",
         notification: {
           sound: "default",
           channelId: PUSH_CHANNEL_ID,
-          // Show a heads-up popup even when the screen is on
           notificationPriority: "PRIORITY_MAX",
           visibility: "PUBLIC",
           defaultSound: true,
@@ -53,23 +53,22 @@ async function sendFcmPush(
         },
       },
       apns: {
-        headers: {
-          // Highest priority for APNs (iOS)
-          "apns-priority": "10",
-        },
+        headers: { "apns-priority": "10" },
         payload: { aps: { sound: "default", badge: 1, contentAvailable: true } },
       },
     });
+    return false;
   } catch (err: any) {
     const code: string = err?.errorInfo?.code ?? err?.code ?? "";
     if (
       code === "messaging/invalid-registration-token" ||
       code === "messaging/registration-token-not-registered"
     ) {
-      logger.warn({ token: token.slice(0, 12) }, "FCM token stale/invalid — consider pruning");
-    } else {
-      logger.warn({ code, token: token.slice(0, 12) }, "FCM push failed");
+      // Token is permanently dead — signal the caller to remove it
+      return true;
     }
+    logger.warn({ code, token: token.slice(0, 12) }, "FCM push failed");
+    return false;
   }
 }
 
@@ -101,7 +100,14 @@ async function tick(messaging: admin.messaging.Messaging): Promise<void> {
         .where(eq(fcmTokensTable.userId, notif.userId));
 
       for (const { token } of tokens) {
-        await sendFcmPush(token, notif.title, notif.message, messaging);
+        const isStale = await sendFcmPush(token, notif.title, notif.message, messaging);
+        if (isStale) {
+          // Permanently delete the dead token so it never wastes a send again
+          await db
+            .delete(fcmTokensTable)
+            .where(eq(fcmTokensTable.token, token));
+          logger.info({ token: token.slice(0, 12) }, "FCM: deleted stale token from DB");
+        }
       }
     }
   } catch (err) {
@@ -114,7 +120,6 @@ async function tick(messaging: admin.messaging.Messaging): Promise<void> {
  *
  * Required env var: FIREBASE_SERVICE_ACCOUNT
  *   → Paste the full contents of your Firebase service account JSON key file.
- *   → The service account needs the "Firebase Cloud Messaging API (V1)" permission.
  *   → Generate one at: Firebase Console → Project Settings → Service Accounts →
  *     "Generate new private key"
  *
