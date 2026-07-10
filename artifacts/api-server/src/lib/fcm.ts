@@ -1,49 +1,77 @@
+import admin from "firebase-admin";
 import { db, fcmTokensTable, inAppNotificationsTable } from "@workspace/db";
 import { eq, and, isNull, gte } from "drizzle-orm";
 import { logger } from "./logger";
+
+let _messaging: admin.messaging.Messaging | null = null;
+
+function getMessaging(): admin.messaging.Messaging | null {
+  if (_messaging) return _messaging;
+
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+
+  try {
+    const serviceAccount = JSON.parse(raw) as admin.ServiceAccount;
+    if (!admin.apps.length) {
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    }
+    _messaging = admin.messaging();
+    return _messaging;
+  } catch (err) {
+    logger.error(err, "firebase-admin: failed to initialise — check FIREBASE_SERVICE_ACCOUNT_JSON");
+    return null;
+  }
+}
 
 async function sendFcmPush(
   token: string,
   title: string,
   body: string,
-  serverKey: string,
+  messaging: admin.messaging.Messaging,
 ): Promise<void> {
   try {
-    const res = await fetch("https://fcm.googleapis.com/fcm/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "key=" + serverKey,
-      },
-      body: JSON.stringify({
-        to: token,
-        notification: { title, body, sound: "default", badge: 1 },
+    await messaging.send({
+      token,
+      notification: { title, body },
+      android: {
         priority: "high",
-        data: { title, body },
-      }),
+        notification: { sound: "default", channelId: "default" },
+      },
+      apns: {
+        payload: { aps: { sound: "default", badge: 1 } },
+      },
     });
-    if (!res.ok) {
-      logger.warn({ status: res.status, token: token.slice(0, 12) }, "FCM push failed");
+  } catch (err: any) {
+    const code: string = err?.errorInfo?.code ?? err?.code ?? "";
+    if (
+      code === "messaging/invalid-registration-token" ||
+      code === "messaging/registration-token-not-registered"
+    ) {
+      logger.warn({ token: token.slice(0, 12) }, "FCM token stale/invalid — consider pruning");
+    } else {
+      logger.warn({ code, token: token.slice(0, 12) }, "FCM push failed");
     }
-  } catch (err) {
-    logger.warn(err, "FCM push network error");
   }
 }
 
-async function tick(serverKey: string): Promise<void> {
+async function tick(messaging: admin.messaging.Messaging): Promise<void> {
   try {
-    // Only look at notifications from the last 10 minutes that haven't been FCM-sent yet
     const cutoff = new Date(Date.now() - 10 * 60 * 1000);
     const pending = await db
       .select()
       .from(inAppNotificationsTable)
-      .where(and(isNull(inAppNotificationsTable.fcmSentAt), gte(inAppNotificationsTable.createdAt, cutoff)))
+      .where(
+        and(
+          isNull(inAppNotificationsTable.fcmSentAt),
+          gte(inAppNotificationsTable.createdAt, cutoff),
+        ),
+      )
       .limit(50);
 
     if (pending.length === 0) return;
 
     for (const notif of pending) {
-      // Mark sent first to avoid duplicate pushes if the worker overlaps
       await db
         .update(inAppNotificationsTable)
         .set({ fcmSentAt: new Date() })
@@ -55,7 +83,7 @@ async function tick(serverKey: string): Promise<void> {
         .where(eq(fcmTokensTable.userId, notif.userId));
 
       for (const { token } of tokens) {
-        await sendFcmPush(token, notif.title, notif.message, serverKey);
+        await sendFcmPush(token, notif.title, notif.message, messaging);
       }
     }
   } catch (err) {
@@ -64,16 +92,26 @@ async function tick(serverKey: string): Promise<void> {
 }
 
 /**
- * Starts the FCM background worker. Does nothing if FCM_SERVER_KEY is not set,
- * so the app works fine in development or before Firebase is configured.
+ * Starts the FCM background worker using the Firebase Admin SDK (FCM HTTP v1 API).
+ *
+ * Required env var: FIREBASE_SERVICE_ACCOUNT_JSON
+ *   → Paste the full contents of your Firebase service account JSON key file.
+ *   → The service account needs the "Firebase Cloud Messaging API (V1)" permission.
+ *   → Generate one at: Firebase Console → Project Settings → Service Accounts →
+ *     "Generate new private key"
+ *
+ * Does nothing if the env var is missing, so the server works fine in dev.
  */
 export function startFcmWorker(): void {
-  const serverKey = process.env.FCM_SERVER_KEY;
-  if (!serverKey) {
-    logger.info("FCM_SERVER_KEY not set — push notifications disabled");
+  const messaging = getMessaging();
+  if (!messaging) {
+    logger.info(
+      "FIREBASE_SERVICE_ACCOUNT_JSON not set — push notifications disabled. " +
+        "Set this env var on Render to enable FCM HTTP v1 pushes.",
+    );
     return;
   }
-  logger.info("FCM background worker started (30s interval)");
-  tick(serverKey);
-  setInterval(() => tick(serverKey), 30_000);
+  logger.info("FCM worker started — HTTP v1 API via firebase-admin (30 s interval)");
+  void tick(messaging);
+  setInterval(() => void tick(messaging), 30_000);
 }
