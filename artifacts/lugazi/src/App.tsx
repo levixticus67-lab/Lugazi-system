@@ -7,6 +7,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
 import InAppNotifications from "@/components/InAppNotifications";
+import PushNotifications from "@/components/PushNotifications";
 const Terms = lazy(() => import("@/pages/Terms"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
@@ -358,6 +359,7 @@ import axios from "@/lib/axios";
           <AuthProvider>
             <DeepLinkHandler />
             <InAppNotifications />
+            <PushNotifications />
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Suspense fallback={<PageLoadingFallback />}>
                 <Router />
