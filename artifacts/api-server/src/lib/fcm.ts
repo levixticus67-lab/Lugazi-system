@@ -50,6 +50,7 @@ async function sendFcmPush(
           visibility: "PUBLIC",
           defaultSound: true,
           defaultVibrateTimings: true,
+          icon: "ic_launcher",
         },
       },
       apns: {
