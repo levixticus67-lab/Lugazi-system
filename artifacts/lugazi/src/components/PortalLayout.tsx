@@ -7,6 +7,7 @@ import { LogOut, Menu, X, ChevronDown, Shield, Sun, Moon } from "lucide-react";
 import { pastorNavItems } from "@/pages/pastor/navItems";
 import { Capacitor } from "@capacitor/core";
 import NotificationBell from "./NotificationBell";
+import UpdateChecker from "./UpdateChecker";
 
 export interface NavItem {
   label: string;
@@ -156,6 +157,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-background" data-testid="portal-layout">
+      <UpdateChecker />
 
       {/* ── Scrim for mobile browser slide-in sidebar ── */}
       {!isNative && mobileNavOpen && (
