@@ -1,0 +1,35 @@
+name: Trigger Codemagic Android Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/lugazi/**'
+      - 'artifacts/api-server/**'
+      - 'lib/**'
+      - 'codemagic.yaml'
+
+jobs:
+  trigger:
+    name: Start Codemagic build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger build via Codemagic API
+        run: |
+          RESPONSE=$(curl -sf -w '\n%{http_code}' \
+            -H 'Authorization: Bearer ${{ secrets.CODEMAGIC_API_TOKEN }}' \
+            -H 'Content-Type: application/json' \
+            --data '{
+              "appId": "${{ secrets.CODEMAGIC_APP_ID }}",
+              "workflowId": "android-capacitor-build",
+              "branch": "main"
+            }' \
+            https://api.codemagic.io/builds)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Response: $BODY"
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            echo "Codemagic trigger failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Codemagic build started successfully"
