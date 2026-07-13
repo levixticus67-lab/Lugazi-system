@@ -64,5 +64,39 @@ workflows:
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon
 
+      - name: Publish to GitHub Releases
+        script: |
+          if [ -n "$GH_RELEASE_TOKEN" ]; then
+            APK=$(find artifacts/lugazi/android/app/build/outputs/apk/debug -name '*.apk' | head -1)
+            REPO="levixticus67-lab/Lugazi-system"
+            TAG="latest-build"
+            # Remove any existing release + tag so we always have a fresh "latest-build"
+            RELEASE_ID=$(curl -sf -H "Authorization: token $GH_RELEASE_TOKEN" \
+              "https://api.github.com/repos/$REPO/releases/tags/$TAG" | \
+              python3 -c "import sys,json; r=json.load(sys.stdin); print(r.get('id',''))" 2>/dev/null || true)
+            if [ -n "$RELEASE_ID" ]; then
+              curl -s -X DELETE -H "Authorization: token $GH_RELEASE_TOKEN" \
+                "https://api.github.com/repos/$REPO/releases/$RELEASE_ID"
+            fi
+            curl -s -X DELETE -H "Authorization: token $GH_RELEASE_TOKEN" \
+              "https://api.github.com/repos/$REPO/git/refs/tags/$TAG" || true
+            # Create a fresh release
+            UPLOAD_URL=$(curl -s -X POST \
+              -H "Authorization: token $GH_RELEASE_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/$REPO/releases" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"DC Lugazi Android App\",\"body\":\"Latest build — $(date +%Y-%m-%d)\",\"draft\":false,\"prerelease\":false}" | \
+              python3 -c "import sys,json; r=json.load(sys.stdin); print(r['upload_url'].split('{')[0])")
+            # Upload as DCLugazi.apk (stable filename the banner links to)
+            curl -s -X POST \
+              -H "Authorization: token $GH_RELEASE_TOKEN" \
+              -H "Content-Type: application/vnd.android.package-archive" \
+              "${UPLOAD_URL}?name=DCLugazi.apk" \
+              --data-binary @"$APK"
+            echo "Published: https://github.com/$REPO/releases/download/$TAG/DCLugazi.apk"
+          else
+            echo "GH_RELEASE_TOKEN not set — skipping GitHub Release publish"
+          fi
+
     artifacts:
       - artifacts/lugazi/android/app/build/outputs/apk/debug/*.apk

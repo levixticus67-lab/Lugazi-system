@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Download, RefreshCw, Share } from 'lucide-react';
+import { X, Download, RefreshCw, Share, Smartphone } from 'lucide-react';
+
+const APK_URL = 'https://github.com/levixticus67-lab/Lugazi-system/releases/download/latest-build/DCLugazi.apk';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -35,9 +37,14 @@ function isIosSafari() {
   return isIOS && isWebkit;
 }
 
+function isAndroidBrowser() {
+  return /android/i.test(window.navigator.userAgent);
+}
+
 export function PwaInstallBanner() {
   const [visible, setVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installing, setInstalling] = useState(false);
 
@@ -45,15 +52,23 @@ export function PwaInstallBanner() {
     if (isStandaloneMode() || isDismissed()) return;
 
     const ios = isIosSafari();
+    const android = isAndroidBrowser();
     setIsIOS(ios);
+    setIsAndroid(android);
 
     if (ios) {
       const timer = setTimeout(() => setVisible(true), 3000);
       return () => clearTimeout(timer);
     }
 
+    if (android) {
+      // Show banner on Android for native app download — browser handles PWA prompt on its own
+      const timer = setTimeout(() => setVisible(true), 3000);
+      return () => clearTimeout(timer);
+    }
+
+    // Desktop: capture prompt but don't block it — browser shows its own popup too
     const handler = (e: Event) => {
-      e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       const timer = setTimeout(() => setVisible(true), 3000);
       return () => clearTimeout(timer);
@@ -103,6 +118,8 @@ export function PwaInstallBanner() {
               <p className="text-xs text-muted-foreground leading-snug mt-0.5">
                 {isIOS
                   ? 'Add to your Home Screen for the best experience'
+                  : isAndroid
+                  ? 'Get the full experience with push notifications'
                   : 'Install the app for quick access, even offline'}
               </p>
             </div>
@@ -150,8 +167,27 @@ export function PwaInstallBanner() {
                 Not now
               </button>
             </div>
+          ) : isAndroid ? (
+            /* Android: native app download */
+            <div className="flex items-center gap-2 px-4 pb-4">
+              <button
+                onClick={handleDismiss}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Not now
+              </button>
+              <a
+                href={APK_URL}
+                onClick={handleDismiss}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity"
+                style={{ backgroundColor: '#6D1F3C' }}
+              >
+                <Smartphone className="w-4 h-4" />
+                Download App
+              </a>
+            </div>
           ) : (
-            /* Android / Chrome install button */
+            /* Desktop / Chrome: PWA install */
             <div className="flex items-center gap-2 px-4 pb-4">
               <button
                 onClick={handleDismiss}
