@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Download, RefreshCw, Share, Smartphone } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 const APK_URL = 'https://github.com/levixticus67-lab/Lugazi-system/releases/download/latest-build/DCLugazi.apk';
 
@@ -49,6 +50,8 @@ export function PwaInstallBanner() {
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
+    // Never show the install banner inside the native app
+    if (Capacitor.isNativePlatform()) return;
     if (isStandaloneMode() || isDismissed()) return;
 
     const ios = isIosSafari();
@@ -216,6 +219,8 @@ export function PwaUpdateBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // Native app handles its own updates via UpdateChecker — skip here
+    if (Capacitor.isNativePlatform()) return;
     if (!('serviceWorker' in navigator)) return;
 
     // Capture BEFORE the event fires — if there was no existing controller
