@@ -5,6 +5,22 @@ import { Download, X } from "lucide-react";
 const APK_URL =
   "https://github.com/levixticus67-lab/Lugazi-system/releases/download/latest-build/DCLugazi.apk";
 const BUILD_DATE = import.meta.env.VITE_BUILD_DATE as string | undefined;
+// Use the same base URL axios uses — relative URLs resolve to capacitor://localhost in native
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+
+const CHECK_INTERVAL_MS = 30 * 60 * 1000; // check every 30 minutes
+
+async function checkForUpdate(): Promise<boolean> {
+  if (!BUILD_DATE) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/version`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.version ? new Date(data.version) > new Date(BUILD_DATE) : false;
+  } catch {
+    return false;
+  }
+}
 
 export default function UpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -14,14 +30,19 @@ export default function UpdateChecker() {
     if (!Capacitor.isNativePlatform()) return;
     if (!BUILD_DATE) return;
 
-    fetch("/api/version")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.version && new Date(data.version) > new Date(BUILD_DATE)) {
-          setUpdateAvailable(true);
-        }
-      })
-      .catch(() => {});
+    // Check immediately on mount
+    checkForUpdate().then((available) => {
+      if (available) setUpdateAvailable(true);
+    });
+
+    // Then keep polling every 30 minutes while the app is open
+    const interval = setInterval(() => {
+      checkForUpdate().then((available) => {
+        if (available) setUpdateAvailable(true);
+      });
+    }, CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
   }, []);
 
   if (!updateAvailable || dismissed) return null;
