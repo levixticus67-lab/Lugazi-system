@@ -13,6 +13,10 @@ export const usersTable = pgTable("users", {
   birthday: text("birthday"),
   branchId: integer("branch_id"),
   isActive: boolean("is_active").notNull().default(true),
+  // Password reset — stored in DB so tokens survive server restarts and
+  // work correctly across multiple server instances
+  passwordResetToken: text("password_reset_token"),
+  passwordResetTokenExpiry: timestamp("password_reset_token_expiry", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
