@@ -6,6 +6,8 @@ import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
+const REJECTION_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 // Admin: list all role requests
 router.get("/role-requests", requireAuth, requireRole(["admin"]), async (_req, res): Promise<void> => {
   const requests = await db.select({
@@ -32,8 +34,31 @@ router.post("/role-requests", requireAuth, async (req: AuthRequest, res): Promis
   if (!requestedRole) { res.status(400).json({ error: "Requested role is required" }); return; }
   const validRoles = ["leadership", "workforce", "member"];
   if (!validRoles.includes(requestedRole)) { res.status(400).json({ error: "Invalid role requested" }); return; }
-  const existing = await db.select().from(roleRequestsTable).where(eq(roleRequestsTable.userId, req.userId!)).limit(1);
-  if (existing.find(r => r.status === "pending")) { res.status(400).json({ error: "You already have a pending upgrade request" }); return; }
+
+  // Fetch all existing requests for this user (no limit — need to check all statuses)
+  const existing = await db.select().from(roleRequestsTable)
+    .where(eq(roleRequestsTable.userId, req.userId!))
+    .orderBy(desc(roleRequestsTable.createdAt));
+
+  if (existing.find(r => r.status === "pending")) {
+    res.status(400).json({ error: "You already have a pending upgrade request" });
+    return;
+  }
+
+  // Fix: enforce 24-hour cooldown after a rejection to prevent spam resubmission
+  const recentRejection = existing.find(r =>
+    r.status === "rejected" &&
+    r.reviewedAt &&
+    (Date.now() - new Date(r.reviewedAt).getTime()) < REJECTION_COOLDOWN_MS
+  );
+  if (recentRejection) {
+    const availableAt = new Date(new Date(recentRejection.reviewedAt!).getTime() + REJECTION_COOLDOWN_MS);
+    res.status(429).json({
+      error: `Your previous request was recently reviewed. Please wait 24 hours before reapplying. You can try again after ${availableAt.toLocaleString("en-UG", { dateStyle: "medium", timeStyle: "short" })}.`,
+    });
+    return;
+  }
+
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   const [created] = await db.insert(roleRequestsTable).values({
     userId: req.userId!,
@@ -71,7 +96,6 @@ router.patch("/role-requests/:id/approve", requireAuth, requireRole(["admin"]), 
   await db.update(membersTable).set({ role: request.requestedRole }).where(eq(membersTable.userId, request.userId));
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, request.userId)).limit(1);
   const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, (req as AuthRequest).userId!)).limit(1);
-  // Notify the requester
   await db.insert(inAppNotificationsTable).values({
     userId: request.userId,
     title: "Role request approved",
@@ -93,7 +117,6 @@ router.patch("/role-requests/:id/reject", requireAuth, requireRole(["admin"]), a
   if (!updated) { res.status(404).json({ error: "Request not found" }); return; }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, updated.userId)).limit(1);
   const [rejectActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, (req as AuthRequest).userId!)).limit(1);
-  // Notify the requester
   const noteText = adminNote ? " Note: " + adminNote : "";
   await db.insert(inAppNotificationsTable).values({
     userId: updated.userId,
