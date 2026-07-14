@@ -36,9 +36,10 @@ router.patch("/users/:id", requireAuth, async (req: AuthRequest, res): Promise<v
   if (target.role === "admin" && req.userRole !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
   const { displayName, photoUrl, phone, birthday, branchId, isActive } = req.body;
   const updateData: Record<string, unknown> = {};
-  if (displayName !== undefined) updateData.displayName = displayName;
-  if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
-  if (phone !== undefined) updateData.phone = phone;
+  // Sanitise string fields — trim and cap length to prevent oversized payloads
+  if (displayName !== undefined) updateData.displayName = String(displayName).trim().slice(0, 100);
+  if (photoUrl !== undefined) updateData.photoUrl = String(photoUrl).slice(0, 500);
+  if (phone !== undefined) updateData.phone = String(phone).trim().slice(0, 30);
   if (birthday !== undefined) updateData.birthday = birthday;
   if (branchId !== undefined && req.userRole === "admin") updateData.branchId = branchId;
   if (isActive !== undefined && req.userRole === "admin") updateData.isActive = isActive;
@@ -89,7 +90,6 @@ router.patch("/users/:id/role", requireAuth, requireRole(["admin"]), async (req:
   await db.update(membersTable).set({ role }).where(eq(membersTable.userId, id));
   const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   const adminName = adminActor?.displayName ?? "An administrator";
-  // Notify the affected user
   await db.insert(inAppNotificationsTable).values({
     userId: id,
     title: "Your role has been updated",
@@ -107,7 +107,8 @@ router.patch("/users/:id/role", requireAuth, requireRole(["admin"]), async (req:
   res.json({ id: updated.id, email: updated.email, displayName: updated.displayName, role: updated.role, photoUrl: updated.photoUrl, branchId: updated.branchId, phone: updated.phone, isActive: updated.isActive, createdAt: updated.createdAt.toISOString() });
 });
 
-// POST /users/:id/reset-password — admin only; cannot reset another admin's password
+// POST /users/:id/reset-password — admin only
+// Fix: temp password is now random alphanumeric (no predictable prefix/format)
 router.post("/users/:id/reset-password", requireAuth, requireRole(["admin"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -116,8 +117,9 @@ router.post("/users/:id/reset-password", requireAuth, requireRole(["admin"]), as
     .from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   if (user.role === "admin" && id !== req.userId) { res.status(403).json({ error: "Admin passwords can only be reset by the account owner" }); return; }
-  const digits = Math.floor(100000 + Math.random() * 900000).toString();
-  const tempPassword = "DCL" + digits;
+  // Random 10-char alphanumeric — excludes visually ambiguous chars (0/O, 1/I/l)
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const tempPassword = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
   const hash = await bcrypt.hash(tempPassword, 12);
   await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.id, id));
   const [adminActor] = await db.select({ displayName: usersTable.displayName })
