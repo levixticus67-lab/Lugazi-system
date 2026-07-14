@@ -4,19 +4,25 @@ import { Download, X } from "lucide-react";
 
 const APK_URL =
   "https://github.com/levixticus67-lab/Lugazi-system/releases/download/latest-build/DCLugazi.apk";
-const BUILD_DATE = import.meta.env.VITE_BUILD_DATE as string | undefined;
+
 // Use the same base URL axios uses — relative URLs resolve to capacitor://localhost in native
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
-const CHECK_INTERVAL_MS = 30 * 60 * 1000; // check every 30 minutes
+// Codemagic injects VITE_BUILD_NUMBER=$CM_BUILD_NUMBER into artifacts/lugazi/.env at build time.
+// 0 means the app was not built via Codemagic (dev / local build) → skip update checks.
+const BUILD_NUMBER = parseInt((import.meta.env.VITE_BUILD_NUMBER as string | undefined) ?? "0", 10);
+
+const CHECK_INTERVAL_MS = 30 * 60 * 1000; // re-check every 30 minutes while app is open
 
 async function checkForUpdate(): Promise<boolean> {
-  if (!BUILD_DATE) return false;
+  // No build number baked in → this is a local/dev build, skip silently
+  if (!BUILD_NUMBER) return false;
   try {
     const res = await fetch(`${API_BASE}/api/version`);
     if (!res.ok) return false;
-    const data = await res.json();
-    return data.version ? new Date(data.version) > new Date(BUILD_DATE) : false;
+    const data = await res.json() as { buildNumber?: number };
+    // Show banner only when the server reports a strictly newer build number
+    return typeof data.buildNumber === "number" && data.buildNumber > BUILD_NUMBER;
   } catch {
     return false;
   }
@@ -28,14 +34,14 @@ export default function UpdateChecker() {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    if (!BUILD_DATE) return;
+    if (!BUILD_NUMBER) return; // dev build — nothing to check
 
     // Check immediately on mount
     checkForUpdate().then((available) => {
       if (available) setUpdateAvailable(true);
     });
 
-    // Then keep polling every 30 minutes while the app is open
+    // Keep polling every 30 minutes while the app stays open
     const interval = setInterval(() => {
       checkForUpdate().then((available) => {
         if (available) setUpdateAvailable(true);
