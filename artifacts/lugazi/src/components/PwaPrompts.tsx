@@ -1,14 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Download, RefreshCw, Share, Smartphone } from 'lucide-react';
+import { X, Smartphone, Share } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { QRCodeSVG } from 'qrcode.react';
 
 const APK_URL = 'https://github.com/levixticus67-lab/Lugazi-system/releases/download/latest-build/DCLugazi.apk';
-
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-  prompt(): Promise<void>;
-}
 
 const DISMISSED_KEY = 'pwa_install_dismissed_until';
 const DISMISS_DAYS = 4;
@@ -42,15 +37,17 @@ function isAndroidBrowser() {
   return /android/i.test(window.navigator.userAgent);
 }
 
+function isMobile() {
+  return isIosSafari() || isAndroidBrowser();
+}
+
 export function PwaInstallBanner() {
   const [visible, setVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
-    // Never show the install banner inside the native app
+    // Never show inside the native app
     if (Capacitor.isNativePlatform()) return;
     if (isStandaloneMode() || isDismissed()) return;
 
@@ -59,40 +56,10 @@ export function PwaInstallBanner() {
     setIsIOS(ios);
     setIsAndroid(android);
 
-    if (ios) {
-      const timer = setTimeout(() => setVisible(true), 3000);
-      return () => clearTimeout(timer);
-    }
-
-    if (android) {
-      // Show banner on Android for native app download — browser handles PWA prompt on its own
-      const timer = setTimeout(() => setVisible(true), 3000);
-      return () => clearTimeout(timer);
-    }
-
-    // Desktop: capture prompt but don't block it — browser shows its own popup too
-    const handler = (e: Event) => {
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      const timer = setTimeout(() => setVisible(true), 3000);
-      return () => clearTimeout(timer);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    // Show on mobile (iOS / Android) and desktop alike — after a short delay
+    const timer = setTimeout(() => setVisible(true), 3000);
+    return () => clearTimeout(timer);
   }, []);
-
-  const handleInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-    setInstalling(true);
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    setInstalling(false);
-    if (outcome === 'accepted') {
-      setVisible(false);
-    } else {
-      dismiss();
-      setVisible(false);
-    }
-  }, [deferredPrompt]);
 
   const handleDismiss = useCallback(() => {
     dismiss();
@@ -109,9 +76,10 @@ export function PwaInstallBanner() {
     >
       <div className="mx-auto max-w-lg">
         <div className="m-3 rounded-2xl shadow-2xl border border-border/60 bg-card overflow-hidden">
-          {/* Top bar */}
+          {/* Top bar — identical on all platforms */}
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-            <img loading="lazy"
+            <img
+              loading="lazy"
               src="/icons/icon-96x96.png"
               alt="DC Lugazi"
               className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0"
@@ -123,7 +91,7 @@ export function PwaInstallBanner() {
                   ? 'Add to your Home Screen for the best experience'
                   : isAndroid
                   ? 'Get the full experience with push notifications'
-                  : 'Install the app for quick access, even offline'}
+                  : 'Scan with your phone camera to download the app'}
               </p>
             </div>
             <button
@@ -136,7 +104,7 @@ export function PwaInstallBanner() {
           </div>
 
           {isIOS ? (
-            /* iOS step-by-step guide */
+            /* ── iOS: step-by-step home screen guide ── */
             <div className="px-4 pb-4">
               <div className="rounded-xl bg-muted/60 p-3 space-y-2.5">
                 <div className="flex items-start gap-2.5">
@@ -152,8 +120,7 @@ export function PwaInstallBanner() {
                 <div className="flex items-start gap-2.5">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#6D1F3C] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">2</span>
                   <p className="text-xs text-foreground">
-                    Scroll down and tap{' '}
-                    <span className="font-medium">"Add to Home Screen"</span>
+                    Scroll down and tap <span className="font-medium">"Add to Home Screen"</span>
                   </p>
                 </div>
                 <div className="flex items-start gap-2.5">
@@ -171,7 +138,7 @@ export function PwaInstallBanner() {
               </button>
             </div>
           ) : isAndroid ? (
-            /* Android: native app download */
+            /* ── Android browser: download APK ── */
             <div className="flex items-center gap-2 px-4 pb-4">
               <button
                 onClick={handleDismiss}
@@ -190,22 +157,42 @@ export function PwaInstallBanner() {
               </a>
             </div>
           ) : (
-            /* Desktop / Chrome: PWA install */
-            <div className="flex items-center gap-2 px-4 pb-4">
+            /* ── Desktop: QR code pointing to APK download ── */
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-4">
+                {/* QR code */}
+                <div className="flex-shrink-0 p-2 bg-white rounded-xl border border-border/40 shadow-sm">
+                  <QRCodeSVG
+                    value={APK_URL}
+                    size={104}
+                    bgColor="#ffffff"
+                    fgColor="#1e293b"
+                    level="M"
+                    imageSettings={{
+                      src: '/icons/icon-96x96.png',
+                      x: undefined,
+                      y: undefined,
+                      height: 20,
+                      width: 20,
+                      excavate: true,
+                    }}
+                  />
+                </div>
+                {/* Instructions */}
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <p className="text-xs text-foreground font-medium leading-snug">
+                    Point your phone camera at the QR code
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Opens the download page for the Android app — free, no Play Store needed.
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={handleDismiss}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Not now
-              </button>
-              <button
-                onClick={handleInstall}
-                disabled={installing}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity disabled:opacity-70"
-                style={{ backgroundColor: '#6D1F3C' }}
-              >
-                <Download className="w-4 h-4" />
-                {installing ? 'Installing…' : 'Install'}
               </button>
             </div>
           )}
@@ -223,12 +210,10 @@ export function PwaUpdateBanner() {
     if (Capacitor.isNativePlatform()) return;
     if (!('serviceWorker' in navigator)) return;
 
-    // Capture BEFORE the event fires — if there was no existing controller
-    // this is a first-time SW install, not an update. Don't show the banner.
     const hadController = Boolean(navigator.serviceWorker.controller);
 
     const handleControllerChange = () => {
-      if (!hadController) return; // first install — skip
+      if (!hadController) return;
       setVisible(true);
     };
 
@@ -245,7 +230,7 @@ export function PwaUpdateBanner() {
           className="rounded-xl shadow-lg border border-white/20 px-4 py-3 flex items-center gap-3"
           style={{ backgroundColor: '#6D1F3C' }}
         >
-          <RefreshCw className="w-4 h-4 text-white flex-shrink-0" />
+          <div className="w-4 h-4 text-white flex-shrink-0 animate-spin" style={{ borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
           <p className="flex-1 text-sm text-white font-medium">
             A new version of DC Lugazi is ready
           </p>
