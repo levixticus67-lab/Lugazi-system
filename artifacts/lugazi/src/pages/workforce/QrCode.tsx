@@ -1,31 +1,30 @@
-import { useGetMemberQr } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { workforceNavItems } from "./navItems";
 import { useState, useEffect } from "react";
-import { useListMembers } from "@workspace/api-client-react";
+import axios from "@/lib/axios";
 
-type Member = { id: number; userId?: number | null; fullName: string };
+interface QrData { qrToken: string; memberId: number; memberName: string }
 
 export default function WorkforceQrCode() {
   const { user } = useAuth();
   const [QRComponent, setQRComponent] = useState<any>(null);
-  const [memberId, setMemberId] = useState<number | null>(null);
+  const [qrData, setQrData] = useState<QrData | null>(null);
+  const [notLinked, setNotLinked] = useState(false);
 
   useEffect(() => {
     import("qrcode.react").then(mod => setQRComponent(() => mod.QRCodeSVG));
   }, []);
 
-  const { data: members = [] } = useListMembers();
   useEffect(() => {
-    const myMember = (members as Member[]).find(m => m.userId === user?.id);
-    if (myMember) setMemberId(myMember.id);
-  }, [members, user?.id]);
-
-  const { data: qrData } = useGetMemberQr(memberId ?? 0, {
-    query: { enabled: !!memberId && memberId > 0, queryKey: ["memberQr", memberId] }
-  });
+    if (!user) return;
+    axios.get<QrData>("/api/members/me/qr")
+      .then(res => setQrData(res.data))
+      .catch(err => {
+        if (err?.response?.status === 404) setNotLinked(true);
+      });
+  }, [user]);
 
   return (
     <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
@@ -52,7 +51,7 @@ export default function WorkforceQrCode() {
               </p>
             </div>
           </>
-        ) : memberId === null ? (
+        ) : notLinked ? (
           <div className="text-center text-muted-foreground py-8">
             <p>No member profile found for your account.</p>
             <p className="text-sm mt-1">Contact your administrator to link your member record.</p>
