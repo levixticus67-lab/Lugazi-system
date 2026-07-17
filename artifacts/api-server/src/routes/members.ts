@@ -55,6 +55,22 @@ router.post("/members", requireAuth, requireRole(["admin", "pastor", "leadership
   res.status(201).json({ ...member, createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() });
 });
 
+// GET /members/me/qr — returns the QR code for the currently authenticated user's own member record.
+// No role restriction — any authenticated user can retrieve their own QR.
+// MUST be declared before /members/:id routes so Express doesn't treat "me" as an ID.
+router.get("/members/me/qr", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const [member] = await db
+    .select()
+    .from(membersTable)
+    .where(eq(membersTable.userId, req.userId!))
+    .limit(1);
+  if (!member) {
+    res.status(404).json({ error: "No member profile linked to your account. Contact your administrator." });
+    return;
+  }
+  res.json({ qrToken: member.qrToken, memberId: member.id, memberName: member.fullName });
+});
+
 // GET /members/:id — admins are invisible to non-admin callers
 router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
