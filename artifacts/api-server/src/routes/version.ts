@@ -18,29 +18,31 @@ function parseBuildNumber(name: string): number {
 
 function fetchLatestRelease(): Promise<GithubRelease> {
   return new Promise((resolve, reject) => {
-    https
-      .get(
-        {
-          hostname: "api.github.com",
-          path: "/repos/levixticus67-lab/Lugazi-system/releases/tags/latest-build",
-          headers: {
-            "User-Agent": "dcl-lugazi-server",
-            Accept: "application/vnd.github.v3+json",
-          },
+    const req = https.get(
+      {
+        hostname: "api.github.com",
+        path: "/repos/levixticus67-lab/Lugazi-system/releases/tags/latest-build",
+        headers: {
+          "User-Agent": "dcl-lugazi-server",
+          Accept: "application/vnd.github.v3+json",
         },
-        (res) => {
-          let data = "";
-          res.on("data", (chunk) => (data += chunk));
-          res.on("end", () => {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              reject(e);
-            }
-          });
-        }
-      )
-      .on("error", reject);
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.setTimeout(8000, () => {
+      req.destroy(new Error("GitHub release fetch timed out after 8s"));
+    });
+    req.on("error", reject);
   });
 }
 
