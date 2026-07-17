@@ -30,17 +30,18 @@ function getTokenExpiryMs(token: string): number | null {
 // Refresh when < 12 hours remain on the current token
 const REFRESH_THRESHOLD_MS = 12 * 60 * 60 * 1000;
 
-// ── Bearer token interceptor (native only) ────────────────────────────────────
-// HttpOnly cookies from a remote domain don't persist reliably in the Android
-// WebView's cross-origin context, so we fall back to the Authorization header
-// which the requireAuth middleware already accepts as a fallback.
+// ── Bearer token interceptor ──────────────────────────────────────────────────
+// Always attach the stored JWT as an Authorization header when available.
+// On native (Android WebView), HttpOnly cookies from a remote domain don't
+// persist reliably across requests, so the header is the primary auth mechanism.
+// On web (browser), cookies work when available; the header acts as a fallback
+// for cross-origin scenarios such as incognito mode where third-party cookies
+// are blocked.
 axios.interceptors.request.use((config) => {
-  if (Capacitor.isNativePlatform()) {
-    const token = getStoredToken();
-    if (token) {
-      config.headers = config.headers ?? {};
-      (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
-    }
+  const token = getStoredToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -110,11 +111,9 @@ axios.interceptors.response.use(
       if (newToken) {
         const config = err.config as Record<string, unknown>;
         config._retried = true;
-        if (Capacitor.isNativePlatform()) {
-          const headers = (config.headers as Record<string, string>) ?? {};
-          headers.Authorization = `Bearer ${newToken}`;
-          config.headers = headers;
-        }
+        const headers = (config.headers as Record<string, string>) ?? {};
+        headers.Authorization = `Bearer ${newToken}`;
+        config.headers = headers;
         return axios(err.config);
       }
     }
