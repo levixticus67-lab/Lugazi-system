@@ -1,13 +1,14 @@
 import {
   LayoutDashboard, Users, CalendarCheck, CalendarDays,
   Image, Heart, FileText, TrendingUp, FolderOpen, User, Mic2, HandHeart,
-  Megaphone, Home, BookOpen, HandCoins, Star, ClipboardList, CalendarRange, UsersRound, Bell, Calendar,
+  Megaphone, Home, BookOpen, HandCoins, Star, ClipboardList, CalendarRange, UsersRound, Bell, Calendar, HeartHandshake,
 } from "lucide-react";
 import type { NavItem } from "@/components/PortalLayout";
 
 export const pastorNavItems: NavItem[] = [
   { label: "Dashboard",          href: "/pastor/dashboard",       icon: <LayoutDashboard className="h-4 w-4" /> },
   { label: "My Profile",         href: "/pastor/profile",         icon: <User className="h-4 w-4" /> },
+  { label: "My Family",          href: "/pastor/family",          icon: <HeartHandshake className="h-4 w-4" /> },
   { label: "Members",            href: "/pastor/members",         icon: <Users className="h-4 w-4" /> },
   { label: "Role Requests",      href: "/pastor/role-requests",   icon: <Bell className="h-4 w-4" /> },
   { label: "Cell Fellowship",    href: "/pastor/cell-fellowship", icon: <Home className="h-4 w-4" /> },
