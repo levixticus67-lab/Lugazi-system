@@ -326,6 +326,7 @@ import axios from "@/lib/axios";
         <Route path="/workforce/ministry-teams"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceMinistryTeams /></RequireAuth></Route>
         <Route path="/workforce/welfare"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceWelfare /></RequireAuth></Route>
         <Route path="/workforce/testimonies"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceTestimonies /></RequireAuth></Route>
+        <Route path="/workforce/family"><RequireAuth roles={["admin", "workforce"]}><WorkforceFamily /></RequireAuth></Route>
 
         {/* ── Member portal — all roles ── */}
         <Route path="/member/dashboard"><RequireAuth><MemberDashboard /></RequireAuth></Route>
