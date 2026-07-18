@@ -47,6 +47,7 @@ import axios from "@/lib/axios";
   const AdminMinistryTeams = lazy(() => import("@/pages/admin/MinistryTeams"));
   const AdminDutyRoster = lazy(() => import("@/pages/admin/DutyRoster"));
   const AdminActivityLogs = lazy(() => import("@/pages/admin/ActivityLogs"));
+  const AdminFamily = lazy(() => import("@/pages/admin/Family"));
 
   // Pastor pages
   const PastorDashboard = lazy(() => import("@/pages/pastor/Dashboard"));
@@ -55,6 +56,7 @@ import axios from "@/lib/axios";
   const PastorMembers = lazy(() => import("@/pages/pastor/Members"));
   const PastorRoleRequests = lazy(() => import("@/pages/pastor/RoleRequests"));
   const PastorMeetings = lazy(() => import("@/pages/pastor/Meetings"));
+  const PastorFamily = lazy(() => import("@/pages/pastor/Family"));
 
   // Leadership pages
   const LeadershipDashboard = lazy(() => import("@/pages/leadership/Dashboard"));
@@ -76,6 +78,7 @@ import axios from "@/lib/axios";
   const LeadershipTasks = lazy(() => import("@/pages/leadership/Tasks"));
   const LeadershipDutyRoster = lazy(() => import("@/pages/leadership/DutyRoster"));
   const LeadershipMinistryTeams = lazy(() => import("@/pages/leadership/MinistryTeams"));
+  const LeadershipFamily = lazy(() => import("@/pages/leadership/Family"));
 
   // Workforce pages
   const WorkforceDashboard = lazy(() => import("@/pages/workforce/Dashboard"));
@@ -94,6 +97,7 @@ import axios from "@/lib/axios";
   const WorkforceMinistryTeams = lazy(() => import("@/pages/workforce/MinistryTeams"));
   const WorkforceWelfare = lazy(() => import("@/pages/workforce/Welfare"));
   const WorkforceTestimonies = lazy(() => import("@/pages/workforce/Testimonies"));
+  const WorkforceFamily = lazy(() => import("@/pages/workforce/Family"));
 
   // Member pages
   const MemberDashboard = lazy(() => import("@/pages/member/Dashboard"));
@@ -255,6 +259,7 @@ import axios from "@/lib/axios";
         <Route path="/admin/ministry-teams"><RequireAuth roles={["admin"]}><AdminMinistryTeams /></RequireAuth></Route>
         <Route path="/admin/duty-roster"><RequireAuth roles={["admin"]}><AdminDutyRoster /></RequireAuth></Route>
         <Route path="/admin/activity-logs"><RequireAuth roles={["admin"]}><AdminActivityLogs /></RequireAuth></Route>
+        <Route path="/admin/family"><RequireAuth roles={["admin"]}><AdminFamily /></RequireAuth></Route>
 
         {/* ── Pastor portal ── */}
         <Route path="/pastor/dashboard"><RequireAuth roles={["admin", "pastor"]}><PastorDashboard /></RequireAuth></Route>
@@ -280,6 +285,7 @@ import axios from "@/lib/axios";
         <Route path="/pastor/reports"><RequireAuth roles={["admin", "pastor"]}><PastorReports /></RequireAuth></Route>
         <Route path="/pastor/documents"><RequireAuth roles={["admin", "pastor"]}><AdminDocuments /></RequireAuth></Route>
         <Route path="/pastor/groups"><RequireAuth roles={["admin", "pastor"]}><AdminGroups /></RequireAuth></Route>
+        <Route path="/pastor/family"><RequireAuth roles={["admin", "pastor"]}><PastorFamily /></RequireAuth></Route>
 
         {/* ── Leadership portal ── */}
         <Route path="/leadership/dashboard"><RequireAuth roles={["admin", "leadership"]}><LeadershipDashboard /></RequireAuth></Route>
@@ -301,6 +307,7 @@ import axios from "@/lib/axios";
         <Route path="/leadership/qr"><RequireAuth roles={["admin", "leadership"]}><LeadershipQrCode /></RequireAuth></Route>
         <Route path="/leadership/tasks"><RequireAuth roles={["admin", "leadership"]}><LeadershipTasks /></RequireAuth></Route>
         <Route path="/leadership/duty-roster"><RequireAuth roles={["admin", "leadership"]}><LeadershipDutyRoster /></RequireAuth></Route>
+        <Route path="/leadership/family"><RequireAuth roles={["admin", "leadership"]}><LeadershipFamily /></RequireAuth></Route>
 
         {/* ── Workforce portal ── */}
         <Route path="/workforce/dashboard"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceDashboard /></RequireAuth></Route>
