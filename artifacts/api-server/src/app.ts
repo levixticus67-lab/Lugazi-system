@@ -83,7 +83,6 @@ setInterval(() => {
 
 /** Extract a rate-limit key: prefer userId from JWT, fall back to IP. */
 function extractRateLimitKey(req: Request): string {
-  // Try Authorization: Bearer <jwt>
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     try {
@@ -92,7 +91,6 @@ function extractRateLimitKey(req: Request): string {
       if (payload.userId) return `user:${payload.userId}`;
     } catch { /* fall through */ }
   }
-  // Try httpOnly cookie dcl_token
   const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
   const cookie = cookies?.dcl_token;
   if (cookie) {
@@ -115,8 +113,13 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
     return next();
   }
   if (e.count >= API_MAX) {
-    logger.warn({ key }, "API rate limit exceeded");
-    res.status(429).json({ error: "Too many requests. Please slow down and try again shortly." });
+    const retryAfterSeconds = Math.ceil((e.resetAt - now) / 1000);
+    logger.warn({ key, retryAfterSeconds }, "API rate limit exceeded");
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    res.status(429).json({
+      error: "Too many requests. Please slow down and try again shortly.",
+      retryAfter: retryAfterSeconds,
+    });
     return;
   }
   e.count++;
