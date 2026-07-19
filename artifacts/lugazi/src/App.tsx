@@ -6,6 +6,7 @@ import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wo
   import { ReactNode, useEffect, lazy, Suspense } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
+import UpdateChecker from "@/components/UpdateChecker";
 import InAppNotifications from "@/components/InAppNotifications";
 import PushNotifications from "@/components/PushNotifications";
 const Terms = lazy(() => import("@/pages/Terms"));
@@ -375,6 +376,7 @@ import axios from "@/lib/axios";
             </WouterRouter>
           </AuthProvider>
           <Toaster />
+          <UpdateChecker />
           <PwaUpdateBanner />
           <PwaInstallBanner />
         </TooltipProvider>
