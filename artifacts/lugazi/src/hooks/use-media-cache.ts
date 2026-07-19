@@ -1,10 +1,18 @@
-import { useEffect } from "react";
-import { Filesystem, Directory } from "@capacitor/filesystem";
+import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { cldFull } from "@/lib/cloudinary";
 
+// @capacitor/filesystem is loaded lazily so the web Vite bundle doesn't crash
+// if the package isn't in node_modules yet during a Firebase CI build.
+// On web, Capacitor.isNativePlatform() is false so these code-paths never run.
+let _fs: typeof import("@capacitor/filesystem") | null = null;
+async function getFs() {
+  if (_fs) return _fs;
+  _fs = await import("@capacitor/filesystem");
+  return _fs;
+}
+
 // ─── Manifest ────────────────────────────────────────────────────────────────
-// Stored in localStorage as JSON: { [mediaId]: CacheEntry }
 const MANIFEST_KEY = "dcl_media_cache_v1";
 const CACHE_DIR    = "dcl_media";
 
@@ -20,11 +28,12 @@ function saveManifest(m: Manifest) {
 }
 
 async function ensureDir() {
+  const { Filesystem, Directory } = await getFs();
   try { await Filesystem.mkdir({ path: CACHE_DIR, directory: Directory.Data, recursive: true }); }
   catch { /* already exists */ }
 }
 
-// ─── Core: get a usable URL (cached or remote) ───────────────────────────────
+// ─── Core: get a usable URL (cached → local, otherwise remote) ───────────────
 export async function getCachedMediaUrl(
   mediaId: string | number,
   remoteUrl: string,
@@ -32,6 +41,7 @@ export async function getCachedMediaUrl(
 ): Promise<string> {
   if (!Capacitor.isNativePlatform()) return remoteUrl;
 
+  const { Filesystem, Directory } = await getFs();
   const key = String(mediaId);
   const manifest = loadManifest();
   const entry = manifest[key];
@@ -41,20 +51,17 @@ export async function getCachedMediaUrl(
       const { uri } = await Filesystem.getUri({ path: entry.path, directory: Directory.Data });
       return Capacitor.convertFileSrc(uri);
     } catch {
-      // File gone from disk — purge manifest entry and re-download
       delete manifest[key];
       saveManifest(manifest);
     }
   }
 
-  // ── Download ─────────────────────────────────────────────────────────────
   onProgress?.(0);
   const res = await fetch(remoteUrl);
-  if (!res.ok) return remoteUrl;          // server error → fall back to remote
+  if (!res.ok) return remoteUrl;
   const blob = await res.blob();
   onProgress?.(55);
 
-  // Convert blob → base64 for Filesystem.writeFile
   const base64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload  = () => resolve((reader.result as string).split(",")[1]);
@@ -63,7 +70,6 @@ export async function getCachedMediaUrl(
   });
   onProgress?.(80);
 
-  // Derive file extension from URL (Cloudinary may not have one — default jpg)
   const urlPath = remoteUrl.split("?")[0];
   const ext = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] ?? "jpg";
   const filePath = `${CACHE_DIR}/media_${key}.${ext}`;
@@ -80,10 +86,9 @@ export async function getCachedMediaUrl(
 }
 
 // ─── Evict media deleted by admin ────────────────────────────────────────────
-// Call this after the media list loads. Any local file whose ID is missing
-// from the server list is deleted silently.
 export async function evictDeletedMedia(currentServerIds: (string | number)[]): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+  const { Filesystem, Directory } = await getFs();
   const manifest = loadManifest();
   const serverSet = new Set(currentServerIds.map(String));
   const stale = Object.keys(manifest).filter(id => !serverSet.has(id));
@@ -112,32 +117,32 @@ export function getCacheStats(): { count: number; totalMB: number } {
 
 export async function clearMediaCache(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+  const { Filesystem, Directory } = await getFs();
   for (const e of Object.values(loadManifest())) {
     try { await Filesystem.deleteFile({ path: e.path, directory: Directory.Data }); } catch {}
   }
   localStorage.removeItem(MANIFEST_KEY);
 }
 
-// ─── React hook — use inside media viewer ────────────────────────────────────
-// Resolves the best URL for a media item:
-//   • native + image → cached local file (downloads on first open)
-//   • everything else → remote Cloudinary URL unchanged
+// ─── React hook — resolves best URL for a media item ─────────────────────────
+// native + image  → cached local file (auto-downloads on first open)
+// everything else → remote Cloudinary URL unchanged
 export function useResolvedMediaUrl(
   mediaId: number | string | undefined,
   remoteUrl: string,
   mediaType: string,
 ): { resolvedUrl: string; caching: boolean; progress: number; isCached: boolean } {
-  const [resolvedUrl, setResolvedUrl] = React.useState(
+  const [resolvedUrl, setResolvedUrl] = useState(
     mediaType === "image" ? cldFull(remoteUrl) : remoteUrl,
   );
-  const [caching,  setCaching]  = React.useState(false);
-  const [progress, setProgress] = React.useState(0);
-  const [isCached, setIsCached] = React.useState(() => mediaId ? isMediaCached(mediaId) : false);
+  const [caching,  setCaching]  = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isCached, setIsCached] = useState(() => (mediaId != null ? isMediaCached(mediaId) : false));
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    if (!mediaId) return;
-    if (mediaType !== "image") return;   // only auto-cache images; videos use on-demand
+    if (mediaId == null) return;
+    if (mediaType !== "image") return;
 
     const fullUrl = cldFull(remoteUrl);
 
@@ -158,6 +163,3 @@ export function useResolvedMediaUrl(
 
   return { resolvedUrl, caching, progress, isCached };
 }
-
-// React must be imported for the hook — re-export for convenience
-import * as React from "react";
