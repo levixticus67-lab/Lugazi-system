@@ -72,11 +72,11 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
     finally { setVideoSaving(false); }
   }
 
-  // On web force .mp4 so the HTML5 video element can decode Cloudinary videos;
-  // on native prefer the locally cached file path.
+  // On native prefer the locally cached file path; on web use the raw URL
+  // exactly as stored — Cloudinary serves it with correct headers on redirect.
   const effectiveVideoSrc = (Capacitor.isNativePlatform() && nativeVideoSrc)
     ? nativeVideoSrc
-    : cldVideo(url);
+    : url;
 
   const docViewerUrl = url.toLowerCase().endsWith(".pdf")
     ? url
