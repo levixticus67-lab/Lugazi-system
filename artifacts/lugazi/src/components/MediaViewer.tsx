@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
-import { cldFull, cldThumb } from "@/lib/cloudinary";
+import { cldFull, cldThumb, cldVideo } from "@/lib/cloudinary";
 import { Capacitor } from "@capacitor/core";
 import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
 
@@ -71,8 +71,11 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
     finally { setVideoSaving(false); }
   }
 
-  // On web always use the original URL; on native prefer the cached local path
-  const effectiveVideoSrc = (Capacitor.isNativePlatform() && nativeVideoSrc) ? nativeVideoSrc : url;
+  // On web force .mp4 so the HTML5 video element can decode Cloudinary videos;
+  // on native prefer the locally cached file path.
+  const effectiveVideoSrc = (Capacitor.isNativePlatform() && nativeVideoSrc)
+    ? nativeVideoSrc
+    : cldVideo(url);
 
   const docViewerUrl = url.toLowerCase().endsWith(".pdf")
     ? url
@@ -152,6 +155,7 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
               src={effectiveVideoSrc}
               controls
               autoPlay
+              playsInline
               className="max-w-full rounded-xl"
               style={{ maxHeight: "calc(100vh - 160px)" }}
               controlsList="nodownload"

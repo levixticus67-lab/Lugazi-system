@@ -36,6 +36,7 @@ export default function AdminSermons() {
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [viewType, setViewType] = useState<string | undefined>();
   const [viewTitle, setViewTitle] = useState<string | undefined>();
+  const [viewId, setViewId] = useState<number | undefined>();
 
   function resetForm() { setForm(blank); setMediaResult(null); setThumbResult(null); }
 
@@ -77,8 +78,8 @@ export default function AdminSermons() {
     setMediaResult(null); setThumbResult(null);
   }
 
-  function openViewer(url: string, type?: string, title?: string) {
-    setViewUrl(url); setViewType(type); setViewTitle(title);
+  function openViewer(url: string, type?: string, title?: string, id?: number) {
+    setViewUrl(url); setViewType(type); setViewTitle(title); setViewId(id);
   }
 
   const activeForm = showAdd || !!editSermon;
@@ -109,7 +110,7 @@ export default function AdminSermons() {
             <div key={s.id} className="glass-card p-5 card-hover">
               <div className="flex gap-3">
                 {s.thumbnailUrl ? (
-                  <button onClick={() => openViewer(s.thumbnailUrl!, "image", s.title)} className="shrink-0">
+                  <button onClick={() => openViewer(s.thumbnailUrl!, "image", s.title, s.id)} className="shrink-0">
                     <img loading="lazy" src={cldThumb(s.thumbnailUrl)} alt={s.title} className="w-16 h-16 rounded-lg object-cover" />
                   </button>
                 ) : (
@@ -132,7 +133,7 @@ export default function AdminSermons() {
                     <audio controls src={s.mediaUrl} className="w-full h-8 mt-1" />
                   ) : (
                     <button
-                      onClick={() => openViewer(s.mediaUrl!, s.mediaType, s.title)}
+                      onClick={() => openViewer(s.mediaUrl!, s.mediaType, s.title, s.id)}
                       className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition text-sm font-medium text-primary"
                     >
                       <Play className="h-4 w-4" />
@@ -259,7 +260,7 @@ export default function AdminSermons() {
       )}
 
       {viewUrl && (
-        <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} onClose={() => setViewUrl(null)} />
+        <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} mediaId={viewId} onClose={() => { setViewUrl(null); setViewId(undefined); }} />
       )}
     </PortalLayout>
   );

@@ -34,6 +34,7 @@ export default function LeadershipSermons() {
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [viewType, setViewType] = useState<string | undefined>();
   const [viewTitle, setViewTitle] = useState<string | undefined>();
+  const [viewId, setViewId] = useState<number | undefined>();
 
   function resetForm() { setForm(blank); setMediaResult(null); setThumbResult(null); }
 
@@ -100,7 +101,7 @@ export default function LeadershipSermons() {
             <div key={s.id} className="glass-card p-5 card-hover">
               <div className="flex gap-3">
                 {s.thumbnailUrl ? (
-                  <button onClick={() => { setViewUrl(s.thumbnailUrl!); setViewType("image"); setViewTitle(s.title); }} className="shrink-0">
+                  <button onClick={() => { setViewUrl(s.thumbnailUrl!); setViewType("image"); setViewTitle(s.title); setViewId(s.id); }} className="shrink-0">
                     <img loading="lazy" src={cldThumb(s.thumbnailUrl)} alt={s.title} className="w-16 h-16 rounded-lg object-cover" />
                   </button>
                 ) : (
@@ -123,7 +124,7 @@ export default function LeadershipSermons() {
                     <audio controls src={s.mediaUrl} className="w-full h-8 mt-1" />
                   ) : (
                     <button
-                      onClick={() => { setViewUrl(s.mediaUrl!); setViewType(s.mediaType); setViewTitle(s.title); }}
+                      onClick={() => { setViewUrl(s.mediaUrl!); setViewType(s.mediaType); setViewTitle(s.title); setViewId(s.id); }}
                       className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition text-sm font-medium text-primary"
                     >
                       <Play className="h-4 w-4" />
@@ -206,7 +207,7 @@ export default function LeadershipSermons() {
         </div>
       )}
 
-      {viewUrl && <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} onClose={() => setViewUrl(null)} />}
+      {viewUrl && <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} mediaId={viewId} onClose={() => { setViewUrl(null); setViewId(undefined); }} />}
     </PortalLayout>
   );
 }

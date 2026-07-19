@@ -27,3 +27,17 @@ export const cldThumb = (url: string | null | undefined, size = 400) =>
 // Full-size viewer — capped well above any screen width, still compressed.
 export const cldFull = (url: string | null | undefined, size = 1600) =>
   cldUrl(url, `w_${size},c_limit,q_auto,f_auto`);
+
+// Video for browser playback — forces .mp4 on Cloudinary video URLs so the
+// HTML5 <video> element gets a format it can decode without needing to sniff
+// the MIME type. Non-Cloudinary URLs are returned unchanged.
+export function cldVideo(url: string | null | undefined): string {
+  if (!url) return "";
+  if (!/res\.cloudinary\.com/i.test(url)) return url;
+  if (!/\/video\/upload\//i.test(url)) return url;
+  const [base, query] = url.split("?");
+  // Strip existing extension (any format) then force mp4
+  const withoutExt = base.replace(/\.(mp4|webm|ogg|mov|avi|mkv|m4v|3gp|flv)$/i, "");
+  const mp4Url = withoutExt + ".mp4";
+  return query ? mp4Url + "?" + query : mp4Url;
+}
