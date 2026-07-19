@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +36,6 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [missionText, setMissionText] = useState<string | null>(null);
   const { login } = useAuth();
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,11 +81,17 @@ export default function Login() {
   }, []);
 
   function redirectByRole(role: string) {
-    if (role === "admin")           setLocation("/admin/dashboard");
-    else if (role === "leadership") setLocation("/leadership/dashboard");
-    else if (role === "workforce")  setLocation("/workforce/dashboard");
-    else if (role === "pastor")     setLocation("/pastor/dashboard");
-    else                            setLocation("/member/dashboard");
+    // Hard redirect ensures auth state hydrates cleanly from localStorage
+    // before RequireAuth renders — prevents the React state-update race that
+    // occasionally bounces the user back to the login page after sign-in.
+    const map: Record<string, string> = {
+      admin: "/admin/dashboard",
+      pastor: "/pastor/dashboard",
+      leadership: "/leadership/dashboard",
+      workforce: "/workforce/dashboard",
+      member: "/member/dashboard",
+    };
+    window.location.href = map[role] ?? "/member/dashboard";
   }
 
   async function handleLogin(e: React.FormEvent) {
