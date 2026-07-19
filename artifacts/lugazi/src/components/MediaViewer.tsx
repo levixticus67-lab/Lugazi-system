@@ -42,16 +42,20 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
     mediaId, url, type,
   );
 
-  // Video: manual "save offline" button
+  // Video: manual "save offline" on native only
+  // Keep native video src in state so it swaps to the local file once cached.
   const [videoSaving, setVideoSaving] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
-  const [videoCached, setVideoCached] = useState(() => mediaId ? isMediaCached(mediaId) : false);
-  const [videoSrc, setVideoSrc] = useState(url);
+  const [nativeVideoSrc, setNativeVideoSrc] = useState<string | null>(null);
+  const [videoCached, setVideoCached] = useState(false);
 
   useEffect(() => {
     if (type !== "video" || !mediaId || !Capacitor.isNativePlatform()) return;
     if (isMediaCached(mediaId)) {
-      getCachedMediaUrl(String(mediaId), url).then(u => { setVideoSrc(u); setVideoCached(true); });
+      getCachedMediaUrl(String(mediaId), url).then(u => {
+        setNativeVideoSrc(u);
+        setVideoCached(true);
+      });
     }
   }, [mediaId, url, type]);
 
@@ -61,11 +65,14 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
     setVideoProgress(0);
     try {
       const localUrl = await getCachedMediaUrl(String(mediaId), url, pct => setVideoProgress(pct));
-      setVideoSrc(localUrl);
+      setNativeVideoSrc(localUrl);
       setVideoCached(true);
     } catch { /* leave as remote */ }
     finally { setVideoSaving(false); }
   }
+
+  // On web always use the original URL; on native prefer the cached local path
+  const effectiveVideoSrc = (Capacitor.isNativePlatform() && nativeVideoSrc) ? nativeVideoSrc : url;
 
   const docViewerUrl = url.toLowerCase().endsWith(".pdf")
     ? url
@@ -142,7 +149,7 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
         {type === "video" && (
           <div className="flex flex-col items-center gap-3 w-full max-h-full">
             <video
-              src={videoSrc}
+              src={effectiveVideoSrc}
               controls
               autoPlay
               className="max-w-full rounded-xl"
