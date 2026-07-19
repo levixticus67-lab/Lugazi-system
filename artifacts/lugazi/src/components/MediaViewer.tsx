@@ -48,6 +48,7 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
   const [videoProgress, setVideoProgress] = useState(0);
   const [nativeVideoSrc, setNativeVideoSrc] = useState<string | null>(null);
   const [videoCached, setVideoCached] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     if (type !== "video" || !mediaId || !Capacitor.isNativePlatform()) return;
@@ -151,19 +152,32 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
 
         {type === "video" && (
           <div className="flex flex-col items-center gap-3 w-full max-h-full">
-            <video
-              controls
-              autoPlay
-              playsInline
-              className="max-w-full rounded-xl"
-              style={{ maxHeight: "calc(100vh - 160px)" }}
-              controlsList="nodownload"
-            >
-              {/* Explicit source + type so browsers never have to sniff MIME */}
-              <source src={effectiveVideoSrc} type="video/mp4" />
-              {/* Fallback: raw original URL in case the Cloudinary transform fails */}
-              {effectiveVideoSrc !== url && <source src={url} />}
-            </video>
+            {videoError ? (
+              /* Fallback for browsers that can't embed the video (e.g. Opera Mini proxy) */
+              <div className="flex flex-col items-center gap-4 text-center p-8">
+                <Video className="h-16 w-16 text-white/30" />
+                <p className="text-white/60 text-sm">This browser can't play the video inline.</p>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold transition"
+                >
+                  <ExternalLink className="h-4 w-4" /> Open video in browser
+                </a>
+              </div>
+            ) : (
+              <video
+                src={effectiveVideoSrc}
+                controls
+                autoPlay
+                playsInline
+                className="max-w-full rounded-xl"
+                style={{ maxHeight: "calc(100vh - 160px)" }}
+                controlsList="nodownload"
+                onError={() => setVideoError(true)}
+              />
+            )}
             {/* Save offline button — only on native, only if not already cached */}
             {Capacitor.isNativePlatform() && mediaId && !videoCached && (
               <button

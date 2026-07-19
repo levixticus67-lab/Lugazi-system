@@ -28,19 +28,15 @@ export const cldThumb = (url: string | null | undefined, size = 400) =>
 export const cldFull = (url: string | null | undefined, size = 1600) =>
   cldUrl(url, `w_${size},c_limit,q_auto,f_auto`);
 
-// Video for browser playback — applies Cloudinary's f_mp4 transcoding
-// transformation so the video is always delivered as MP4 regardless of the
-// source format (MOV, AVI, MKV, etc.), then appends the .mp4 extension so
-// browsers can infer the MIME type without sniffing. Non-Cloudinary URLs
-// (or non-video Cloudinary URLs) are returned unchanged.
+// Video for browser playback — strips any existing extension and appends
+// .mp4 so browsers infer the MIME type without needing to sniff headers.
+// Does NOT apply any Cloudinary transformation (avoids paid-plan charges).
+// Non-Cloudinary URLs are returned unchanged.
 export function cldVideo(url: string | null | undefined): string {
   if (!url) return "";
   if (!/res\.cloudinary\.com/i.test(url)) return url;
   if (!/\/video\/upload\//i.test(url)) return url;
-  // Insert f_mp4,q_auto — Cloudinary transcodes to MP4 on the fly.
-  const transformed = cldUrl(url, "f_mp4,q_auto");
-  // Strip any existing extension then append .mp4 for MIME-type sniffing.
-  const [base, query] = transformed.split("?");
+  const [base, query] = url.split("?");
   const withoutExt = base.replace(/\.(mp4|webm|ogg|mov|avi|mkv|m4v|3gp|flv)$/i, "");
   const mp4Url = withoutExt + ".mp4";
   return query ? mp4Url + "?" + query : mp4Url;
