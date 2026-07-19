@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
 import { cldFull, cldThumb } from "@/lib/cloudinary";
+import { Capacitor } from "@capacitor/core";
+import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
 
 type MediaType = "image" | "audio" | "video" | "document" | "unknown";
 
@@ -25,13 +27,45 @@ interface MediaViewerProps {
   url: string;
   title?: string;
   mediaType?: string;
+  /** Pass the DB id so the native cache can key by it. */
+  mediaId?: number | string;
   onClose: () => void;
 }
 
-export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps) {
+export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaViewerProps) {
   const type = detectType(url, mediaType);
   const [imgScale, setImgScale] = useState(1);
   const [imgRotation, setImgRotation] = useState(0);
+
+  // Image: resolve from local cache (auto-downloads on first open on native)
+  const { resolvedUrl, caching, progress, isCached } = useResolvedMediaUrl(
+    mediaId, url, type,
+  );
+
+  // Video: manual "save offline" button
+  const [videoSaving, setVideoSaving] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoCached, setVideoCached] = useState(() => mediaId ? isMediaCached(mediaId) : false);
+  const [videoSrc, setVideoSrc] = useState(url);
+
+  useEffect(() => {
+    if (type !== "video" || !mediaId || !Capacitor.isNativePlatform()) return;
+    if (isMediaCached(mediaId)) {
+      getCachedMediaUrl(String(mediaId), url).then(u => { setVideoSrc(u); setVideoCached(true); });
+    }
+  }, [mediaId, url, type]);
+
+  async function saveVideoOffline() {
+    if (!mediaId) return;
+    setVideoSaving(true);
+    setVideoProgress(0);
+    try {
+      const localUrl = await getCachedMediaUrl(String(mediaId), url, pct => setVideoProgress(pct));
+      setVideoSrc(localUrl);
+      setVideoCached(true);
+    } catch { /* leave as remote */ }
+    finally { setVideoSaving(false); }
+  }
 
   const docViewerUrl = url.toLowerCase().endsWith(".pdf")
     ? url
@@ -47,44 +81,52 @@ export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps
           {type === "video" && <Video className="h-4 w-4 shrink-0 opacity-70" />}
           {type === "document" && <FileText className="h-4 w-4 shrink-0 opacity-70" />}
           <span className="text-sm font-medium truncate">{title ?? "Media Viewer"}</span>
+          {isCached && Capacitor.isNativePlatform() && (
+            <span className="ml-1 text-[10px] text-green-400 flex items-center gap-0.5 shrink-0">
+              <HardDrive className="h-3 w-3" /> saved
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {type === "image" && (
             <>
-              <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.25))} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Zoom out">
-                <ZoomOut className="h-4 w-4" />
-              </button>
+              <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.25))} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Zoom out"><ZoomOut className="h-4 w-4" /></button>
               <span className="text-white/60 text-xs">{Math.round(imgScale * 100)}%</span>
-              <button onClick={() => setImgScale(s => Math.min(4, s + 0.25))} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Zoom in">
-                <ZoomIn className="h-4 w-4" />
-              </button>
-              <button onClick={() => setImgRotation(r => (r + 90) % 360)} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Rotate">
-                <RotateCw className="h-4 w-4" />
-              </button>
+              <button onClick={() => setImgScale(s => Math.min(4, s + 0.25))} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Zoom in"><ZoomIn className="h-4 w-4" /></button>
+              <button onClick={() => setImgRotation(r => (r + 90) % 360)} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Rotate"><RotateCw className="h-4 w-4" /></button>
             </>
           )}
-          <a href={url} download target="_blank" rel="noreferrer" className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Download">
-            <Download className="h-4 w-4" />
-          </a>
-          <a href={url} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Open in new tab">
-            <ExternalLink className="h-4 w-4" />
-          </a>
-          <button onClick={onClose} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Close">
-            <X className="h-4 w-4" />
-          </button>
+          <a href={url} download target="_blank" rel="noreferrer" className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Download"><Download className="h-4 w-4" /></a>
+          <a href={url} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Open in new tab"><ExternalLink className="h-4 w-4" /></a>
+          <button onClick={onClose} className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="Close"><X className="h-4 w-4" /></button>
         </div>
       </div>
+
+      {/* Thin download-progress bar (only visible while caching for first time) */}
+      {caching && (
+        <div className="h-0.5 bg-white/10 shrink-0">
+          <div className="h-full bg-green-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-4">
         {type === "image" && (
-          <img loading="lazy"
-            src={cldFull(url)}
-            alt={title ?? "Media"}
-            className="max-w-full max-h-full object-contain select-none"
-            style={{ transform: `scale(${imgScale}) rotate(${imgRotation}deg)`, transition: "transform 0.2s ease" }}
-            draggable={false}
-          />
+          caching && progress < 10 ? (
+            <div className="flex flex-col items-center gap-3 text-white/60">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm">Loading image…</p>
+            </div>
+          ) : (
+            <img
+              loading="lazy"
+              src={resolvedUrl}
+              alt={title ?? "Media"}
+              className="max-w-full max-h-full object-contain select-none"
+              style={{ transform: `scale(${imgScale}) rotate(${imgRotation}deg)`, transition: "transform 0.2s ease" }}
+              draggable={false}
+            />
+          )
         )}
 
         {type === "audio" && (
@@ -98,24 +140,40 @@ export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps
         )}
 
         {type === "video" && (
-          <video
-            src={url}
-            controls
-            autoPlay
-            className="max-w-full max-h-full rounded-xl"
-            style={{ maxHeight: "calc(100vh - 80px)" }}
-            controlsList="nodownload"
-          />
+          <div className="flex flex-col items-center gap-3 w-full max-h-full">
+            <video
+              src={videoSrc}
+              controls
+              autoPlay
+              className="max-w-full rounded-xl"
+              style={{ maxHeight: "calc(100vh - 160px)" }}
+              controlsList="nodownload"
+            />
+            {/* Save offline button — only on native, only if not already cached */}
+            {Capacitor.isNativePlatform() && mediaId && !videoCached && (
+              <button
+                onClick={saveVideoOffline}
+                disabled={videoSaving}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition disabled:opacity-60"
+              >
+                {videoSaving ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Saving… {videoProgress}%</>
+                ) : (
+                  <><HardDrive className="h-4 w-4" /> Save offline</>
+                )}
+              </button>
+            )}
+            {Capacitor.isNativePlatform() && videoCached && (
+              <span className="text-xs text-green-400 flex items-center gap-1">
+                <HardDrive className="h-3 w-3" /> Saved on device
+              </span>
+            )}
+          </div>
         )}
 
         {type === "document" && (
           <div className="w-full h-full flex flex-col" style={{ height: "calc(100vh - 80px)" }}>
-            <iframe
-              src={docViewerUrl}
-              className="w-full flex-1 rounded-xl border-0 bg-white"
-              title={title ?? "Document"}
-              allow="fullscreen"
-            />
+            <iframe src={docViewerUrl} className="w-full flex-1 rounded-xl border-0 bg-white" title={title ?? "Document"} allow="fullscreen" />
           </div>
         )}
 
@@ -123,8 +181,7 @@ export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps
           <div className="text-center space-y-4">
             <FileText className="h-16 w-16 text-white/40 mx-auto" />
             <p className="text-white/70">Cannot preview this file type.</p>
-            <a href={url} target="_blank" rel="noreferrer"
-               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl blue-gradient-bg text-white text-sm font-medium">
+            <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl blue-gradient-bg text-white text-sm font-medium">
               <ExternalLink className="h-4 w-4" /> Open File
             </a>
           </div>
@@ -134,25 +191,16 @@ export function MediaViewer({ url, title, mediaType, onClose }: MediaViewerProps
   );
 }
 
-interface MediaThumbnailProps {
-  url: string;
-  title?: string;
-  mediaType?: string;
-  className?: string;
-}
+interface MediaThumbnailProps { url: string; title?: string; mediaType?: string; mediaId?: number | string; className?: string; }
 
-export function MediaThumbnail({ url, title, mediaType, className = "" }: MediaThumbnailProps) {
+export function MediaThumbnail({ url, title, mediaType, mediaId, className = "" }: MediaThumbnailProps) {
   const [open, setOpen] = useState(false);
   const type = detectType(url, mediaType);
-
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
+      <button type="button" onClick={() => setOpen(true)}
         className={`relative overflow-hidden rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition group ${className}`}
-        title={`View ${title ?? "media"}`}
-      >
+        title={`View ${title ?? "media"}`}>
         {type === "image" ? (
           <img loading="lazy" src={cldThumb(url, 320)} alt={title} className="w-full h-full object-cover" />
         ) : (
@@ -167,8 +215,13 @@ export function MediaThumbnail({ url, title, mediaType, className = "" }: MediaT
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
           <ZoomIn className="h-6 w-6 text-white drop-shadow" />
         </div>
+        {isMediaCached(mediaId ?? "") && Capacitor.isNativePlatform() && (
+          <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-0.5">
+            <HardDrive className="h-3 w-3 text-green-400" />
+          </div>
+        )}
       </button>
-      {open && <MediaViewer url={url} title={title} mediaType={mediaType} onClose={() => setOpen(false)} />}
+      {open && <MediaViewer url={url} title={title} mediaType={mediaType} mediaId={mediaId} onClose={() => setOpen(false)} />}
     </>
   );
 }
