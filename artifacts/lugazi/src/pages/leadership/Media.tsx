@@ -1,6 +1,6 @@
 import { useListMedia, useCreateMedia, getListMediaQueryKey } from "@workspace/api-client-react";
 import { cldThumb } from "@/lib/cloudinary";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
 import { MediaViewer } from "@/components/MediaViewer";
 import { Plus, Image, Video, Music, FileText, Play, ZoomIn, X } from "lucide-react";
+import { evictDeletedMedia } from "@/hooks/use-media-cache";
 
 type MediaItem = { id: number; title: string; type: string; url: string; thumbnailUrl?: string; createdAt: string };
 
@@ -45,6 +46,12 @@ export default function LeadershipMedia() {
   const videos = (items as MediaItem[]).filter(i => i.type === "video");
   const audios = (items as MediaItem[]).filter(i => i.type === "audio");
   const others = (items as MediaItem[]).filter(i => !["image","video","audio"].includes(i.type));
+
+  useEffect(() => {
+    if ((items as MediaItem[]).length > 0) evictDeletedMedia((items as MediaItem[]).map(i => i.id));
+  }, [items]);
+
+
 
   return (
     <PortalLayout navItems={leadershipNavItems} portalLabel="Leadership Portal">
