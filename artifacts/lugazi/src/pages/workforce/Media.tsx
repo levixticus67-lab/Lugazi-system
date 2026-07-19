@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cldThumb } from "@/lib/cloudinary";
 import { useListMedia, useCreateMedia, getListMediaQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ExternalLink } from "lucide-react";
+import { evictDeletedMedia } from "@/hooks/use-media-cache";
 
 type MediaItem = { id: number; title: string; type: string; url: string; createdAt: string };
 
@@ -31,6 +32,13 @@ export default function WorkforceMedia() {
       onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListMediaQueryKey() }); toast({ title: "Media added" }); setShowAdd(false); setForm(blank); },
     });
   }
+
+  // Evict cached files for deleted media
+  useEffect(() => {
+    if ((items as MediaItem[]).length > 0) evictDeletedMedia((items as MediaItem[]).map(i => i.id));
+  }, [items]);
+
+
 
   return (
     <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
