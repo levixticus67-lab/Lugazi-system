@@ -85,6 +85,7 @@
     "axios": "^1.16.0",
     "jsqr": "^1.4.0",
     "qrcode.react": "^4.2.0",
-    "@capacitor/push-notifications": "^6.0.0"
+    "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor/filesystem": "^6.0.0"
   }
 }
