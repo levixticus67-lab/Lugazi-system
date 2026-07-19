@@ -132,7 +132,7 @@ export default function MemberMedia() {
               </div>
               <div className="space-y-2">
                 {others.map(item => (
-                  <button key={item.id} onClick={() => openViewer(item.url, item.type, item.title)}
+                  <button key={item.id} onClick={() => openViewer(item.url, item.type, item.title, item.id)}
                     className="glass-card p-4 flex items-center gap-3 hover:shadow-md transition-shadow w-full text-left card-hover">
                     <FileText className="h-5 w-5 text-orange-400 shrink-0" />
                     <span className="flex-1 text-sm font-medium truncate">{item.title}</span>
@@ -145,7 +145,7 @@ export default function MemberMedia() {
         </div>
       )}
 
-      {viewUrl && <MediaViewer url={viewUrl} title={viewTitle} mediaType={viewType} onClose={() => setViewUrl(null)} />}
+      {viewUrl && <MediaViewer url={viewUrl} mediaId={viewId} title={viewTitle} mediaType={viewType} onClose={() => { setViewUrl(null); setViewId(undefined); }} />}
     </PortalLayout>
   );
 }
