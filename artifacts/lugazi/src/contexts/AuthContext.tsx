@@ -72,11 +72,19 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
             window.location.href = destination;
           }
         })
-        .catch(() => {
-          localStorage.removeItem("dcl_user");
-          localStorage.removeItem("dcl_token_jwt");
-          setUser(null);
-          setToken(null);
+        .catch((err: unknown) => {
+          // Only clear session on definitive auth rejection (401/403).
+          // Network errors or server errors (5xx) on Capacitor/slow connections
+          // should keep the cached user — losing the session on a bad network
+          // frame is worse than keeping a stale session.
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403) {
+            localStorage.removeItem("dcl_user");
+            localStorage.removeItem("dcl_token_jwt");
+            setUser(null);
+            setToken(null);
+          }
+          // For all other errors keep the cached user; isLoading will be cleared in .finally()
         })
         .finally(() => {
           setIsLoading(false);
