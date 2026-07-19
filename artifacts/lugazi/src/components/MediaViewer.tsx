@@ -152,14 +152,18 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
         {type === "video" && (
           <div className="flex flex-col items-center gap-3 w-full max-h-full">
             <video
-              src={effectiveVideoSrc}
               controls
               autoPlay
               playsInline
               className="max-w-full rounded-xl"
               style={{ maxHeight: "calc(100vh - 160px)" }}
               controlsList="nodownload"
-            />
+            >
+              {/* Explicit source + type so browsers never have to sniff MIME */}
+              <source src={effectiveVideoSrc} type="video/mp4" />
+              {/* Fallback: raw original URL in case the Cloudinary transform fails */}
+              {effectiveVideoSrc !== url && <source src={url} />}
+            </video>
             {/* Save offline button — only on native, only if not already cached */}
             {Capacitor.isNativePlatform() && mediaId && !videoCached && (
               <button
