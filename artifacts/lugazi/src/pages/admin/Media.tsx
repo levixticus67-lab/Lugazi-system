@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
 import { MediaViewer } from "@/components/MediaViewer";
+import { evictDeletedMedia } from "@/hooks/use-media-cache";
 import { Plus, Trash2, ExternalLink, ImageIcon, Video, Music, FileText, Expand } from "lucide-react";
 
 type MediaItem = {
@@ -135,6 +136,12 @@ export default function AdminMedia() {
     });
   }
 
+  useEffect(() => {
+    if ((items as MediaItem[]).length > 0) {
+      evictDeletedMedia((items as MediaItem[]).map(i => i.id));
+    }
+  }, [items]);
+
   return (
     <PortalLayout navItems={adminNavItems} portalLabel="Admin Portal">
       <PageHeader
@@ -193,7 +200,7 @@ export default function AdminMedia() {
 
       {viewerItem && (
         <MediaViewer
-          url={viewerItem.url}
+          url={viewerItem.url} mediaId={viewerItem.id}
           title={viewerItem.title}
           mediaType={viewerItem.type}
           onClose={() => setViewerItem(null)}
