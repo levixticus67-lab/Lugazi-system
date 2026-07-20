@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
-import { cldFull, cldThumb, cldVideo } from "@/lib/cloudinary";
+import { cldFull, cldThumb } from "@/lib/cloudinary";
 import { Capacitor } from "@capacitor/core";
 import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
 
@@ -48,7 +48,6 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
   const [videoProgress, setVideoProgress] = useState(0);
   const [nativeVideoSrc, setNativeVideoSrc] = useState<string | null>(null);
   const [videoCached, setVideoCached] = useState(false);
-  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     if (type !== "video" || !mediaId || !Capacitor.isNativePlatform()) return;
@@ -163,27 +162,15 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
                 style={{ maxHeight: "calc(100vh - 160px)" }}
                 controlsList="nodownload"
               />
-            ) : videoError ? (
-              /* Fallback when browser cannot play the video */
-              <div className="flex flex-col items-center gap-4 text-center p-8">
-                <Video className="h-16 w-16 text-white/30" />
-                <p className="text-white/60 text-sm">Unable to play this video inline.</p>
-                <a href={url} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold transition">
-                  <ExternalLink className="h-4 w-4" /> Open video in browser
-                </a>
-              </div>
             ) : (
-              /* Browser — no crossOrigin (avoids CORS block); cldVideo() adds .mp4 for MIME sniff */
+              /* Browser — exactly as Jul 9: plain src={url}, no transforms, no error handling */
               <video
-                src={cldVideo(url)}
+                src={url}
                 controls
                 autoPlay
-                playsInline
                 className="max-w-full rounded-xl"
                 style={{ maxHeight: "calc(100vh - 160px)" }}
                 controlsList="nodownload"
-                onError={() => setVideoError(true)}
               />
             )}
             {/* Save offline button — only on native, only if not already cached */}
