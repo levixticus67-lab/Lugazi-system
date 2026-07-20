@@ -1,4 +1,5 @@
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
+import { Component, type ReactNode, type ErrorInfo } from "react";
   import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
   import { Toaster } from "@/components/ui/toaster";
   import { TooltipProvider } from "@/components/ui/tooltip";
@@ -360,9 +361,38 @@ import axios from "@/lib/axios";
     );
   }
 
+  class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+    constructor(props: { children: ReactNode }) {
+      super(props);
+      this.state = { error: null };
+    }
+    static getDerivedStateFromError(error: Error) { return { error }; }
+    componentDidCatch(error: Error, info: ErrorInfo) {
+      console.error("[DCL] App crash:", error, info);
+    }
+    render() {
+      if (this.state.error) {
+        return (
+          <div style={{ padding: 32, fontFamily: "sans-serif", textAlign: "center" }}>
+            <h2 style={{ color: "#6D1F3C", marginBottom: 12 }}>Something went wrong</h2>
+            <p style={{ color: "#555", marginBottom: 20, fontSize: 14 }}>{this.state.error.message}</p>
+            <button
+              style={{ padding: "10px 24px", background: "#6D1F3C", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
+              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            >
+              Reload app
+            </button>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
   function App() {
     useKeepAlive();
     return (
+      <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AuthProvider>
@@ -381,6 +411,7 @@ import axios from "@/lib/axios";
           <PwaInstallBanner />
         </TooltipProvider>
       </QueryClientProvider>
+      </ErrorBoundary>
     );
   }
 

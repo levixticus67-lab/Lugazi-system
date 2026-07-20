@@ -48,6 +48,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Force the new SW to activate immediately — avoids blank screen when
+        // a rapid deploy leaves the old SW serving a stale precache manifest.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // Precache all JS, CSS, HTML, images, and fonts
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         // SPA: serve index.html for any unmatched navigation request
