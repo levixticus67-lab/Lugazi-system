@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
-import { cldFull, cldThumb } from "@/lib/cloudinary";
+import { cldFull, cldThumb, cldVideo } from "@/lib/cloudinary";
 import { Capacitor } from "@capacitor/core";
 import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
 
@@ -163,9 +163,10 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
                 controlsList="nodownload"
               />
             ) : (
-              /* Browser — plain video element, let the browser handle it */
+              /* Browser — cldVideo() appends .mp4 so the browser knows the MIME type */
               <video
-                src={url}
+                src={cldVideo(url)}
+                crossOrigin="anonymous"
                 controls
                 autoPlay
                 playsInline
