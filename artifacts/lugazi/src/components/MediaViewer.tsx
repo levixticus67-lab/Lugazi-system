@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
-import { cldFull, cldThumb } from "@/lib/cloudinary";
+import { cldFull, cldThumb, cldPlayerUrl } from "@/lib/cloudinary";
 import { Capacitor } from "@capacitor/core";
 import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
 
@@ -162,16 +162,32 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
                 style={{ maxHeight: "calc(100vh - 160px)" }}
                 controlsList="nodownload"
               />
-            ) : (
-              /* Browser — exactly as Jul 9: plain src={url}, no transforms, no error handling */
-              <video
-                src={url}
-                controls
-                autoPlay
-                className="max-w-full rounded-xl"
-                style={{ maxHeight: "calc(100vh - 160px)" }}
-                controlsList="nodownload"
-              />
+            ) : (() => {
+              // Browser — use Cloudinary's own embeddable player when possible.
+              // It handles codec negotiation, adaptive bitrate, and HTTP range
+              // requests natively, so it works on Chrome Android without issues.
+              // Falls back to a plain <video> for non-Cloudinary URLs.
+              const playerUrl = cldPlayerUrl(url);
+              return playerUrl ? (
+                <iframe
+                  src={playerUrl}
+                  title={title ?? "Video"}
+                  className="w-full rounded-xl border-0 bg-black"
+                  style={{ minHeight: 220, maxHeight: "calc(100vh - 160px)", aspectRatio: "16/9" }}
+                  allow="autoplay; fullscreen; encrypted-media"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={url}
+                  controls
+                  autoPlay
+                  className="max-w-full rounded-xl"
+                  style={{ maxHeight: "calc(100vh - 160px)" }}
+                  controlsList="nodownload"
+                />
+              );
+            })()
             )}
             {/* Save offline button — only on native, only if not already cached */}
             {Capacitor.isNativePlatform() && mediaId && !videoCached && (

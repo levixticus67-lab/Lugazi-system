@@ -41,3 +41,30 @@ export function cldVideo(url: string | null | undefined): string {
   const mp4Url = withoutExt + ".mp4";
   return query ? mp4Url + "?" + query : mp4Url;
 }
+
+// Browser video player — uses Cloudinary's free embeddable player iframe instead
+// of a raw <video> element. The player handles codec negotiation, adaptive
+// bitrate, and HTTP range requests itself, which eliminates the blank/broken
+// video issue Chrome on Android has with direct Cloudinary delivery URLs.
+// Returns null for non-Cloudinary URLs (caller should fall back to <video>).
+export function cldPlayerUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // Must be a Cloudinary video URL
+  const m = url.match(
+    /res\.cloudinary\.com\/([^\/]+)\/video\/upload\/(?:[^/]+\/)*(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?(?:\?.*)?$/i
+  );
+  if (!m) return null;
+  const cloudName = m[1];
+  const publicId  = m[2];
+  const params = new URLSearchParams({
+    cloud_name: cloudName,
+    public_id:  publicId,
+    // Show native controls, no ads, no Cloudinary logo on free plan
+    controls:          "true",
+    autoplay:          "true",
+    muted:             "false",
+    loop:              "false",
+    showJumpControls:  "false",
+  });
+  return `https://player.cloudinary.com/embed/?${params.toString()}`;
+}
