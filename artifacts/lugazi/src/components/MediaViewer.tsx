@@ -77,6 +77,11 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
     ? nativeVideoSrc
     : url;
 
+  // Compute once — used in the browser video branch below
+  const browserPlayerUrl = !Capacitor.isNativePlatform() && type === "video"
+    ? cldPlayerUrl(url)
+    : null;
+
   const docViewerUrl = url.toLowerCase().endsWith(".pdf")
     ? url
     : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
@@ -162,32 +167,26 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
                 style={{ maxHeight: "calc(100vh - 160px)" }}
                 controlsList="nodownload"
               />
-            ) : (() => {
-              // Browser — use Cloudinary's own embeddable player when possible.
-              // It handles codec negotiation, adaptive bitrate, and HTTP range
-              // requests natively, so it works on Chrome Android without issues.
-              // Falls back to a plain <video> for non-Cloudinary URLs.
-              const playerUrl = cldPlayerUrl(url);
-              return playerUrl ? (
-                <iframe
-                  src={playerUrl}
-                  title={title ?? "Video"}
-                  className="w-full rounded-xl border-0 bg-black"
-                  style={{ minHeight: 220, maxHeight: "calc(100vh - 160px)", aspectRatio: "16/9" }}
-                  allow="autoplay; fullscreen; encrypted-media"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  src={url}
-                  controls
-                  autoPlay
-                  className="max-w-full rounded-xl"
-                  style={{ maxHeight: "calc(100vh - 160px)" }}
-                  controlsList="nodownload"
-                />
-              );
-            })()
+            ) : browserPlayerUrl ? (
+              /* Browser + Cloudinary URL — embedded player handles codec/range requests */
+              <iframe
+                src={browserPlayerUrl}
+                title={title ?? "Video"}
+                className="w-full rounded-xl border-0 bg-black"
+                style={{ minHeight: 220, maxHeight: "calc(100vh - 160px)", aspectRatio: "16/9" }}
+                allow="autoplay; fullscreen; encrypted-media"
+                allowFullScreen
+              />
+            ) : (
+              /* Browser + non-Cloudinary URL — plain video element */
+              <video
+                src={url}
+                controls
+                autoPlay
+                className="max-w-full rounded-xl"
+                style={{ maxHeight: "calc(100vh - 160px)" }}
+                controlsList="nodownload"
+              />
             )}
             {/* Save offline button — only on native, only if not already cached */}
             {Capacitor.isNativePlatform() && mediaId && !videoCached && (
