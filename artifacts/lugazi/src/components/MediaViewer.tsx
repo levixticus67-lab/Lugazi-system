@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
-import { cldFull, cldThumb, cldVideo } from "@/lib/cloudinary";
+import { cldFull, cldThumb } from "@/lib/cloudinary";
+const ReactPlayer = lazy(() => import("react-player/lazy"));
 import { Capacitor } from "@capacitor/core";
 import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
 
@@ -153,20 +154,16 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
         {type === "video" && (
           <div className="flex flex-col items-center gap-3 w-full max-h-full">
             {videoError ? (
-              /* Fallback for browsers that can't embed the video (e.g. Opera Mini proxy) */
               <div className="flex flex-col items-center gap-4 text-center p-8">
                 <Video className="h-16 w-16 text-white/30" />
-                <p className="text-white/60 text-sm">This browser can't play the video inline.</p>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold transition"
-                >
+                <p className="text-white/60 text-sm">Unable to play this video.</p>
+                <a href={url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold transition">
                   <ExternalLink className="h-4 w-4" /> Open video in browser
                 </a>
               </div>
-            ) : (
+            ) : Capacitor.isNativePlatform() ? (
+              /* Native APK — play local cached file or raw URL */
               <video
                 src={effectiveVideoSrc}
                 controls
@@ -177,6 +174,19 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
                 controlsList="nodownload"
                 onError={() => setVideoError(true)}
               />
+            ) : (
+              /* Web — ReactPlayer handles codec negotiation and format detection */
+              <Suspense fallback={<Loader2 className="h-8 w-8 animate-spin text-white/60" />}>
+                <ReactPlayer
+                  url={url}
+                  controls
+                  width="100%"
+                  height="auto"
+                  style={{ maxHeight: "calc(100vh - 160px)", borderRadius: "0.75rem", overflow: "hidden" }}
+                  onError={() => setVideoError(true)}
+                  config={{ file: { attributes: { playsInline: true, controlsList: "nodownload" } } }}
+                />
+              </Suspense>
             )}
             {/* Save offline button — only on native, only if not already cached */}
             {Capacitor.isNativePlatform() && mediaId && !videoCached && (

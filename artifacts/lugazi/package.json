@@ -83,6 +83,7 @@
     "@capacitor/core": "^6.2.0",
     "@capacitor/local-notifications": "^6.0.0",
     "axios": "^1.16.0",
+    "react-player": "^2.16.0",
     "jsqr": "^1.4.0",
     "qrcode.react": "^4.2.0",
     "@capacitor/push-notifications": "^6.0.0",
