@@ -49,22 +49,51 @@ export function cldVideo(url: string | null | undefined): string {
 // Returns null for non-Cloudinary URLs (caller should fall back to <video>).
 export function cldPlayerUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  // Must be a Cloudinary video URL
-  const m = url.match(
-    /res\.cloudinary\.com\/([^\/]+)\/video\/upload\/(?:[^/]+\/)*(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?(?:\?.*)?$/i
-  );
-  if (!m) return null;
-  const cloudName = m[1];
-  const publicId  = m[2];
+  if (!/res\.cloudinary\.com/i.test(url)) return null;
+  if (!/\/video\/upload\//i.test(url)) return null;
+
+  // Extract cloud name — the segment between res.cloudinary.com/ and /video/upload/
+  const cloudMatch = url.match(/res\.cloudinary\.com\/([^/]+)\//i);
+  if (!cloudMatch) return null;
+  const cloudName = cloudMatch[1];
+
+  // Everything after /video/upload/
+  const afterUpload = url.split(/\/video\/upload\//i)[1] ?? "";
+  // Drop query string
+  const path = afterUpload.split("?")[0];
+  const segments = path.split("/").filter(Boolean);
+
+  // Strategy:
+  // 1. If a version segment (v + digits) exists, public_id starts right after it.
+  // 2. If no version, skip leading transformation segments — these contain
+  //    underscores or commas (e.g. q_auto, f_auto, w_300,c_fill, vc_h264).
+  // 3. Strip the file extension from the last segment.
+  let startIdx = 0;
+  const versionIdx = segments.findIndex(s => /^v\d+$/.test(s));
+  if (versionIdx >= 0) {
+    startIdx = versionIdx + 1;
+  } else {
+    // Skip transformation segments at the front
+    while (startIdx < segments.length && /[_,]/.test(segments[startIdx])) {
+      startIdx++;
+    }
+  }
+
+  const publicIdSegments = segments.slice(startIdx);
+  if (publicIdSegments.length === 0) return null;
+
+  // Strip extension from the last segment
+  publicIdSegments[publicIdSegments.length - 1] =
+    publicIdSegments[publicIdSegments.length - 1].replace(/\.[a-z0-9]+$/i, "");
+
+  const publicId = publicIdSegments.join("/");
+  if (!publicId) return null;
+
   const params = new URLSearchParams({
     cloud_name: cloudName,
     public_id:  publicId,
-    // Show native controls, no ads, no Cloudinary logo on free plan
-    controls:          "true",
-    autoplay:          "true",
-    muted:             "false",
-    loop:              "false",
-    showJumpControls:  "false",
+    controls:   "true",
+    autoplay:   "true",
   });
   return `https://player.cloudinary.com/embed/?${params.toString()}`;
 }
