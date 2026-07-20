@@ -85,6 +85,13 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          // Cloudinary videos — bypass service worker entirely so the browser
+          // handles HTTP range requests natively (service worker interception
+          // of 206 Partial Content breaks <video> in Chrome on Android).
+          {
+            urlPattern: /^https:\/\/res\.cloudinary\.com\/.*\/(video|raw)\/upload\/.*/i,
+            handler: "NetworkOnly",
+          },
         ],
       },
     }),

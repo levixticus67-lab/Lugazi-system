@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { X, Download, ExternalLink, FileText, Music, Video, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, HardDrive, Loader2 } from "lucide-react";
-import { cldFull, cldThumb } from "@/lib/cloudinary";
+import { cldFull, cldThumb, cldVideo } from "@/lib/cloudinary";
 const ReactPlayer = lazy(() => import("react-player/lazy"));
 import { Capacitor } from "@capacitor/core";
 import { useResolvedMediaUrl, getCachedMediaUrl, isMediaCached } from "@/hooks/use-media-cache";
@@ -178,7 +178,7 @@ export function MediaViewer({ url, title, mediaType, mediaId, onClose }: MediaVi
               /* Web — ReactPlayer handles codec negotiation and format detection */
               <Suspense fallback={<Loader2 className="h-8 w-8 animate-spin text-white/60" />}>
                 <ReactPlayer
-                  url={url}
+                  url={cldVideo(url)}
                   controls
                   width="100%"
                   height="auto"
