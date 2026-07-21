@@ -79,6 +79,24 @@ router.patch("/tasks/:id", requireAuth, async (req: AuthRequest, res): Promise<v
     if (description !== undefined) update.description = description;
   }
   const [updated] = await db.update(tasksTable).set(update).where(eq(tasksTable.id, id)).returning();
+
+  // Notify the assigner when their task is marked completed (skip self-assigned tasks)
+  if (
+    status === "completed" &&
+    existing.status !== "completed" &&
+    existing.assignedByUserId &&
+    existing.assignedByUserId !== req.userId
+  ) {
+    const completerName = (await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1))[0]?.displayName ?? "Someone";
+    await db.insert(inAppNotificationsTable).values({
+      userId: existing.assignedByUserId,
+      title: "Task completed ✓",
+      message: completerName + " completed the task: \"" + existing.title + "\".",
+      relatedEntityType: "task",
+      relatedEntityId: id,
+    });
+  }
+
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString(), completedAt: updated.completedAt?.toISOString() ?? null });
 });
 

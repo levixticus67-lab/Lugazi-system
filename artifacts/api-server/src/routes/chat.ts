@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { desc, eq, and, ilike, or, sql, ne } from "drizzle-orm";
-import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable, usersTable } from "@workspace/db";
+import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -215,6 +215,20 @@ router.post("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res):
     isPrivateMode: !!isPrivateMode,
     autoDeleteAt,
   }).returning();
+
+  // Notify the recipient so they know they have a new DM (skip private-mode messages)
+  if (!isPrivateMode) {
+    const senderName = fromName || "Someone";
+    const preview = message.trim().slice(0, 80) + (message.trim().length > 80 ? "…" : "");
+    await db.insert(inAppNotificationsTable).values({
+      userId: otherId,
+      title: "New message from " + senderName,
+      message: preview,
+      relatedEntityType: "chat_dm",
+      relatedEntityId: record.id,
+    });
+  }
+
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), autoDeleteAt: record.autoDeleteAt?.toISOString() ?? null });
 });
 

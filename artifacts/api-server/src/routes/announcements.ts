@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { desc, or, eq, and, isNull, gt } from "drizzle-orm";
-import { db, announcementsTable, usersTable } from "@workspace/db";
+import { desc, or, eq, and, isNull, gt, inArray } from "drizzle-orm";
+import { db, announcementsTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { logActivity } from "../lib/activityLog";
@@ -68,6 +68,31 @@ router.post("/announcements", requireAuth, requireRole(["admin", "pastor", "lead
   logger.info({ id: record.id, type: record.type }, "Announcement created");
   const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "create_announcement", entityType: "announcement", entityId: record.id, entityName: title.trim(), ipAddress: req.ip ?? "unknown" });
+
+  // Push live notification to all relevant users — only for broadcast announcements (not hero banners)
+  if (record.type === "broadcast") {
+    const targetAudience = record.audience ?? "all";
+    const validRoles = ["admin", "pastor", "leadership", "workforce", "member"];
+    let recipientQuery = db.select({ id: usersTable.id }).from(usersTable).$dynamic();
+    if (targetAudience !== "all" && validRoles.includes(targetAudience)) {
+      recipientQuery = recipientQuery.where(inArray(usersTable.role, [targetAudience]));
+    }
+    const recipients = await recipientQuery;
+    const notifyUsers = recipients.filter(u => u.id !== req.userId);
+    if (notifyUsers.length > 0) {
+      const senderName = actor?.displayName ?? record.sentBy ?? "Admin";
+      await db.insert(inAppNotificationsTable).values(
+        notifyUsers.map(u => ({
+          userId: u.id,
+          title: "📢 " + record.title,
+          message: senderName + ": " + record.message.slice(0, 120) + (record.message.length > 120 ? "…" : ""),
+          relatedEntityType: "announcement",
+          relatedEntityId: record.id,
+        }))
+      );
+    }
+  }
+
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null });
 });
 
