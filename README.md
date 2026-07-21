@@ -205,6 +205,7 @@ Lugazi-system/
 | Frontend routing | Wouter |
 | Frontend data fetching | TanStack React Query + Axios |
 | Mobile app shell | Capacitor (for native Android packaging) + PWA support |
+| Push notifications | Firebase Cloud Messaging (FCM) via `firebase-admin` (live alerts) + Capacitor Local Notifications (scheduled reminders) |
 | Backend framework | Express 5 (Node.js) |
 | Database | PostgreSQL (hosted on Neon) |
 | ORM | Drizzle ORM |
@@ -216,6 +217,47 @@ Lugazi-system/
 | CI/CD | GitHub Actions |
 | Frontend hosting | Firebase Hosting |
 | Backend hosting | Render |
+
+---
+
+## Push Notifications
+
+The app uses **two separate notification systems** that serve different purposes:
+
+### 🔔 Live FCM Notifications (server-pushed)
+
+Real-time alerts triggered by events in the system — e.g. a role upgrade request, a task assigned to you, or a message. These are sent **from the API server** using the Firebase Admin SDK (FCM HTTP v1 API).
+
+**How it works:**
+1. An action in the system writes a record to the `in_app_notifications` table.
+2. A background worker (`fcm.ts`) polls every 30 seconds for unsent records (created in the last 10 minutes).
+3. It pushes the notification to every registered FCM device token for that user.
+4. The device shows the notification with the **app icon** (`ic_launcher`), sound, and heads-up popup on Android.
+
+**Required env var:** `FIREBASE_SERVICE_ACCOUNT` — the full contents of your Firebase service account JSON key. Generate one at: Firebase Console → Project Settings → Service Accounts → "Generate new private key". Set this on Render for FCM to be active.
+
+**Token registration:** When a user logs in on a native device, `PushNotifications.tsx` registers the FCM device token with `POST /api/fcm-tokens`. Tokens are cleaned up automatically if Firebase reports them as stale.
+
+### 📅 Scheduled (Local) Notifications
+
+Reminders for upcoming items — meetings, events, birthdays, and tasks — scheduled **locally on the device** by the Capacitor Native APIs. No server push is needed once they are set.
+
+**How it works:**
+1. On app start (and every resume), `notificationScheduler.ts` calls `GET /api/notifications/schedule`.
+2. The API returns the user's upcoming meetings, events, birthdays, and tasks for the next 7 days.
+3. The app cancels any previously scheduled local notifications and reschedules fresh ones.
+4. Notifications fire at the right time (e.g. 1 hour before a meeting, 7am on a birthday, 8am on a task due date) — all with the **app icon** (`ic_launcher`) and sound.
+
+The scheduler also adds **Sunday service reminders** (9am weekly) for weeks where no service event has been explicitly created in the system.
+
+### Notification Channels (Android)
+
+| Channel ID | Name | Used for |
+|---|---|---|
+| `dcl-push` | DC Lugazi Alerts | Live FCM notifications |
+| `dcl-reminders` | DC Lugazi Reminders | Scheduled local reminders |
+
+Both channels are importance 5 (max) so they always produce a heads-up popup and sound.
 
 ---
 

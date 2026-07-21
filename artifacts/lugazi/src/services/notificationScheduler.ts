@@ -168,6 +168,7 @@ export async function scheduleAllNotifications(): Promise<void> {
       schedule: { at: n.at },
       sound: "default",
       smallIcon: "ic_stat_notification",
+      largeIcon: "ic_launcher",
       channelId: REMINDERS_CHANNEL_ID,
     })),
   });

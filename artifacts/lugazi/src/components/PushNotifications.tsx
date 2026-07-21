@@ -70,11 +70,14 @@ export default function PushNotificationsSetup() {
           }
         });
 
-        // 5. When a push arrives while the app is in the FOREGROUND, FCM won't
-        //    show any UI. We catch it and fire a local notification so the user
-        //    always sees a heads-up popup with sound.
+        // 5. When a push arrives while the app is in the FOREGROUND:
+        //    - iOS: FCM suppresses the notification UI, so we fire a local one manually.
+        //    - Android 8+ with a high-importance channel: the OS shows the FCM
+        //      notification even in foreground, so firing a local one here would
+        //      produce a duplicate. We skip it on Android to avoid that.
         await PushNotifications.addListener("pushNotificationReceived", async (notification) => {
           if (!active) return;
+          if (Capacitor.getPlatform() !== "ios") return; // Android shows FCM in foreground natively
           try {
             await LocalNotifications.schedule({
               notifications: [
@@ -85,6 +88,7 @@ export default function PushNotificationsSetup() {
                   schedule: { at: new Date(Date.now() + 300) },
                   sound: "default",
                   smallIcon: "ic_stat_notification",
+                  largeIcon: "ic_launcher",
                   channelId: PUSH_CHANNEL_ID,
                 },
               ],
