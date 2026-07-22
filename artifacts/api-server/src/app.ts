@@ -18,6 +18,14 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader("X-XSS-Protection", "0");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  // Pure JSON API — no HTML, scripts, or media served from this origin.
+  // connect-src covers FCM and the API itself; everything else is blocked.
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; " +
+    "connect-src 'self' https://fcm.googleapis.com https://firebaseinstallations.googleapis.com; " +
+    "frame-ancestors 'none'",
+  );
   if (process.env.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }

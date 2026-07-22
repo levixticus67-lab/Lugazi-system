@@ -6,8 +6,20 @@ import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
-router.get("/sermons", requireAuth, async (_req, res): Promise<void> => {
-  const sermons = await db.select().from(sermonsTable).orderBy(desc(sermonsTable.sermonDate));
+router.get("/sermons", requireAuth, async (req, res): Promise<void> => {
+  const MAX_LIMIT = 200;
+  const DEFAULT_LIMIT = 100;
+  const rawLimit = parseInt(req.query.limit as string, 10);
+  const rawPage  = parseInt(req.query.page  as string, 10);
+  const limit  = (!isNaN(rawLimit) && rawLimit > 0) ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
+  const page   = (!isNaN(rawPage)  && rawPage  > 0) ? rawPage : 1;
+  const offset = (page - 1) * limit;
+  const sermons = await db
+    .select()
+    .from(sermonsTable)
+    .orderBy(desc(sermonsTable.sermonDate))
+    .limit(limit)
+    .offset(offset);
   res.json(sermons.map(s => ({ ...s, createdAt: s.createdAt.toISOString(), updatedAt: s.updatedAt.toISOString() })));
 });
 

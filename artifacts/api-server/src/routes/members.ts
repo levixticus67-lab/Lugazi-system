@@ -15,11 +15,18 @@ const SENSITIVE_ROLES = ["admin", "leadership", "workforce", "pastor"];
 
 // GET /members — admins are never shown to non-admin callers
 router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const MAX_LIMIT = 500;
+  const DEFAULT_LIMIT = 500;
+  const rawLimit = parseInt(req.query.limit as string, 10);
+  const rawPage  = parseInt(req.query.page  as string, 10);
+  const limit  = (!isNaN(rawLimit) && rawLimit > 0) ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
+  const page   = (!isNaN(rawPage)  && rawPage  > 0) ? rawPage : 1;
+  const offset = (page - 1) * limit;
   const isAdmin = req.userRole === "admin";
   const whereClause = isAdmin ? undefined : ne(membersTable.role, "admin");
   const members = whereClause
-    ? await db.select().from(membersTable).where(whereClause).orderBy(membersTable.fullName)
-    : await db.select().from(membersTable).orderBy(membersTable.fullName);
+    ? await db.select().from(membersTable).where(whereClause).orderBy(membersTable.fullName).limit(limit).offset(offset)
+    : await db.select().from(membersTable).orderBy(membersTable.fullName).limit(limit).offset(offset);
   const userIds = members.map(m => m.userId).filter((id): id is number => id != null);
   let userPhotoMap: Record<number, string | null> = {};
   if (userIds.length > 0) {
