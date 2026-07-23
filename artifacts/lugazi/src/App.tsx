@@ -11,6 +11,7 @@ import UpdateChecker from "@/components/UpdateChecker";
 import InAppNotifications from "@/components/InAppNotifications";
 import PushNotifications from "@/components/PushNotifications";
 const Terms = lazy(() => import("@/pages/Terms"));
+const VerifyEmail = lazy(() => import("@/pages/VerifyEmail"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 import { Capacitor } from "@capacitor/core";
@@ -233,6 +234,7 @@ import axios from "@/lib/axios";
       <Switch>
         <Route path="/" component={RootRedirect} />
         <Route path="/login" component={Login} />
+        <Route path="/verify-email" component={VerifyEmail} />
 
         {/* ── Admin portal ── */}
         <Route path="/admin/dashboard"><RequireAuth roles={["admin"]}><AdminDashboard /></RequireAuth></Route>

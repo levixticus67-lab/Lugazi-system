@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 
 export const chatMessagesTable = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
@@ -14,7 +14,13 @@ export const chatMessagesTable = pgTable("chat_messages", {
   isDeleted: boolean("is_deleted").notNull().default(false),
   isEdited: boolean("is_edited").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("chat_messages_portal_scope_idx").on(table.portalScope),
+  index("chat_messages_user_id_idx").on(table.userId),
+  index("chat_messages_created_at_idx").on(table.createdAt),
+  // Composite: most common read pattern is scope + time
+  index("chat_messages_scope_time_idx").on(table.portalScope, table.createdAt),
+]);
 
 export type ChatMessage = typeof chatMessagesTable.$inferSelect;
 
@@ -25,7 +31,9 @@ export const chatReactionsTable = pgTable("chat_reactions", {
   displayName: text("display_name").notNull(),
   emoji: text("emoji").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("chat_reactions_message_id_idx").on(table.messageId),
+]);
 
 export type ChatReaction = typeof chatReactionsTable.$inferSelect;
 
@@ -44,7 +52,12 @@ export const privateMessagesTable = pgTable("private_messages", {
   autoDeleteAt: timestamp("auto_delete_at", { withTimezone: true }),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("private_messages_from_user_id_idx").on(table.fromUserId),
+  index("private_messages_to_user_id_idx").on(table.toUserId),
+  index("private_messages_created_at_idx").on(table.createdAt),
+  index("private_messages_auto_delete_at_idx").on(table.autoDeleteAt),
+]);
 
 export type PrivateMessage = typeof privateMessagesTable.$inferSelect;
 

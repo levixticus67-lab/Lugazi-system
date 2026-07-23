@@ -1,6 +1,7 @@
 import { pgTable, serial, text, boolean, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { roleEnum } from "./roles";
 
 export const membersTable = pgTable("members", {
   id: serial("id").primaryKey(),
@@ -8,7 +9,7 @@ export const membersTable = pgTable("members", {
   fullName: text("full_name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),
-  role: text("role").notNull().default("member"),
+  role: roleEnum("role").notNull().default("member"),
   branchId: integer("branch_id").notNull().default(1),
   department: text("department"),
   profession: text("profession"),

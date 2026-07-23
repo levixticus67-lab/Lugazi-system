@@ -1,4 +1,4 @@
-import { pgTable, serial, text, numeric, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,7 +14,11 @@ export const welfareTable = pgTable("welfare", {
   reviewedBy: integer("reviewed_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("welfare_member_id_idx").on(table.memberId),
+  index("welfare_status_idx").on(table.status),
+  index("welfare_created_at_idx").on(table.createdAt),
+]);
 
 export const insertWelfareSchema = createInsertSchema(welfareTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertWelfare = z.infer<typeof insertWelfareSchema>;

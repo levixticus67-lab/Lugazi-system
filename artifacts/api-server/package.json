@@ -28,7 +28,8 @@
     "pino-http": "^10",
     "pino-pretty": "^13",
     "thread-stream": "3.1.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

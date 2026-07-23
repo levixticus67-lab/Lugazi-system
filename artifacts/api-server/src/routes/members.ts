@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db, membersTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
@@ -30,9 +30,12 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
   const userIds = members.map(m => m.userId).filter((id): id is number => id != null);
   let userPhotoMap: Record<number, string | null> = {};
   if (userIds.length > 0) {
-    const allUsers = await db.select({ id: usersTable.id, photoUrl: usersTable.photoUrl }).from(usersTable);
-    const idSet = new Set(userIds);
-    allUsers.filter(u => idSet.has(u.id)).forEach(u => { userPhotoMap[u.id] = u.photoUrl ?? null; });
+    // H3: inArray fetches only the rows needed — no full-table scan
+    const matchedUsers = await db
+      .select({ id: usersTable.id, photoUrl: usersTable.photoUrl })
+      .from(usersTable)
+      .where(inArray(usersTable.id, userIds));
+    matchedUsers.forEach(u => { userPhotoMap[u.id] = u.photoUrl ?? null; });
   }
   const canSeeSensitive = SENSITIVE_ROLES.includes(req.userRole ?? "member");
   res.json(members.map(m => {

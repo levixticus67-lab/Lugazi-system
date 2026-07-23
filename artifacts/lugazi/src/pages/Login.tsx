@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogIn, UserPlus, KeyRound, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Loader2, LogIn, UserPlus, KeyRound, ArrowLeft, CheckCircle2, MailCheck, RefreshCw } from "lucide-react";
 import axios from "@/lib/axios";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
 type Tab = "login" | "register";
-type View = "main" | "forgot" | "forgot-sent";
+type View = "main" | "forgot" | "forgot-sent" | "check-email";
 
 function GoogleIcon() {
   return (
@@ -34,6 +34,9 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [resendPending, setResendPending] = useState(false);
   const [missionText, setMissionText] = useState<string | null>(null);
   const { login } = useAuth();
   const { toast } = useToast();
@@ -80,6 +83,18 @@ export default function Login() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleResendVerification(emailToSend: string) {
+    setResendPending(true);
+    try {
+      await axios.post("/api/auth/resend-verification", { email: emailToSend });
+      toast({ title: "Verification email sent", description: "Please check your inbox and click the link." });
+    } catch {
+      toast({ title: "Could not resend", description: "Please try again in a moment.", variant: "destructive" });
+    } finally {
+      setResendPending(false);
+    }
+  }
+
   function redirectByRole(role: string) {
     // Hard redirect ensures auth state hydrates cleanly from localStorage
     // before RequireAuth renders — prevents the React state-update race that
@@ -106,6 +121,9 @@ export default function Login() {
       if (errData?.requiresRegistration) {
         toast({ title: "First time? Set up your account", description: "Your email is registered. Please create a password to continue." });
         setTab("register");
+      } else if (errData?.needsVerification) {
+        setUnverifiedEmail(errData?.email ?? email);
+        toast({ title: "Email not verified", description: "Check your inbox for the verification link.", variant: "destructive" });
       } else {
         toast({ title: "Login failed", description: errData?.error || "Invalid email or password", variant: "destructive" });
       }
@@ -130,10 +148,9 @@ export default function Login() {
     }
     setPending(true);
     try {
-      const res = await axios.post<{ token: string; user: any }>("/api/auth/register", { email, password, displayName });
-      login(res.data.token, res.data.user);
-      toast({ title: "Account created!", description: "Welcome to DCL Lugazi ERP." });
-      redirectByRole(res.data.user.role);
+      await axios.post("/api/auth/register", { email, password, displayName });
+      setRegisteredEmail(email);
+      setView("check-email");
     } catch (err: any) {
       const msg = err?.response?.data?.error || "Registration failed. Please try again.";
       toast({ title: "Registration failed", description: msg, variant: "destructive" });
@@ -221,6 +238,32 @@ export default function Login() {
           <div className="glass-card p-8">
 
             {/* ── Forgot Password: enter email ── */}
+            {view === "check-email" && (
+              <div className="flex flex-col items-center gap-4 py-4 text-center">
+                <MailCheck className="h-14 w-14 text-primary" />
+                <div>
+                  <h3 className="text-lg font-semibold">Check your email</h3>
+                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                    We sent a verification link to <strong>{registeredEmail}</strong>.
+                    Click it to activate your account, then come back and sign in.
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Didn&apos;t receive it?{" "}
+                  <button type="button" disabled={resendPending}
+                    onClick={() => handleResendVerification(registeredEmail)}
+                    className="text-primary underline disabled:opacity-50">
+                    {resendPending ? "Sending…" : "Resend verification email"}
+                  </button>
+                </p>
+                <button type="button"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => setView("main")}>
+                  <ArrowLeft className="h-4 w-4" /> Back to sign in
+                </button>
+              </div>
+            )}
+
             {view === "forgot" && (
               <>
                 <button onClick={() => setView("main")}

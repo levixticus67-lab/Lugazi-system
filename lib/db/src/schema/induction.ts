@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -22,7 +22,11 @@ export const inductionEnrollmentsTable = pgTable("induction_enrollments", {
   status: text("status").notNull().default("enrolled"),
   enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+}, (table) => [
+  index("induction_enrollments_member_id_idx").on(table.memberId),
+  index("induction_enrollments_track_id_idx").on(table.trackId),
+  index("induction_enrollments_status_idx").on(table.status),
+]);
 
 export const insertInductionTrackSchema = createInsertSchema(inductionTracksTable).omit({ id: true, createdAt: true });
 export type InsertInductionTrack = z.infer<typeof insertInductionTrackSchema>;

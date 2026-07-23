@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -12,7 +12,11 @@ export const roleRequestsTable = pgTable("role_requests", {
   adminNote: text("admin_note"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("role_requests_user_id_idx").on(table.userId),
+  index("role_requests_status_idx").on(table.status),
+  index("role_requests_created_at_idx").on(table.createdAt),
+]);
 
 export const insertRoleRequestSchema = createInsertSchema(roleRequestsTable).omit({ id: true, createdAt: true });
 export type InsertRoleRequest = z.infer<typeof insertRoleRequestSchema>;

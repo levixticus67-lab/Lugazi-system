@@ -8,6 +8,7 @@ import { logger } from "../lib/logger";
 import { logActivity } from "../lib/activityLog";
 import { v4 as uuidv4 } from "uuid";
 import nodemailer from "nodemailer";
+import { z } from "zod/v4";
 
 const router = Router();
 
@@ -86,36 +87,20 @@ async function hasMailServer(email: string): Promise<boolean> {
   }
 }
 
-// ── Validators ────────────────────────────────────────────────────────────────
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// ── Validators (H6: Zod schemas replace hand-rolled string checks) ────────────
+const loginSchema = z.object({
+  email:      z.string().email("A valid email address is required").transform(v => v.trim().toLowerCase()),
+  password:   z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().optional().transform(v => v ?? false),
+});
 
-function validateLogin(body: unknown): { email: string; password: string; rememberMe: boolean } | string {
-  const b = body as Record<string, unknown>;
-  if (!b.email || typeof b.email !== "string" || !EMAIL_RE.test(b.email))
-    return "A valid email address is required";
-  if (!b.password || typeof b.password !== "string" || b.password.length < 1)
-    return "Password is required";
-  return { email: b.email.trim().toLowerCase(), password: b.password, rememberMe: b.rememberMe === true };
-}
-
-function validateRegister(body: unknown): { email: string; password: string; displayName: string } | string {
-  const b = body as Record<string, unknown>;
-  if (!b.email || typeof b.email !== "string" || !EMAIL_RE.test(b.email))
-    return "A valid email address is required";
-  if (!b.password || typeof b.password !== "string" || b.password.length < 8)
-    return "Password must be at least 8 characters";
-  if (!/\d/.test(b.password as string))
-    return "Password must contain at least one number";
-  if (!b.displayName || typeof b.displayName !== "string" || b.displayName.trim().length < 1)
-    return "Display name is required";
-  if (b.displayName.toString().length > 100)
-    return "Display name must be 100 characters or fewer";
-  return {
-    email: b.email.trim().toLowerCase(),
-    password: b.password,
-    displayName: (b.displayName as string).trim(),
-  };
-}
+const registerSchema = z.object({
+  email:       z.string().email("A valid email address is required").transform(v => v.trim().toLowerCase()),
+  password:    z.string()
+                  .min(8, "Password must be at least 8 characters")
+                  .regex(/\d/, "Password must contain at least one number"),
+  displayName: z.string().min(1, "Display name is required").max(100).transform(v => v.trim()),
+});
 
 function validateChangePassword(body: unknown): { currentPassword: string; newPassword: string } | string {
   const b = body as Record<string, unknown>;
@@ -135,9 +120,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(429).json({ error: "Too many login attempts. Please wait 15 minutes and try again." });
     return;
   }
-  const validated = validateLogin(req.body);
-  if (typeof validated === "string") { res.status(400).json({ error: validated }); return; }
-  const { email, password, rememberMe } = validated;
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" }); return; }
+  const { email, password, rememberMe } = parsed.data;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!user) {
     const [existingMember] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
@@ -151,6 +136,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) { res.status(401).json({ error: "Invalid email or password" }); return; }
   if (!user.isActive) { res.status(403).json({ error: "Account deactivated. Contact admin." }); return; }
+  // H7: block sign-in until email is verified; Google OAuth users skip this (emailVerified defaults true)
+  if (!user.emailVerified) {
+    res.status(403).json({ error: "Please verify your email before signing in. Check your inbox for the verification link.", needsVerification: true, email: user.email });
+    return;
+  }
   clearRateLimit(ip);
   await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
   const token = generateToken(user.id, user.role, rememberMe ? "14d" : "2d");
@@ -163,15 +153,23 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 router.post("/auth/register", async (req, res): Promise<void> => {
   const ip = req.ip ?? "unknown";
   if (!checkRateLimit(ip)) { res.status(429).json({ error: "Too many requests. Please wait 15 minutes and try again." }); return; }
-  const validated = validateRegister(req.body);
-  if (typeof validated === "string") { res.status(400).json({ error: validated }); return; }
-  const { email, password, displayName } = validated;
+  const regParsed = registerSchema.safeParse(req.body);
+  if (!regParsed.success) { res.status(400).json({ error: regParsed.error.issues[0]?.message ?? "Invalid request body" }); return; }
+  const { email, password, displayName } = regParsed.data;
   const mxOk = await hasMailServer(email);
   if (!mxOk) { res.status(400).json({ error: "This email address doesn't look valid — the domain doesn't accept mail. Please double-check and try again." }); return; }
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) { res.status(400).json({ error: "An account with this email already exists. Please sign in instead." }); return; }
   const hash = await bcrypt.hash(password, 12);
-  const [user] = await db.insert(usersTable).values({ email, passwordHash: hash, displayName, role: "member", isActive: true }).returning();
+  // H7: new users start unverified; token has 24-hour TTL
+  const verificationToken = uuidv4();
+  const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const [user] = await db.insert(usersTable).values({
+    email, passwordHash: hash, displayName, role: "member", isActive: true,
+    emailVerified: false,
+    emailVerificationToken: verificationToken,
+    emailVerificationTokenExpiry: verificationExpiry,
+  }).returning();
   const [preRegistered] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
   if (preRegistered) {
     await db.update(membersTable).set({ userId: user.id, fullName: displayName }).where(eq(membersTable.id, preRegistered.id));
@@ -181,10 +179,43 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
   logger.info({ userId: user.id, email }, "New user registered");
   await logActivity({ userId: user.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: ip });
-  const token = generateToken(user.id, "member");
-  setAuthCookie(res, token);
-  const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, isActive: user.isActive, createdAt: user.createdAt.toISOString() };
-  res.status(201).json({ token, user: userData });
+
+  // Respond immediately; send email fire-and-forget
+  res.status(201).json({ message: "Account created. Check your email to verify your account before signing in.", needsVerification: true });
+
+  const transport = createMailTransport();
+  if (!transport) {
+    logger.warn({ email }, "Register: EMAIL_USER/EMAIL_PASS not set — skipping verification email");
+    return;
+  }
+  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+  const verifyLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
+  try {
+    await transport.sendMail({
+      from: `"${process.env.EMAIL_FROM ?? "DCL Lugazi ERP"}" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Verify your DCL Lugazi account",
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <img src="https://system1.web.app/dcl-logo.png" alt="DCL Lugazi" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#fff;padding:4px;" />
+          <h2 style="margin:12px 0 4px;color:#1e293b;">Deliverance Church Lugazi</h2>
+          <p style="color:#64748b;margin:0;font-size:13px;">The House of Kingdom Giants</p>
+        </div>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
+        <h3 style="color:#1e293b;">Verify your email address</h3>
+        <p style="color:#475569;line-height:1.6;">Hi ${displayName}, thank you for joining DCL Lugazi ERP. Click below to verify your email — this link expires in <strong>24 hours</strong>.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${verifyLink}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Verify My Email</a>
+        </div>
+        <p style="color:#94a3b8;font-size:12px;">If you didn't create this account, ignore this email.</p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
+        <p style="color:#94a3b8;font-size:11px;text-align:center;">DCL Lugazi ERP &bull; Deliverance Church Lugazi, Uganda</p>
+      </div>`,
+    });
+    logger.info({ userId: user.id }, "Verification email sent");
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "Failed to send verification email");
+  }
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
@@ -444,6 +475,64 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
 
   logger.info({ userId: user.id }, "Password reset successfully");
   res.json({ message: "Password reset successfully. You can now sign in with your new password." });
+});
+
+
+// ── GET /auth/verify-email?token=xxx (H7) ────────────────────────────────────
+router.get("/auth/verify-email", async (req, res): Promise<void> => {
+  const token = req.query.token as string | undefined;
+  if (!token) { res.status(400).json({ error: "Verification token is required" }); return; }
+
+  const [user] = await db.select()
+    .from(usersTable)
+    .where(and(eq(usersTable.emailVerificationToken, token), gt(usersTable.emailVerificationTokenExpiry, new Date())))
+    .limit(1);
+
+  if (!user) { res.status(400).json({ error: "This verification link has expired or is invalid. Please request a new one." }); return; }
+  if (user.emailVerified) { res.json({ message: "Email already verified. You can sign in." }); return; }
+
+  await db.update(usersTable)
+    .set({ emailVerified: true, emailVerificationToken: null, emailVerificationTokenExpiry: null })
+    .where(eq(usersTable.id, user.id));
+
+  await logActivity({ userId: user.id, displayName: user.displayName, action: "verify_email", ipAddress: req.ip ?? "unknown" });
+  logger.info({ userId: user.id }, "Email verified");
+  res.json({ message: "Email verified successfully. You can now sign in." });
+});
+
+// ── POST /auth/resend-verification (H7) ──────────────────────────────────────
+router.post("/auth/resend-verification", async (req, res): Promise<void> => {
+  const { email } = (req.body ?? {}) as Record<string, unknown>;
+  res.json({ message: "If your email is registered and unverified, a new link has been sent." });
+  if (!email || typeof email !== "string") return;
+  const emailLower = email.trim().toLowerCase();
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower)).limit(1);
+  if (!user || user.emailVerified) return;
+  const transport = createMailTransport();
+  if (!transport) { logger.warn({ email: emailLower }, "Resend-verification: email transport not configured"); return; }
+  const newToken = uuidv4();
+  await db.update(usersTable)
+    .set({ emailVerificationToken: newToken, emailVerificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000) })
+    .where(eq(usersTable.id, user.id));
+  const verifyLink = `${process.env.FRONTEND_URL ?? "http://localhost:5173"}/verify-email?token=${newToken}`;
+  try {
+    await transport.sendMail({
+      from: `"${process.env.EMAIL_FROM ?? "DCL Lugazi ERP"}" <${process.env.EMAIL_USER}>`,
+      to: emailLower,
+      subject: "Verify your DCL Lugazi account",
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+        <h3 style="color:#1e293b;">Email Verification</h3>
+        <p>Hi ${user.displayName}, here is your new verification link — it expires in 24 hours.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${verifyLink}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Verify My Email</a>
+        </div>
+        <p style="color:#94a3b8;font-size:11px;text-align:center;">DCL Lugazi ERP &bull; Deliverance Church Lugazi, Uganda</p>
+      </div>`,
+    });
+    logger.info({ userId: user.id }, "Resent verification email");
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "Failed to resend verification email");
+  }
 });
 
 export default router;
