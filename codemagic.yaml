@@ -64,16 +64,41 @@ workflows:
           python3 /tmp/gen_icons.py
           pnpm exec cap sync android
 
-      - name: Build Android Debug APK
+      - name: Decode keystore
+        script: |
+          # KEYSTORE_FILE is the base64-encoded .jks stored in the lugazi_secrets group.
+          # We decode it to a temp path that Gradle reads at build time — never written
+          # to the repo or any build output.
+          if [ -z "$KEYSTORE_FILE" ]; then
+            echo "ERROR: KEYSTORE_FILE env var is not set in the lugazi_secrets group." >&2
+            exit 1
+          fi
+          echo "$KEYSTORE_FILE" | base64 --decode > /tmp/dcl-lugazi-release.jks
+          # Sanity-check: keytool can list the alias we expect
+          keytool -list \
+            -keystore /tmp/dcl-lugazi-release.jks \
+            -storepass "$KEYSTORE_STORE_PASSWORD" \
+            -alias "$KEYSTORE_KEY_ALIAS" \
+            -noprompt
+          echo "Keystore decoded and verified."
+
+      - name: Build Android Release APK
         script: |
           cd artifacts/lugazi/android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+          # Signing credentials are passed as Gradle properties so they never
+          # appear in build.gradle (which lives in the generated android/ dir).
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=/tmp/dcl-lugazi-release.jks \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEYSTORE_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEYSTORE_KEY_PASSWORD" \
+            --no-daemon
 
       - name: Publish to GitHub Releases
         script: |
           if [ -n "$GH_RELEASE_TOKEN" ]; then
-            APK=$(find artifacts/lugazi/android/app/build/outputs/apk/debug -name '*.apk' | head -1)
+            APK=$(find artifacts/lugazi/android/app/build/outputs/apk/release -name '*.apk' | head -1)
             REPO="levixticus67-lab/Lugazi-system"
             TAG="latest-build"
             # Remove any existing release + tag so we always have a fresh "latest-build"
@@ -105,4 +130,4 @@ workflows:
           fi
 
     artifacts:
-      - artifacts/lugazi/android/app/build/outputs/apk/debug/*.apk
+      - artifacts/lugazi/android/app/build/outputs/apk/release/*.apk
