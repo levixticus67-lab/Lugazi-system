@@ -74,13 +74,39 @@ workflows:
             exit 1
           fi
           echo "$KEYSTORE_FILE" | base64 --decode > /tmp/dcl-lugazi-release.jks
-          # Sanity-check: keytool can list the alias we expect
+
+          # Step 1: verify the store password and alias exist
           keytool -list \
             -keystore /tmp/dcl-lugazi-release.jks \
             -storepass "$KEYSTORE_STORE_PASSWORD" \
             -alias "$KEYSTORE_KEY_ALIAS" \
             -noprompt
-          echo "Keystore decoded and verified."
+          echo "Store password and alias: OK"
+
+          # Step 2: verify the KEY password by exporting the certificate.
+          # This catches the most common failure mode: PKCS12 keystores created with
+          # a modern JDK (11+) use a single password for store AND key. If
+          # KEYSTORE_KEY_PASSWORD differs from KEYSTORE_STORE_PASSWORD, Gradle
+          # fails with 'KeytoolException: Failed to read key ... : null'.
+          if ! keytool -exportcert \
+              -keystore /tmp/dcl-lugazi-release.jks \
+              -storepass "$KEYSTORE_STORE_PASSWORD" \
+              -keypass "$KEYSTORE_KEY_PASSWORD" \
+              -alias "$KEYSTORE_KEY_ALIAS" \
+              -noprompt > /dev/null 2>&1; then
+            echo "" >&2
+            echo "ERROR: Key password verification failed." >&2
+            echo "  Alias '$KEYSTORE_KEY_ALIAS' exists but could not be read with the" >&2
+            echo "  provided KEYSTORE_KEY_PASSWORD." >&2
+            echo "" >&2
+            echo "  If you generated the keystore with JDK 11+ (macOS default), the" >&2
+            echo "  keystore is PKCS12 format and the key password == store password." >&2
+            echo "  Fix: set KEYSTORE_KEY_PASSWORD = KEYSTORE_STORE_PASSWORD in" >&2
+            echo "  Codemagic > Environment variables > lugazi_secrets." >&2
+            exit 1
+          fi
+          echo "Key password: OK"
+          echo "Keystore fully verified — ready to sign."
 
       - name: Build Android Release APK
         script: |
