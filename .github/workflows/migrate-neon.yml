@@ -1,15 +1,25 @@
 name: Migrate Neon Database Schema
 
+# C5 FIX: Removed automatic push-to-main trigger.
+#
+# drizzle-kit push is destructive — it can drop columns and tables, has no
+# migration history, and cannot be rolled back. Running it automatically on
+# every schema commit is too risky for a production database.
+#
+# HOW TO APPLY SCHEMA CHANGES:
+#   1. Review the diff with:  pnpm --filter @workspace/db run generate
+#   2. Inspect the generated SQL migration in lib/db/drizzle/
+#   3. If satisfied, trigger this workflow manually from the Actions tab.
+#
+# For the safer long-term approach, migrate from drizzle-kit push to
+# drizzle-kit generate + drizzle-kit migrate (file-based migration history).
+
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'lib/db/src/schema/**'
-      - 'lib/db/drizzle.config.ts'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
+    inputs:
+      confirm:
+        description: "Type MIGRATE to confirm you have reviewed the schema diff"
+        required: true
 
 jobs:
   migrate:
@@ -17,6 +27,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Confirm intent
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "MIGRATE" ]; then
+            echo "Confirmation text incorrect. Aborting."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -31,7 +48,7 @@ jobs:
           version: 9.15.0
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Push schema to Neon
         run: pnpm --filter @workspace/db run push

@@ -9,6 +9,13 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// C4: Tell Express to trust exactly one upstream proxy hop (Render's edge).
+// Without this, req.ip reads raw from X-Forwarded-For which any client can
+// spoof — bypassing the auth rate limiter by cycling fake IPs.
+// With trust proxy:1, Express uses the rightmost XFF entry that Render stamps,
+// which is the real client IP and cannot be forged by the request sender.
+app.set('trust proxy', 1);
+
 app.use(compression());
 
 // Security headers
