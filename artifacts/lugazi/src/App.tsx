@@ -1,10 +1,9 @@
 import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
-import { Component, type ReactNode, type ErrorInfo } from "react";
+import { Component, type ReactNode, type ErrorInfo, useEffect, lazy, Suspense } from "react";
   import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
   import { Toaster } from "@/components/ui/toaster";
   import { TooltipProvider } from "@/components/ui/tooltip";
   import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-  import { ReactNode, useEffect, lazy, Suspense } from "react";
   import { useKeepAlive } from "@/hooks/use-keep-alive";
 import { PwaInstallBanner, PwaUpdateBanner } from "@/components/PwaPrompts";
 import UpdateChecker from "@/components/UpdateChecker";

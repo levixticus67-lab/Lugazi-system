@@ -2,6 +2,7 @@ import { Router } from "express";
 import { desc, eq, and, ilike, or, sql, ne } from "drizzle-orm";
 import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
+import { checkDbRateLimit } from "../lib/rateLimiter";
 
 const router = Router();
 
@@ -10,29 +11,9 @@ const ARCHIVE_THRESHOLD = 100;
 const GLOBAL = "global";
 const MAX_MESSAGE_LENGTH = 2000;
 
-// Per-user rate limiter for chat to prevent message flooding
-const chatRateLimiter = new Map<number, { count: number; resetAt: number }>();
+// DB-backed rate limiter for chat (C3/M3 fix — survives restarts, multi-instance safe)
 const CHAT_MAX = 20;
 const CHAT_WINDOW_MS = 60 * 1000;
-
-function checkChatRateLimit(userId: number): boolean {
-  const now = Date.now();
-  const entry = chatRateLimiter.get(userId);
-  if (!entry || now > entry.resetAt) {
-    chatRateLimiter.set(userId, { count: 1, resetAt: now + CHAT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= CHAT_MAX) return false;
-  entry.count++;
-  return true;
-}
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, entry] of chatRateLimiter) {
-    if (now > entry.resetAt) chatRateLimiter.delete(id);
-  }
-}, 5 * 60 * 1000).unref();
 
 // Get all online statuses
 router.get("/chat/statuses", requireAuth, async (_req, res): Promise<void> => {
@@ -320,7 +301,7 @@ router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => 
 
 // Post a global chat message
 router.post("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  if (!checkChatRateLimit(req.userId!)) {
+  if (!(await checkDbRateLimit(`chat:${req.userId!}`, CHAT_MAX, CHAT_WINDOW_MS))) {
     res.status(429).json({ error: "Too many messages — please slow down." }); return;
   }
 

@@ -1,44 +1,24 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import { createHash } from "crypto";
 import { eq, and, gt } from "drizzle-orm";
 import { promises as dns } from "dns";
 import { db, usersTable, membersTable } from "@workspace/db";
 import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { logActivity } from "../lib/activityLog";
+import { checkDbRateLimit, clearDbRateLimit } from "../lib/rateLimiter";
 import { v4 as uuidv4 } from "uuid";
 import nodemailer from "nodemailer";
 import { z } from "zod/v4";
 
 const router = Router();
 
-// ── In-memory rate limiter for auth endpoints ────────────────────────────────
-const authAttempts = new Map<string, { count: number; resetAt: number }>();
+// ── DB-backed rate limiter for auth endpoints (C3/M3 fix) ────────────────────
+// Replaces the in-memory Map so limits survive Render restarts and work
+// correctly across multiple server instances. See lib/rateLimiter.ts.
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of authAttempts) {
-    if (now > entry.resetAt) authAttempts.delete(ip);
-  }
-}, 10 * 60 * 1000).unref();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = authAttempts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    authAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= MAX_ATTEMPTS) return false;
-  entry.count++;
-  return true;
-}
-
-function clearRateLimit(ip: string) {
-  authAttempts.delete(ip);
-}
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 const COOKIE_NAME = "dcl_token";
@@ -116,7 +96,7 @@ function validateChangePassword(body: unknown): { currentPassword: string; newPa
 // ── POST /auth/login ──────────────────────────────────────────────────────────
 router.post("/auth/login", async (req, res): Promise<void> => {
   const ip = req.ip ?? "unknown";
-  if (!checkRateLimit(ip)) {
+  if (!(await checkDbRateLimit(`auth:${ip}`, MAX_ATTEMPTS, WINDOW_MS))) {
     res.status(429).json({ error: "Too many login attempts. Please wait 15 minutes and try again." });
     return;
   }
@@ -141,7 +121,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Please verify your email before signing in. Check your inbox for the verification link.", needsVerification: true, email: user.email });
     return;
   }
-  clearRateLimit(ip);
+  await clearDbRateLimit(`auth:${ip}`);
   await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
   const token = generateToken(user.id, user.role, rememberMe ? "14d" : "2d");
   setAuthCookie(res, token, rememberMe ? REMEMBER_MAX_AGE : COOKIE_MAX_AGE);
@@ -152,7 +132,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 // ── POST /auth/register ───────────────────────────────────────────────────────
 router.post("/auth/register", async (req, res): Promise<void> => {
   const ip = req.ip ?? "unknown";
-  if (!checkRateLimit(ip)) { res.status(429).json({ error: "Too many requests. Please wait 15 minutes and try again." }); return; }
+  if (!(await checkDbRateLimit(`auth:${ip}`, MAX_ATTEMPTS, WINDOW_MS))) { res.status(429).json({ error: "Too many requests. Please wait 15 minutes and try again." }); return; }
   const regParsed = registerSchema.safeParse(req.body);
   if (!regParsed.success) { res.status(400).json({ error: regParsed.error.issues[0]?.message ?? "Invalid request body" }); return; }
   const { email, password, displayName } = regParsed.data;
@@ -385,15 +365,18 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
     return;
   }
 
-  const resetToken = uuidv4();
+  // M1 fix: generate a raw token to send in the email, store only its
+  // SHA-256 hash in the DB so a database breach cannot be used to reset passwords.
+  const rawToken = uuidv4();
+  const resetToken = createHash("sha256").update(rawToken).digest("hex");
   const expiry = new Date(Date.now() + RESET_TTL_MS);
-  // Store in DB — survives restarts and works across multiple server instances
   await db.update(usersTable)
     .set({ passwordResetToken: resetToken, passwordResetTokenExpiry: expiry })
     .where(eq(usersTable.id, user.id));
 
   const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
-  const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+  // Send rawToken in the link — the DB only holds the hash
+  const resetLink = `${frontendUrl}/reset-password?token=${rawToken}`;
   const fromEmail = process.env.EMAIL_USER!;
   const fromName = process.env.EMAIL_FROM ?? "DCL Lugazi ERP";
 
@@ -445,12 +428,13 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
   if (!password || typeof password !== "string" || password.length < 8) { res.status(400).json({ error: "Password must be at least 8 characters." }); return; }
   if (!/\d/.test(password)) { res.status(400).json({ error: "Password must contain at least one number." }); return; }
 
-  // Look up by token in DB, ensuring it hasn't expired
+  // M1 fix: hash the received raw token before DB lookup
+  const hashedToken = createHash("sha256").update(token).digest("hex");
   const [user] = await db.select()
     .from(usersTable)
     .where(
       and(
-        eq(usersTable.passwordResetToken, token),
+        eq(usersTable.passwordResetToken, hashedToken),
         gt(usersTable.passwordResetTokenExpiry, new Date())
       )
     )

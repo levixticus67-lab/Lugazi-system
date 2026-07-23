@@ -6,8 +6,11 @@ on:
     paths:
       - 'artifacts/lugazi/**'
       - 'artifacts/api-server/**'
-      - 'lib/**'
+      - 'lib/api-client-react/**'
+      - 'lib/api-spec/**'
+      - 'lib/api-zod/**'
       - 'codemagic.yaml'
+      # M4 fix: lib/db schema changes do NOT need an APK rebuild
 
 jobs:
   trigger:

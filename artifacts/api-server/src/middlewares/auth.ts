@@ -62,10 +62,13 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       return;
     }
   } catch (err) {
-    // If the DB check fails (e.g. transient connection error), log and fail open
-    // rather than blocking all users during an outage. The JWT signature still
-    // guarantees the token was issued by this server.
-    logger.warn({ err, userId: decoded.userId }, "requireAuth: DB isActive check failed — failing open");
+    // M2 fix: fail CLOSED on DB error. A compromised or deactivated account
+    // must not retain access just because the DB is temporarily unreachable.
+    // Clients will retry; a brief 503 during a DB hiccup is safer than
+    // silently allowing a deactivated user through.
+    logger.error({ err, userId: decoded.userId }, "requireAuth: DB isActive check failed — failing closed");
+    res.status(503).json({ error: "Service temporarily unavailable. Please try again in a moment." });
+    return;
   }
 
   req.userId = decoded.userId;

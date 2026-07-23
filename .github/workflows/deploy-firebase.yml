@@ -41,7 +41,7 @@ jobs:
           access_token_scopes: 'https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts  # M6 fix: enforce lockfile integrity
 
       - name: Build API client
         run: pnpm --filter @workspace/api-client-react run build
