@@ -67,46 +67,41 @@ workflows:
       - name: Decode keystore
         script: |
           # KEYSTORE_FILE is the base64-encoded .jks stored in the lugazi_secrets group.
-          # We decode it to a temp path that Gradle reads at build time — never written
-          # to the repo or any build output.
           if [ -z "$KEYSTORE_FILE" ]; then
             echo "ERROR: KEYSTORE_FILE env var is not set in the lugazi_secrets group." >&2
             exit 1
           fi
-          echo "$KEYSTORE_FILE" | base64 --decode > /tmp/dcl-lugazi-release.jks
+          echo "$KEYSTORE_FILE" | base64 --decode > /tmp/dcl-lugazi-original.jks
 
-          # Step 1: verify the store password and alias exist
+          # Quick check: confirm store password and alias are correct.
+          # Suppress stderr — Java 17 prints PKCS12 format warnings to stderr
+          # even on a fully valid keystore, which pollute the log.
           keytool -list \
-            -keystore /tmp/dcl-lugazi-release.jks \
+            -keystore /tmp/dcl-lugazi-original.jks \
             -storepass "$KEYSTORE_STORE_PASSWORD" \
             -alias "$KEYSTORE_KEY_ALIAS" \
-            -noprompt
+            -noprompt 2>/dev/null
           echo "Store password and alias: OK"
 
-          # Step 2: verify the KEY password by exporting the certificate.
-          # This catches the most common failure mode: PKCS12 keystores created with
-          # a modern JDK (11+) use a single password for store AND key. If
-          # KEYSTORE_KEY_PASSWORD differs from KEYSTORE_STORE_PASSWORD, Gradle
-          # fails with 'KeytoolException: Failed to read key ... : null'.
-          if ! keytool -exportcert \
-              -keystore /tmp/dcl-lugazi-release.jks \
-              -storepass "$KEYSTORE_STORE_PASSWORD" \
-              -keypass "$KEYSTORE_KEY_PASSWORD" \
-              -alias "$KEYSTORE_KEY_ALIAS" \
-              -noprompt > /dev/null 2>&1; then
-            echo "" >&2
-            echo "ERROR: Key password verification failed." >&2
-            echo "  Alias '$KEYSTORE_KEY_ALIAS' exists but could not be read with the" >&2
-            echo "  provided KEYSTORE_KEY_PASSWORD." >&2
-            echo "" >&2
-            echo "  If you generated the keystore with JDK 11+ (macOS default), the" >&2
-            echo "  keystore is PKCS12 format and the key password == store password." >&2
-            echo "  Fix: set KEYSTORE_KEY_PASSWORD = KEYSTORE_STORE_PASSWORD in" >&2
-            echo "  Codemagic > Environment variables > lugazi_secrets." >&2
-            exit 1
-          fi
-          echo "Key password: OK"
-          echo "Keystore fully verified — ready to sign."
+          # Convert to JKS format. Modern JDK (11+) defaults to PKCS12, which
+          # causes Android Gradle Plugin to fail with the cryptic error:
+          #   'KeytoolException: Failed to read key ... : null'
+          # Converting to JKS here fixes it permanently without requiring the
+          # developer to regenerate their keystore. This step also validates
+          # KEYSTORE_KEY_PASSWORD — if it's wrong, keytool fails here with a
+          # clear message rather than 50 minutes into the Gradle build.
+          keytool -importkeystore \
+            -srckeystore  /tmp/dcl-lugazi-original.jks \
+            -destkeystore /tmp/dcl-lugazi-release.jks \
+            -deststoretype JKS \
+            -srcstorepass  "$KEYSTORE_STORE_PASSWORD" \
+            -srckeypass    "$KEYSTORE_KEY_PASSWORD" \
+            -deststorepass "$KEYSTORE_STORE_PASSWORD" \
+            -destkeypass   "$KEYSTORE_KEY_PASSWORD" \
+            -srcalias  "$KEYSTORE_KEY_ALIAS" \
+            -destalias "$KEYSTORE_KEY_ALIAS" \
+            -noprompt 2>&1
+          echo "Keystore converted to JKS and verified — ready to sign."
 
       - name: Build Android Release APK
         script: |
