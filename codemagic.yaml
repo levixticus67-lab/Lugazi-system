@@ -66,60 +66,72 @@ workflows:
 
       - name: Decode keystore
         script: |
-          # KEYSTORE_FILE is the base64-encoded .jks stored in the lugazi_secrets group.
+          # Decode the base64-encoded keystore to a temp file.
+          # We keep it in its original format (PKCS12) — apksigner handles
+          # PKCS12 natively so no format conversion is needed or attempted.
           if [ -z "$KEYSTORE_FILE" ]; then
             echo "ERROR: KEYSTORE_FILE env var is not set in the lugazi_secrets group." >&2
             exit 1
           fi
-          echo "$KEYSTORE_FILE" | base64 --decode > /tmp/dcl-lugazi-original.jks
+          echo "$KEYSTORE_FILE" | base64 --decode > /tmp/dcl-lugazi-release.jks
 
-          # Quick check: confirm store password and alias are correct.
-          # Suppress stderr — Java 17 prints PKCS12 format warnings to stderr
-          # even on a fully valid keystore, which pollute the log.
+          # Verify store password and alias — suppress stderr because Java 17
+          # prints PKCS12 deprecation warnings even on valid keystores.
           keytool -list \
-            -keystore /tmp/dcl-lugazi-original.jks \
+            -keystore /tmp/dcl-lugazi-release.jks \
             -storepass "$KEYSTORE_STORE_PASSWORD" \
             -alias "$KEYSTORE_KEY_ALIAS" \
             -noprompt 2>/dev/null
-          echo "Store password and alias: OK"
-
-          # Convert to JKS format. Modern JDK (11+) defaults to PKCS12, which
-          # causes Android Gradle Plugin to fail with the cryptic error:
-          #   'KeytoolException: Failed to read key ... : null'
-          # Converting to JKS here fixes it permanently without requiring the
-          # developer to regenerate their keystore. This step also validates
-          # KEYSTORE_KEY_PASSWORD — if it's wrong, keytool fails here with a
-          # clear message rather than 50 minutes into the Gradle build.
-          keytool -importkeystore \
-            -srckeystore  /tmp/dcl-lugazi-original.jks \
-            -destkeystore /tmp/dcl-lugazi-release.jks \
-            -deststoretype JKS \
-            -srcstorepass  "$KEYSTORE_STORE_PASSWORD" \
-            -srckeypass    "$KEYSTORE_KEY_PASSWORD" \
-            -deststorepass "$KEYSTORE_STORE_PASSWORD" \
-            -destkeypass   "$KEYSTORE_KEY_PASSWORD" \
-            -srcalias  "$KEYSTORE_KEY_ALIAS" \
-            -destalias "$KEYSTORE_KEY_ALIAS" \
-            -noprompt 2>&1
-          echo "Keystore converted to JKS and verified — ready to sign."
+          echo "Keystore decoded and alias verified — ready to sign."
 
       - name: Build Android Release APK
         script: |
           cd artifacts/lugazi/android
           chmod +x ./gradlew
-          # Signing credentials are passed as Gradle properties so they never
-          # appear in build.gradle (which lives in the generated android/ dir).
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=/tmp/dcl-lugazi-release.jks \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_STORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEYSTORE_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEYSTORE_KEY_PASSWORD" \
-            --no-daemon
+
+          # Build an unsigned release APK. We do NOT pass Gradle signing flags
+          # here because Android Gradle Plugin's -P signing injection triggers
+          # a validateSigningRelease task that fails on PKCS12 keystores with
+          # Java 17 ('KeytoolException: Failed to read key ... : null').
+          # Signing is handled below by apksigner, which supports PKCS12 natively.
+          ./gradlew assembleRelease --no-daemon
+
+          # Locate the unsigned APK produced by Gradle
+          UNSIGNED=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$UNSIGNED" ]; then
+            echo "ERROR: No APK found after assembleRelease" >&2
+            exit 1
+          fi
+          echo "Built unsigned APK: $UNSIGNED"
+
+          # Find the latest build-tools version available on this machine
+          BUILD_TOOLS_VERSION=$(ls "$ANDROID_HOME/build-tools/" | sort -V | tail -1)
+          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+          ZIPALIGN="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/zipalign"
+          echo "Using build-tools $BUILD_TOOLS_VERSION"
+
+          # zipalign is required before signing
+          ALIGNED="/tmp/dcl-lugazi-aligned.apk"
+          "$ZIPALIGN" -v -p 4 "$UNSIGNED" "$ALIGNED"
+
+          # Sign with apksigner — supports PKCS12 directly, no conversion needed
+          SIGNED="app/build/outputs/apk/release/DCLugazi-release.apk"
+          "$APKSIGNER" sign \
+            --ks /tmp/dcl-lugazi-release.jks \
+            --ks-pass "pass:$KEYSTORE_STORE_PASSWORD" \
+            --ks-key-alias "$KEYSTORE_KEY_ALIAS" \
+            --key-pass "pass:$KEYSTORE_KEY_PASSWORD" \
+            --out "$SIGNED" \
+            "$ALIGNED"
+
+          # Verify the signature is valid
+          "$APKSIGNER" verify --verbose "$SIGNED"
+          echo "APK signed and verified: $SIGNED"
 
       - name: Publish to GitHub Releases
         script: |
           if [ -n "$GH_RELEASE_TOKEN" ]; then
-            APK=$(find artifacts/lugazi/android/app/build/outputs/apk/release -name '*.apk' | head -1)
+            APK=$(find artifacts/lugazi/android/app/build/outputs/apk/release -name 'DCLugazi-release.apk' | head -1)
             REPO="levixticus67-lab/Lugazi-system"
             TAG="latest-build"
             # Remove any existing release + tag so we always have a fresh "latest-build"
