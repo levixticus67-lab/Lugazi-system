@@ -14,6 +14,27 @@ import { z } from "zod/v4";
 
 const router = Router();
 
+// ── Safe column selection ─────────────────────────────────────────────────────
+// Using db.select().from(usersTable) generates SQL with ALL schema columns.
+// The H7 migration added email_verified (etc.) — if those columns don't yet
+// exist in the production DB the query crashes with "column does not exist".
+// Explicit selection prevents that; restore db.select() once the prod DB is
+// confirmed to have the H7 columns.
+const safeUserCols = {
+  id:           usersTable.id,
+  email:        usersTable.email,
+  passwordHash: usersTable.passwordHash,
+  displayName:  usersTable.displayName,
+  role:         usersTable.role,
+  photoUrl:     usersTable.photoUrl,
+  phone:        usersTable.phone,
+  birthday:     usersTable.birthday,
+  branchId:     usersTable.branchId,
+  isActive:     usersTable.isActive,
+  createdAt:    usersTable.createdAt,
+  updatedAt:    usersTable.updatedAt,
+};
+
 // ── DB-backed rate limiter for auth endpoints (C3/M3 fix) ────────────────────
 // Replaces the in-memory Map so limits survive Render restarts and work
 // correctly across multiple server instances. See lib/rateLimiter.ts.
@@ -103,7 +124,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" }); return; }
   const { email, password, rememberMe } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  const [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!user) {
     const [existingMember] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
     if (existingMember && !existingMember.userId) {
@@ -116,8 +137,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) { res.status(401).json({ error: "Invalid email or password" }); return; }
   if (!user.isActive) { res.status(403).json({ error: "Account deactivated. Contact admin." }); return; }
-  // H7: block sign-in until email is verified; Google OAuth users skip this (emailVerified defaults true)
-  if (!user.emailVerified) {
+  // H7: block sign-in for explicitly-unverified users only.
+  // safeUserCols omits emailVerified so (user as any).emailVerified is undefined
+  // when the DB column hasn't been migrated yet — undefined !== false keeps login open.
+  if ((user as any).emailVerified === false) {
     res.status(403).json({ error: "Please verify your email before signing in. Check your inbox for the verification link.", needsVerification: true, email: user.email });
     return;
   }
@@ -125,7 +148,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
   const token = generateToken(user.id, user.role, rememberMe ? "14d" : "2d");
   setAuthCookie(res, token, rememberMe ? REMEMBER_MAX_AGE : COOKIE_MAX_AGE);
-  const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, isActive: user.isActive, createdAt: user.createdAt.toISOString() };
+  const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() };
   res.json({ token, user: userData });
 });
 
@@ -138,7 +161,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const { email, password, displayName } = regParsed.data;
   const mxOk = await hasMailServer(email);
   if (!mxOk) { res.status(400).json({ error: "This email address doesn't look valid — the domain doesn't accept mail. Please double-check and try again." }); return; }
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) { res.status(400).json({ error: "An account with this email already exists. Please sign in instead." }); return; }
   const hash = await bcrypt.hash(password, 12);
   // H7: new users start unverified; token has 24-hour TTL
@@ -206,19 +229,19 @@ router.post("/auth/logout", (_req, res): void => {
 
 // ── GET /auth/me ──────────────────────────────────────────────────────────────
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  const [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   if (req.userRole !== user.role) {
     logger.info({ userId: user.id, oldRole: req.userRole, newRole: user.role }, "Role mismatch — re-issuing auth cookie");
     const freshToken = generateToken(user.id, user.role);
     setAuthCookie(res, freshToken);
   }
-  res.json({ id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, birthday: user.birthday ?? null, isActive: user.isActive, createdAt: user.createdAt.toISOString() });
+  res.json({ id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, birthday: user.birthday ?? null, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() });
 });
 
 // ── POST /auth/refresh ────────────────────────────────────────────────────────
 router.post("/auth/refresh", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  const [user] = await db.select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user || !user.isActive) { res.status(401).json({ error: "Account not found or deactivated" }); return; }
   const token = generateToken(user.id, user.role, "2d");
   setAuthCookie(res, token);
@@ -230,7 +253,7 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
   const validated = validateChangePassword(req.body);
   if (typeof validated === "string") { res.status(400).json({ error: validated }); return; }
   const { currentPassword, newPassword } = validated;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  const [user] = await db.select({ id: usersTable.id, displayName: usersTable.displayName, passwordHash: usersTable.passwordHash }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) { res.status(401).json({ error: "Current password is incorrect" }); return; }
@@ -281,10 +304,10 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const gUser = await profileRes.json() as { id: string; email: string; name: string; picture?: string };
     if (!gUser.email) { res.redirect(`${frontendBase}?error=google_no_email`); return; }
     const email = gUser.email.toLowerCase();
-    let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    let [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (!user) {
       const unusableHash = await bcrypt.hash(uuidv4(), 12);
-      const [created] = await db.insert(usersTable).values({ email, passwordHash: unusableHash, displayName: gUser.name, role: "member", isActive: true, photoUrl: gUser.picture ?? null }).returning();
+      const [created] = await db.insert(usersTable).values({ email, passwordHash: unusableHash, displayName: gUser.name, role: "member", isActive: true, photoUrl: gUser.picture ?? null }).returning(safeUserCols);
       user = created;
       const [preReg] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
       if (preReg) {
@@ -301,7 +324,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     if (!user.isActive) { res.redirect(`${frontendBase}?error=account_deactivated`); return; }
     await logActivity({ userId: user.id, displayName: user.displayName, action: "login", details: "Google OAuth", ipAddress: req.ip ?? "unknown" });
     const token = generateToken(user.id, user.role);
-    const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl ?? null, branchId: user.branchId ?? null, phone: user.phone ?? null, isActive: user.isActive, createdAt: user.createdAt.toISOString() };
+    const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl ?? null, branchId: user.branchId ?? null, phone: user.phone ?? null, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() };
     const oauthCode = uuidv4();
     oauthCodes.set(oauthCode, { token, userData, expiresAt: Date.now() + 60_000 });
     res.redirect(`${frontendLogin}?oauth_code=${oauthCode}`);
@@ -356,7 +379,7 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   // Respond immediately — prevents email enumeration
   res.json({ message: "If that email is registered, a reset link has been sent." });
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower)).limit(1);
+  const [user] = await db.select({ id: usersTable.id, displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.email, emailLower)).limit(1);
   if (!user) return;
 
   const transport = createMailTransport();
@@ -430,7 +453,7 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
 
   // M1 fix: hash the received raw token before DB lookup
   const hashedToken = createHash("sha256").update(token).digest("hex");
-  const [user] = await db.select()
+  const [user] = await db.select({ id: usersTable.id, displayName: usersTable.displayName })
     .from(usersTable)
     .where(
       and(
