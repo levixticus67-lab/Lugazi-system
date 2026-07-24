@@ -6,7 +6,7 @@ export default function Privacy() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40">
+    <div className="min-h-screen bg-background">
       <div className="max-w-3xl mx-auto px-4 py-10">
         <button
           onClick={() => window.history.length > 1 ? window.history.back() : setLocation("/login")}

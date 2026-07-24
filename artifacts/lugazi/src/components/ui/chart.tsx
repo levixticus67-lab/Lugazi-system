@@ -98,7 +98,26 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+// Wrap recharts Tooltip so the outer wrapper div is always transparent.
+// By default recharts injects white inline background styles on the wrapper,
+// which override CSS classes on the content component and break dark mode.
+function ChartTooltip({
+  wrapperStyle,
+  ...props
+}: React.ComponentProps<typeof RechartsPrimitive.Tooltip>) {
+  return (
+    <RechartsPrimitive.Tooltip
+      wrapperStyle={{
+        background: "transparent",
+        border: "none",
+        boxShadow: "none",
+        padding: 0,
+        ...wrapperStyle,
+      }}
+      {...props}
+    />
+  )
+}
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,

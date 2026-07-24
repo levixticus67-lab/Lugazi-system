@@ -21,9 +21,14 @@ interface ChurchMember {
 }
 
 const RELATIONSHIPS = ["Spouse","Child","Parent","Sibling","Grandparent","Grandchild","Aunt/Uncle","Niece/Nephew","Other"];
+// Use opacity-based colours so badges look correct in both light and dark mode.
 const relColors: Record<string,string> = {
-  Spouse:"bg-rose-100 text-rose-700", Child:"bg-blue-100 text-blue-700", Parent:"bg-purple-100 text-purple-700",
-  Sibling:"bg-green-100 text-green-700", Grandparent:"bg-amber-100 text-amber-700", Other:"bg-slate-100 text-slate-600",
+  Spouse:"bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  Child:"bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  Parent:"bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  Sibling:"bg-green-500/15 text-green-600 dark:text-green-400",
+  Grandparent:"bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  Other:"bg-slate-500/15 text-slate-600 dark:text-slate-400",
 };
 const blankForm = { fullName:"", relationship:"Spouse", birthday:"", phone:"", email:"", notes:"", linkedMemberId: null as number|null, linkedUserId: null as number|null };
 
@@ -127,11 +132,11 @@ export default function FamilyPage({ navItems }: { navItems: NavItem[] }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">{m.fullName.charAt(0)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold">{m.fullName}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${relColors[m.relationship]??"bg-slate-100 text-slate-600"}`}>{m.relationship}</span>
-                          {m.linkedUserId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1"><UserCheck className="h-2.5 w-2.5"/>Linked</span>}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold truncate">{m.fullName}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${relColors[m.relationship]??"bg-slate-500/15 text-slate-600 dark:text-slate-400"}`}>{m.relationship}</span>
+                          {m.linkedUserId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 font-medium flex items-center gap-1 shrink-0"><UserCheck className="h-2.5 w-2.5"/>Linked</span>}
                         </div>
                         <div className="mt-2 space-y-1.5">
                           {m.birthday && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Cake className="h-3 w-3"/>{new Date(m.birthday).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}{getAge(m.birthday) && <span>({getAge(m.birthday)} yrs)</span>}</div>}
