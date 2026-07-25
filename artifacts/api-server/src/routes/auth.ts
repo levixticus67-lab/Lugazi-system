@@ -164,28 +164,31 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) { res.status(400).json({ error: "An account with this email already exists. Please sign in instead." }); return; }
   const hash = await bcrypt.hash(password, 12);
-  // H7 migration (emailVerified/emailVerificationToken/emailVerificationTokenExpiry) has NOT
-  // yet run on the production DB — omit those columns so the INSERT succeeds, and use
-  // safeUserCols in RETURNING for the same reason. Email verification will be re-enabled
-  // once the H7 migration runs.
-  const [user] = await db.insert(usersTable).values({
-    email, passwordHash: hash, displayName, role: "member", isActive: true,
-  }).returning(safeUserCols);
-  logger.info({ userId: user.id, email }, "New user registered");
-  await logActivity({ userId: user.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: ip });
+  // Use raw SQL so Drizzle never includes pending-migration columns
+  // (email_verified, password_reset_token, etc.) with DEFAULT — those columns
+  // don't exist in the production DB yet and cause a 500 even as DEFAULT values.
+  const insertResult = await db.execute(sql`
+    INSERT INTO users (email, password_hash, display_name, role, is_active)
+    VALUES (${email}, ${hash}, ${displayName}, 'member', true)
+    RETURNING id, email
+  `);
+  const newUser = insertResult.rows[0] as { id: number; email: string };
+  if (!newUser) { res.status(500).json({ error: "Internal server error" }); return; }
+  logger.info({ userId: newUser.id, email }, "New user registered");
+  await logActivity({ userId: newUser.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: ip });
 
   // Sync member record — wrapped so a schema mismatch (e.g. H2 enum not yet migrated)
   // never prevents the user account from being created.
   try {
     const [preRegistered] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
     if (preRegistered) {
-      await db.update(membersTable).set({ userId: user.id, fullName: displayName }).where(eq(membersTable.id, preRegistered.id));
-      logger.info({ userId: user.id, memberId: preRegistered.id }, "Merged new user with pre-registered member");
+      await db.update(membersTable).set({ userId: newUser.id, fullName: displayName }).where(eq(membersTable.id, preRegistered.id));
+      logger.info({ userId: newUser.id, memberId: preRegistered.id }, "Merged new user with pre-registered member");
     } else {
-      await db.insert(membersTable).values({ userId: user.id, fullName: displayName, email, role: "member", branchId: 1, qrToken: uuidv4(), isActive: true }).onConflictDoNothing();
+      await db.insert(membersTable).values({ userId: newUser.id, fullName: displayName, email, role: "member", branchId: 1, qrToken: uuidv4(), isActive: true }).onConflictDoNothing();
     }
   } catch (memberErr) {
-    logger.warn({ memberErr, userId: user.id }, "Register: member record sync failed — proceeding anyway");
+    logger.warn({ memberErr, userId: newUser.id }, "Register: member record sync failed — proceeding anyway");
   }
 
   res.status(201).json({ message: "Account created. You can now sign in." });
@@ -277,8 +280,13 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     let [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (!user) {
       const unusableHash = await bcrypt.hash(uuidv4(), 12);
-      const [created] = await db.insert(usersTable).values({ email, passwordHash: unusableHash, displayName: gUser.name, role: "member", isActive: true, photoUrl: gUser.picture ?? null }).returning(safeUserCols);
-      user = created;
+      const googleInsert = await db.execute(sql`
+        INSERT INTO users (email, password_hash, display_name, role, is_active, photo_url)
+        VALUES (${email}, ${unusableHash}, ${gUser.name}, 'member', true, ${gUser.picture ?? null})
+        RETURNING id, email, display_name, role, photo_url, phone, birthday, branch_id, is_active, created_at, updated_at
+      `);
+      const gr = googleInsert.rows[0] as any;
+      user = { id: gr.id, email: gr.email, passwordHash: unusableHash, displayName: gr.display_name, role: gr.role, photoUrl: gr.photo_url ?? null, phone: gr.phone ?? null, birthday: gr.birthday ?? null, branchId: gr.branch_id ?? null, isActive: gr.is_active, createdAt: gr.created_at, updatedAt: gr.updated_at } as typeof user;
       // Sync member record — wrapped so a schema mismatch (e.g. H2 enum not yet migrated)
       // never causes a google_server_error for new Google sign-ups.
       try {
