@@ -8,7 +8,8 @@ import LiveChat from "@/components/LiveChat";
 import AIAssistant from "@/components/AIAssistant";
 import { adminNavItems } from "./navItems";
 import { DollarSign, TrendingUp, Plus, X, Trash2, Heart, HandCoins, Coins } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
 interface Contribution {
   id: number;
@@ -99,7 +100,7 @@ export default function AdminGiving() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis dataKey="name" tick={{ fontSize:10 }} />
               <YAxis tick={{ fontSize:10 }} tickFormatter={v=>v>=1000000?`${(v/1000000).toFixed(1)}M`:v>=1000?`${(v/1000).toFixed(0)}K`:`${v}`} />
-              <Tooltip formatter={(v:number)=>fmt(v,"UGX")} />
+              <ChartTooltip formatter={(v:number)=>fmt(v,"UGX")} />
               <Bar dataKey="total" radius={[4,4,0,0]}>
                 {totByType.map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
               </Bar>

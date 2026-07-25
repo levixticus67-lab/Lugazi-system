@@ -16,8 +16,9 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   import { Users, CalendarCheck, Heart, CalendarDays } from "lucide-react";
   import {
     RadialBarChart, RadialBar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer,
+    Legend, ResponsiveContainer,
   } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
   type ChartData = {
     weeklyAttendance: { week: string; count: number }[];
@@ -79,7 +80,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                         <Cell fill="#f59e0b" />
                       </RadialBar>
                       <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
-                      <Tooltip formatter={(v: number) => [v, "Attendance"]} />
+                      <ChartTooltip formatter={(v: number) => [v, "Attendance"]} />
                     </RadialBarChart>
                   </ResponsiveContainer>
                 </div>
@@ -99,7 +100,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <Tooltip />
+                  <ChartTooltip />
                   <Area type="monotone" dataKey="members" stroke="#10b981" strokeWidth={2.5} fill="url(#grad-lead-growth)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
                 </AreaChart>
                   </ResponsiveContainer>

@@ -19,8 +19,9 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
   } from "lucide-react";
   import {
     ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer,
+    ResponsiveContainer,
   } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
   type ChartData = {
     weeklyAttendance: { week: string; count: number }[];
@@ -123,7 +124,7 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <Tooltip />
+                  <ChartTooltip />
                   <Bar dataKey="count" fill="url(#grad-admin-bar)" radius={[4, 4, 0, 0]} name="Attendance" />
                   <Line type="monotone" dataKey="avg" stroke="#f59e0b" strokeWidth={2.5} dot={false} name="3-Wk Avg" />
                 </ComposedChart>

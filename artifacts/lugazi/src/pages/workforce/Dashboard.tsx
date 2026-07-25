@@ -16,8 +16,9 @@ import { useGetMemberStats } from "@workspace/api-client-react";
   import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
   import {
     RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Tooltip, ResponsiveContainer,
+  ResponsiveContainer,
   } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
   type ChartData = {
     weeklyAttendance: { week: string; count: number }[];
@@ -78,7 +79,7 @@ import { useGetMemberStats } from "@workspace/api-client-react";
                     <PolarAngleAxis dataKey="metric" tick={{ fontSize: 9 }} />
                     <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
                     <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} strokeWidth={2} />
-                    <Tooltip formatter={(v: number) => [`${v}%`, "Score"]} />
+                    <ChartTooltip formatter={(v: number) => [`${v}%`, "Score"]} />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>

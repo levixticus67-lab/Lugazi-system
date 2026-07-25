@@ -16,9 +16,8 @@ import { memberNavItems } from "./navItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarCheck, CalendarDays, Heart, Wallet } from "lucide-react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
-} from "recharts";
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer} from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
 type MyAttendance = { month: string; count: number };
 
@@ -79,7 +78,7 @@ export default function MemberDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                <Tooltip />
+                <ChartTooltip />
                 <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad-member)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>

@@ -14,7 +14,8 @@ import CellLeaderCard from "@/components/CellLeaderCard";
 import ChurchValuesCard from "@/components/ChurchValuesCard";
 import { pastorNavItems } from "./navItems";
 import { Users, UsersRound, CalendarCheck, Heart, Bell, TrendingUp, Calendar, Activity } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
 type ChartData = { weeklyAttendance: { week: string; count: number }[] };
 type ActivityItem = { type: string; description: string; date: string; icon: string };
@@ -89,7 +90,7 @@ export default function PastorDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <Tooltip />
+                  <ChartTooltip />
                   <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
                   <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(var(--primary))" }} name="Attendance" />
                   <Line type="monotone" dataKey="avg" stroke="#10b981" strokeWidth={2} strokeDasharray="6 3" dot={false} name="3-Wk Avg" />

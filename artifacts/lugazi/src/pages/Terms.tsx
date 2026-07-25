@@ -25,7 +25,7 @@ export default function Terms() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-border/50 p-8 space-y-8 text-sm text-foreground leading-relaxed">
+        <div className="bg-card rounded-2xl shadow-sm border border-border/50 p-8 space-y-8 text-sm text-foreground leading-relaxed">
 
           <p className="text-muted-foreground text-xs">Last updated: June {year}</p>
 

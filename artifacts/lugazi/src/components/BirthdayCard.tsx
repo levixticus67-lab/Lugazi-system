@@ -3,9 +3,9 @@ import { cldAvatar } from "@/lib/cloudinary";
 import axios from "@/lib/axios";
 import { Cake, Users } from "lucide-react";
 import {
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-} from "recharts";
+  PieChart, Pie, Cell, ResponsiveContainer, Legend,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid} from "recharts";
+import { ChartTooltip } from "@/components/ui/chart";
 
 interface Member {
   id: number;
@@ -100,7 +100,7 @@ export default function BirthdayCard() {
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={62} paddingAngle={3} dataKey="value">
                       {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number, name: string) => [`${v} birthday${v !== 1 ? "s" : ""}`, name]} />
+                    <ChartTooltip formatter={(v: number, name: string) => [`${v} birthday${v !== 1 ? "s" : ""}`, name]} />
                     <Legend iconType="circle" iconSize={7} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -148,7 +148,7 @@ export default function BirthdayCard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 9 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v: number) => [`${v}`, "Members"]} />
+                <ChartTooltip formatter={(v: number) => [`${v}`, "Members"]} />
                 <Area type="monotone" dataKey="count" stroke="#f472b6" strokeWidth={2} fill="url(#grad-bday)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>
