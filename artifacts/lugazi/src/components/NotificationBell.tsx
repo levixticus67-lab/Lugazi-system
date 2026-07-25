@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, BellRing, Check } from "lucide-react";
+import { Bell, BellRing, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,11 @@ export default function NotificationBell() {
 
   const markOneRead = useMutation({
     mutationFn: (id: number) => axios.patch(`/api/notifications/inbox/${id}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["inbox-notifications", user?.id] }),
+  });
+
+  const dismissOne = useMutation({
+    mutationFn: (id: number) => axios.delete(`/api/notifications/inbox/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inbox-notifications", user?.id] }),
   });
 
@@ -137,6 +142,13 @@ export default function NotificationBell() {
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 mt-0.5">
                       {timeAgo(n.createdAt)}
                     </span>
+                    <button
+                      onClick={e => { e.stopPropagation(); dismissOne.mutate(n.id); }}
+                      className="shrink-0 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      aria-label="Dismiss notification"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
                   <p className={[
                     "text-xs mt-1 leading-relaxed",

@@ -91,4 +91,19 @@ router.patch("/notifications/inbox/read-all", requireAuth, async (req: AuthReque
   res.json({ success: true });
 });
 
+// DELETE /notifications/inbox/:id — dismiss a single notification
+router.delete('/notifications/inbox/:id', requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: 'Invalid ID' }); return; }
+
+  await db
+    .delete(inAppNotificationsTable)
+    .where(and(
+      eq(inAppNotificationsTable.id, id),
+      eq(inAppNotificationsTable.userId, req.userId!),
+    ));
+
+  res.json({ success: true });
+});
+
 export default router;

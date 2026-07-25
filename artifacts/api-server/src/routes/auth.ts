@@ -396,6 +396,9 @@ function createMailTransport() {
     port: parseInt(process.env.EMAIL_PORT ?? "587"),
     secure: (process.env.EMAIL_PORT ?? "587") === "465",
     auth: { user, pass },
+    connectionTimeout: 10_000,   // Fix 1: prevent sendMail() hanging forever on slow/unreachable SMTP
+    greetingTimeout:   8_000,
+    socketTimeout:     10_000,
   });
 }
 

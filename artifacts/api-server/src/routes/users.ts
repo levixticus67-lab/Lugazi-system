@@ -9,7 +9,7 @@ const router = Router();
 
 // GET /users — admin only
 router.get("/users", requireAuth, requireRole(["admin"]), async (_req, res): Promise<void> => {
-  const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
+  const users = await db.select().from(usersTable).where(eq(usersTable.isActive, true)).orderBy(usersTable.createdAt);
   res.json(users.map(u => ({ id: u.id, email: u.email, displayName: u.displayName, role: u.role, photoUrl: u.photoUrl, branchId: u.branchId, phone: u.phone, isActive: u.isActive, createdAt: u.createdAt.toISOString() })));
 });
 
