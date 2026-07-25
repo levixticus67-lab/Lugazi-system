@@ -148,9 +148,16 @@ export default function Login() {
     }
     setPending(true);
     try {
-      await axios.post("/api/auth/register", { email, password, displayName });
+      const res = await axios.post<{ message?: string; needsVerification?: boolean }>("/api/auth/register", { email, password, displayName });
       setRegisteredEmail(email);
-      setView("check-email");
+      if (res.data.needsVerification) {
+        setView("check-email");
+      } else {
+        // H7 migration pending on prod DB — email verification skipped for now.
+        // Switch to login tab so the user can sign in immediately.
+        setTab("login");
+        toast({ title: "Account created!", description: "You can now sign in with your email and password." });
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.error || "Registration failed. Please try again.";
       toast({ title: "Registration failed", description: msg, variant: "destructive" });
