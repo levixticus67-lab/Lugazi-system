@@ -164,61 +164,31 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) { res.status(400).json({ error: "An account with this email already exists. Please sign in instead." }); return; }
   const hash = await bcrypt.hash(password, 12);
-  // H7: new users start unverified; token has 24-hour TTL
-  const verificationToken = uuidv4();
-  const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // H7 migration (emailVerified/emailVerificationToken/emailVerificationTokenExpiry) has NOT
+  // yet run on the production DB — omit those columns so the INSERT succeeds, and use
+  // safeUserCols in RETURNING for the same reason. Email verification will be re-enabled
+  // once the H7 migration runs.
   const [user] = await db.insert(usersTable).values({
     email, passwordHash: hash, displayName, role: "member", isActive: true,
-    emailVerified: false,
-    emailVerificationToken: verificationToken,
-    emailVerificationTokenExpiry: verificationExpiry,
-  }).returning();
-  const [preRegistered] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
-  if (preRegistered) {
-    await db.update(membersTable).set({ userId: user.id, fullName: displayName }).where(eq(membersTable.id, preRegistered.id));
-    logger.info({ userId: user.id, memberId: preRegistered.id }, "Merged new user with pre-registered member");
-  } else {
-    await db.insert(membersTable).values({ userId: user.id, fullName: displayName, email, role: "member", branchId: 1, qrToken: uuidv4(), isActive: true }).onConflictDoNothing();
-  }
+  }).returning(safeUserCols);
   logger.info({ userId: user.id, email }, "New user registered");
   await logActivity({ userId: user.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: ip });
 
-  // Respond immediately; send email fire-and-forget
-  res.status(201).json({ message: "Account created. Check your email to verify your account before signing in.", needsVerification: true });
-
-  const transport = createMailTransport();
-  if (!transport) {
-    logger.warn({ email }, "Register: EMAIL_USER/EMAIL_PASS not set — skipping verification email");
-    return;
-  }
-  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
-  const verifyLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
+  // Sync member record — wrapped so a schema mismatch (e.g. H2 enum not yet migrated)
+  // never prevents the user account from being created.
   try {
-    await transport.sendMail({
-      from: `"${process.env.EMAIL_FROM ?? "DCL Lugazi ERP"}" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Verify your DCL Lugazi account",
-      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <img src="https://system1.web.app/dcl-logo.png" alt="DCL Lugazi" style="width:48px;height:48px;border-radius:50%;object-fit:contain;background:#fff;padding:4px;" />
-          <h2 style="margin:12px 0 4px;color:#1e293b;">Deliverance Church Lugazi</h2>
-          <p style="color:#64748b;margin:0;font-size:13px;">The House of Kingdom Giants</p>
-        </div>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-        <h3 style="color:#1e293b;">Verify your email address</h3>
-        <p style="color:#475569;line-height:1.6;">Hi ${displayName}, thank you for joining DCL Lugazi ERP. Click below to verify your email — this link expires in <strong>24 hours</strong>.</p>
-        <div style="text-align:center;margin:28px 0;">
-          <a href="${verifyLink}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Verify My Email</a>
-        </div>
-        <p style="color:#94a3b8;font-size:12px;">If you didn't create this account, ignore this email.</p>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-        <p style="color:#94a3b8;font-size:11px;text-align:center;">DCL Lugazi ERP &bull; Deliverance Church Lugazi, Uganda</p>
-      </div>`,
-    });
-    logger.info({ userId: user.id }, "Verification email sent");
-  } catch (err) {
-    logger.error({ err, userId: user.id }, "Failed to send verification email");
+    const [preRegistered] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
+    if (preRegistered) {
+      await db.update(membersTable).set({ userId: user.id, fullName: displayName }).where(eq(membersTable.id, preRegistered.id));
+      logger.info({ userId: user.id, memberId: preRegistered.id }, "Merged new user with pre-registered member");
+    } else {
+      await db.insert(membersTable).values({ userId: user.id, fullName: displayName, email, role: "member", branchId: 1, qrToken: uuidv4(), isActive: true }).onConflictDoNothing();
+    }
+  } catch (memberErr) {
+    logger.warn({ memberErr, userId: user.id }, "Register: member record sync failed — proceeding anyway");
   }
+
+  res.status(201).json({ message: "Account created. You can now sign in." });
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
@@ -309,11 +279,17 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       const unusableHash = await bcrypt.hash(uuidv4(), 12);
       const [created] = await db.insert(usersTable).values({ email, passwordHash: unusableHash, displayName: gUser.name, role: "member", isActive: true, photoUrl: gUser.picture ?? null }).returning(safeUserCols);
       user = created;
-      const [preReg] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
-      if (preReg) {
-        await db.update(membersTable).set({ userId: user.id, fullName: gUser.name, photoUrl: gUser.picture ?? null }).where(eq(membersTable.id, preReg.id));
-      } else {
-        await db.insert(membersTable).values({ userId: user.id, fullName: gUser.name, email, role: "member", branchId: 1, qrToken: uuidv4(), isActive: true, photoUrl: gUser.picture ?? null }).onConflictDoNothing();
+      // Sync member record — wrapped so a schema mismatch (e.g. H2 enum not yet migrated)
+      // never causes a google_server_error for new Google sign-ups.
+      try {
+        const [preReg] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
+        if (preReg) {
+          await db.update(membersTable).set({ userId: user.id, fullName: gUser.name, photoUrl: gUser.picture ?? null }).where(eq(membersTable.id, preReg.id));
+        } else {
+          await db.insert(membersTable).values({ userId: user.id, fullName: gUser.name, email, role: "member", branchId: 1, qrToken: uuidv4(), isActive: true, photoUrl: gUser.picture ?? null }).onConflictDoNothing();
+        }
+      } catch (memberErr) {
+        logger.warn({ memberErr, userId: user.id }, "Google OAuth: member record sync failed — proceeding anyway");
       }
       await logActivity({ userId: user.id, displayName: gUser.name, action: "register", details: "Registered via Google", ipAddress: req.ip ?? "unknown" });
     } else {
