@@ -15,24 +15,22 @@ import { z } from "zod/v4";
 const router = Router();
 
 // ── Safe column selection ─────────────────────────────────────────────────────
-// Using db.select().from(usersTable) generates SQL with ALL schema columns.
-// The H7 migration added email_verified (etc.) — if those columns don't yet
-// exist in the production DB the query crashes with "column does not exist".
-// Explicit selection prevents that; restore db.select() once the prod DB is
-// confirmed to have the H7 columns.
+// H7 columns confirmed in production — emailVerified is included so the login
+// check (=== false) reads the real DB value instead of getting undefined.
 const safeUserCols = {
-  id:           usersTable.id,
-  email:        usersTable.email,
-  passwordHash: usersTable.passwordHash,
-  displayName:  usersTable.displayName,
-  role:         usersTable.role,
-  photoUrl:     usersTable.photoUrl,
-  phone:        usersTable.phone,
-  birthday:     usersTable.birthday,
-  branchId:     usersTable.branchId,
-  isActive:     usersTable.isActive,
-  createdAt:    usersTable.createdAt,
-  updatedAt:    usersTable.updatedAt,
+  id:            usersTable.id,
+  email:         usersTable.email,
+  passwordHash:  usersTable.passwordHash,
+  displayName:   usersTable.displayName,
+  role:          usersTable.role,
+  photoUrl:      usersTable.photoUrl,
+  phone:         usersTable.phone,
+  birthday:      usersTable.birthday,
+  branchId:      usersTable.branchId,
+  isActive:      usersTable.isActive,
+  emailVerified: usersTable.emailVerified,
+  createdAt:     usersTable.createdAt,
+  updatedAt:     usersTable.updatedAt,
 };
 
 // ── DB-backed rate limiter for auth endpoints (C3/M3 fix) ────────────────────
@@ -164,21 +162,32 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) { res.status(400).json({ error: "An account with this email already exists. Please sign in instead." }); return; }
   const hash = await bcrypt.hash(password, 12);
-  // Use raw SQL so Drizzle never includes pending-migration columns
-  // (email_verified, password_reset_token, etc.) with DEFAULT — those columns
-  // don't exist in the production DB yet and cause a 500 even as DEFAULT values.
+
+  // Check email transport before insert so we know whether to set email_verified.
+  // If EMAIL_USER/EMAIL_PASS are not configured, the account is created pre-verified
+  // so the user is never left stuck on a verify screen with no email arriving.
+  const transport = createMailTransport();
+  const verificationToken = uuidv4();
+  const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const startVerified = !transport;
+
   const insertResult = await db.execute(sql`
-    INSERT INTO users (email, password_hash, display_name, role, is_active)
-    VALUES (${email}, ${hash}, ${displayName}, 'member', true)
+    INSERT INTO users (email, password_hash, display_name, role, is_active,
+                       email_verified, email_verification_token, email_verification_token_expiry)
+    VALUES (
+      ${email}, ${hash}, ${displayName}, 'member', true,
+      ${startVerified},
+      ${startVerified ? null : verificationToken},
+      ${startVerified ? null : tokenExpiry}
+    )
     RETURNING id, email
   `);
   const newUser = insertResult.rows[0] as { id: number; email: string };
   if (!newUser) { res.status(500).json({ error: "Internal server error" }); return; }
-  logger.info({ userId: newUser.id, email }, "New user registered");
+  logger.info({ userId: newUser.id, email, emailVerified: startVerified }, "New user registered");
   await logActivity({ userId: newUser.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: ip });
 
-  // Sync member record — wrapped so a schema mismatch (e.g. H2 enum not yet migrated)
-  // never prevents the user account from being created.
+  // Sync member record — wrapped so a schema mismatch never prevents account creation.
   try {
     const [preRegistered] = await db.select().from(membersTable).where(eq(membersTable.email, email)).limit(1);
     if (preRegistered) {
@@ -191,7 +200,42 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     logger.warn({ memberErr, userId: newUser.id }, "Register: member record sync failed — proceeding anyway");
   }
 
-  res.status(201).json({ message: "Account created. You can now sign in." });
+  // No email transport — account already verified, user can sign in immediately.
+  if (!transport) {
+    logger.warn({ userId: newUser.id }, "Register: EMAIL_USER/EMAIL_PASS not configured — account auto-verified");
+    res.status(201).json({ message: "Account created. You can now sign in." });
+    return;
+  }
+
+  // Send verification email
+  const verifyLink = `${process.env.FRONTEND_URL ?? "http://localhost:5173"}/verify-email?token=${verificationToken}`;
+  try {
+    await transport.sendMail({
+      from: `"${process.env.EMAIL_FROM ?? "DCL Lugazi ERP"}" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Verify your DCL Lugazi account",
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+        <h3 style="color:#1e293b;">Welcome to DCL Lugazi ERP</h3>
+        <p>Hi ${displayName}, please verify your email address to activate your account. This link expires in 24 hours.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${verifyLink}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1e3a8a,#0ea5e9);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Verify My Email</a>
+        </div>
+        <p style="color:#64748b;font-size:13px;">If you didn't create this account, you can safely ignore this email.</p>
+        <p style="color:#94a3b8;font-size:11px;text-align:center;">DCL Lugazi ERP &bull; Deliverance Church Lugazi, Uganda</p>
+      </div>`,
+    });
+    logger.info({ userId: newUser.id }, "Verification email sent");
+    res.status(201).json({ needsVerification: true, email });
+  } catch (mailErr) {
+    // Email failed after account created — auto-verify so user is never locked out.
+    logger.error({ mailErr, userId: newUser.id }, "Register: failed to send verification email — auto-verifying");
+    await db.execute(sql`
+      UPDATE users
+      SET email_verified = true, email_verification_token = null, email_verification_token_expiry = null
+      WHERE id = ${newUser.id}
+    `);
+    res.status(201).json({ message: "Account created. Verification email could not be sent — you can sign in now." });
+  }
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
@@ -527,3 +571,4 @@ router.post("/auth/resend-verification", async (req, res): Promise<void> => {
 });
 
 export default router;
+
