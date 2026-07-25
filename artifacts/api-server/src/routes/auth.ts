@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, sql } from "drizzle-orm";
 import { promises as dns } from "dns";
 import { db, usersTable, membersTable } from "@workspace/db";
 import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
