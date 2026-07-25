@@ -128,7 +128,7 @@ export default function FamilyPage({ navItems }: { navItems: NavItem[] }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {family.map(m=>(
-                <div key={m.id} className="glass-card p-5 hover:shadow-md transition-shadow">
+                <div key={m.id} className="glass-card p-5 hover:shadow-md transition-shadow min-w-0 overflow-hidden">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="w-10 h-10 rounded-full blue-gradient-bg flex items-center justify-center text-white font-bold text-sm shrink-0">{m.fullName.charAt(0)}</div>
