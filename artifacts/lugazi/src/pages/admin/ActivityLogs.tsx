@@ -7,7 +7,7 @@ import { adminNavItems } from "./navItems";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/Badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, UserPlus, Trash2, PencilLine, LogIn, KeyRound, UserCog, Calendar, Heart, Bell, Wallet } from "lucide-react";
+import { Shield, UserPlus, Trash2, PencilLine, LogIn, LogOut, KeyRound, UserCog, UserX, Calendar, Heart, Bell, Wallet } from "lucide-react";
 
 interface ActivityLog {
   id: number;
@@ -49,6 +49,12 @@ const ACTION_META: Record<string, { label: string; color: "default" | "success" 
   role_request_submitted:  { label: "Role Request",           color: "default",  icon: <UserCog className="h-3.5 w-3.5" /> },
   role_request_approved:   { label: "Role Request Approved",  color: "success",  icon: <UserCog className="h-3.5 w-3.5" /> },
   role_request_rejected:   { label: "Role Request Rejected",  color: "danger",   icon: <UserCog className="h-3.5 w-3.5" /> },
+  sign_out:                { label: "Sign Out",                color: "default",  icon: <LogOut className="h-3.5 w-3.5" /> },
+  activate_user:           { label: "User Activated",          color: "success",  icon: <UserCog className="h-3.5 w-3.5" /> },
+  deactivate_member:       { label: "Member Deactivated",      color: "warning",  icon: <UserX className="h-3.5 w-3.5" /> },
+  activate_member:         { label: "Member Activated",        color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },
+  verify_email:            { label: "Email Verified",          color: "success",  icon: <Shield className="h-3.5 w-3.5" /> },
+  reset_password:          { label: "Password Reset",          color: "warning",  icon: <KeyRound className="h-3.5 w-3.5" /> },
 };
 
 function getMeta(action: string) {

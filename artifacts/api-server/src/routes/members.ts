@@ -123,8 +123,15 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "pastor", "leade
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
   if (photoUrl !== undefined && updated.userId) { await db.update(usersTable).set({ photoUrl }).where(eq(usersTable.id, updated.userId)).catch(() => {}); }
   if (birthday !== undefined) { await db.update(membersTable).set({ birthday }).where(eq(membersTable.id, id)).catch(() => {}); }
-  const updatedKeys = Object.keys(updateData).join(", ");
-  await logActivity({ userId: req.userId, action: "update_member", entityType: "member", entityId: id, entityName: updated.fullName, details: "Updated: " + updatedKeys, ipAddress: req.ip ?? "unknown" });
+  // Log the right action: status toggle vs profile edit
+  const nonStatusKeys = Object.keys(updateData).filter(k => k !== "isActive");
+  let logAction = "update_member";
+  let logDetails = "Updated: " + Object.keys(updateData).join(", ");
+  if (isActive !== undefined && req.userRole === "admin" && nonStatusKeys.length === 0) {
+    logAction = isActive ? "activate_member" : "deactivate_member";
+    logDetails = isActive ? "Member re-activated" : "Member deactivated";
+  }
+  await logActivity({ userId: req.userId, action: logAction, entityType: "member", entityId: id, entityName: updated.fullName, details: logDetails, ipAddress: req.ip ?? "unknown" });
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
@@ -135,8 +142,10 @@ router.delete("/members/:id", requireAuth, requireRole(["admin", "pastor"]), asy
   const [target] = await db.select({ fullName: membersTable.fullName, role: membersTable.role, userId: membersTable.userId, email: membersTable.email }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
   if (!target) { res.status(404).json({ error: "Member not found" }); return; }
   if (target.role === "admin" && req.userRole !== "admin") { res.status(403).json({ error: "You cannot delete an admin account" }); return; }
-  if (target.userId) { await db.update(usersTable).set({ isActive: false }).where(eq(usersTable.id, target.userId)).catch(() => {}); }
-  if (target.email) { await db.update(usersTable).set({ isActive: false }).where(eq(usersTable.email, target.email)).catch(() => {}); }
+  // Mark linked user as deleted (deletedAt) so they appear tagged in Users & Roles, not just hidden
+  const deletedMark = { isActive: false, deletedAt: new Date() };
+  if (target.userId) { await db.update(usersTable).set(deletedMark).where(eq(usersTable.id, target.userId)).catch(() => {}); }
+  if (target.email && !target.userId) { await db.update(usersTable).set(deletedMark).where(eq(usersTable.email, target.email)).catch(() => {}); }
   await db.delete(membersTable).where(eq(membersTable.id, id));
   const memberLabel = target.fullName ?? ("Member #" + id);
   await logActivity({ userId: req.userId, action: "delete_member", entityType: "member", entityId: id, entityName: memberLabel, ipAddress: req.ip ?? "unknown" });

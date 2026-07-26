@@ -229,7 +229,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
-router.post("/auth/logout", (_req, res): void => {
+router.post("/auth/logout", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  // Log sign-out before clearing cookie while we still have user context
+  await logActivity({ userId: req.userId, action: "sign_out", ipAddress: req.ip ?? "unknown" }).catch(() => {});
   clearAuthCookie(res);
   res.json({ message: "Logged out successfully" });
 });

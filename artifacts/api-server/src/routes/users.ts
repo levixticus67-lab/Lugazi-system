@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, usersTable, membersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
@@ -7,10 +7,16 @@ import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
-// GET /users — admin only
+// GET /users — admin only; returns ALL users (active, deactivated, and deleted — never hidden)
 router.get("/users", requireAuth, requireRole(["admin"]), async (_req, res): Promise<void> => {
-  const users = await db.select().from(usersTable).where(eq(usersTable.isActive, true)).orderBy(usersTable.createdAt);
-  res.json(users.map(u => ({ id: u.id, email: u.email, displayName: u.displayName, role: u.role, photoUrl: u.photoUrl, branchId: u.branchId, phone: u.phone, isActive: u.isActive, createdAt: u.createdAt.toISOString() })));
+  const users = await db.select().from(usersTable).orderBy(desc(usersTable.isActive), usersTable.createdAt);
+  res.json(users.map(u => ({
+    id: u.id, email: u.email, displayName: u.displayName, role: u.role,
+    photoUrl: u.photoUrl, branchId: u.branchId, phone: u.phone,
+    isActive: u.isActive,
+    deletedAt: u.deletedAt ? u.deletedAt.toISOString() : null,
+    createdAt: u.createdAt.toISOString(),
+  })));
 });
 
 // GET /users/:id — own profile or admin; admins invisible to non-admins
@@ -47,7 +53,18 @@ router.patch("/users/:id", requireAuth, async (req: AuthRequest, res): Promise<v
   if (!updated) { res.status(404).json({ error: "User not found" }); return; }
   if (photoUrl !== undefined) { await db.update(membersTable).set({ photoUrl }).where(eq(membersTable.userId, id)).catch(() => {}); }
   if (birthday !== undefined) { await db.update(membersTable).set({ birthday }).where(eq(membersTable.userId, id)).catch(() => {}); }
-  res.json({ id: updated.id, email: updated.email, displayName: updated.displayName, role: updated.role, photoUrl: updated.photoUrl, branchId: updated.branchId, phone: updated.phone, birthday: updated.birthday, isActive: updated.isActive, createdAt: updated.createdAt.toISOString() });
+  // Log activation/deactivation explicitly so it appears correctly in activity logs
+  if (isActive !== undefined && req.userRole === "admin" && req.userId !== id) {
+    const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    await logActivity({
+      userId: req.userId, displayName: actor?.displayName ?? "Admin",
+      action: isActive ? "activate_user" : "deactivate_user",
+      entityType: "user", entityId: id, entityName: updated.displayName,
+      details: isActive ? "Account re-activated" : "Account deactivated",
+      ipAddress: req.ip ?? "unknown",
+    });
+  }
+  res.json({ id: updated.id, email: updated.email, displayName: updated.displayName, role: updated.role, photoUrl: updated.photoUrl, branchId: updated.branchId, phone: updated.phone, birthday: updated.birthday, isActive: updated.isActive, deletedAt: updated.deletedAt ? updated.deletedAt.toISOString() : null, createdAt: updated.createdAt.toISOString() });
 });
 
 // DELETE /users/:id — admin only; cannot delete another admin

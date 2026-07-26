@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check, UserCheck, UserX } from "lucide-react";
 import axios from "@/lib/axios";
 
-type User = { id: number; email: string; displayName: string; role: string; isActive: boolean; createdAt: string; photoUrl?: string | null };
+type User = { id: number; email: string; displayName: string; role: string; isActive: boolean; deletedAt?: string | null; createdAt: string; photoUrl?: string | null };
 
 const ROLE_CONFIG: Record<string, { color: string; bg: string }> = {
   admin:      { color: "text-red-700 dark:text-red-300",     bg: "bg-red-100 dark:bg-red-950" },
@@ -108,12 +108,12 @@ export default function AdminUsers() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
         {[
-          { label:"Total Users", value: all.length,                                      color:"text-blue-600" },
-          { label:"Active",      value: all.filter(u=>u.isActive).length,                color:"text-green-600" },
-          { label:"Admins",      value: roleCounts.admin ?? 0,                           color:"text-red-600" },
-          { label:"Pastors",     value: roleCounts.pastor ?? 0,                          color:"text-purple-600" },
-          { label:"Leadership",  value: roleCounts.leadership ?? 0,                      color:"text-blue-600" },
-          { label:"Members",     value: (roleCounts.workforce??0)+(roleCounts.member??0), color:"text-green-600" },
+          { label:"Total Users",  value: all.length,                                                         color:"text-blue-600" },
+          { label:"Active",       value: all.filter(u=>u.isActive).length,                                   color:"text-green-600" },
+          { label:"Deactivated",  value: all.filter(u=>!u.isActive && !u.deletedAt).length,                  color:"text-amber-600" },
+          { label:"Deleted",      value: all.filter(u=>!!u.deletedAt).length,                                color:"text-red-600" },
+          { label:"Leadership",   value: roleCounts.leadership ?? 0,                                         color:"text-blue-600" },
+          { label:"Members",      value: (roleCounts.workforce??0)+(roleCounts.member??0),                   color:"text-green-600" },
         ].map(s => (
           <div key={s.label} className="glass-card p-3 text-center">
             <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
@@ -164,6 +164,11 @@ export default function AdminUsers() {
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <p className="font-semibold text-sm truncate">{u.displayName}</p>
                     <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize ${cfg.bg} ${cfg.color}`}>{u.role}</span>
+                    {u.deletedAt ? (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">Deleted</span>
+                    ) : !u.isActive ? (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">Deactivated</span>
+                    ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 truncate mb-0.5">
                     <Mail className="h-3 w-3 shrink-0"/>{u.email}
@@ -182,11 +187,13 @@ export default function AdminUsers() {
                         onClick={() => { setEditUser(u); setNewRole(u.role); }}>
                         <Shield className="h-3 w-3"/>Role
                       </Button>
-                      <Button size="sm" variant="outline" className={`h-6 text-[10px] px-2 gap-1 ${u.isActive ? "hover:text-amber-600 hover:border-amber-300" : "hover:text-green-600 hover:border-green-300"}`}
-                        onClick={() => handleToggleActive(u)} disabled={togglingId === u.id}>
-                        {u.isActive ? <UserX className="h-3 w-3"/> : <UserCheck className="h-3 w-3"/>}
-                        {u.isActive ? "Deactivate" : "Activate"}
-                      </Button>
+                      {!u.deletedAt && (
+                        <Button size="sm" variant="outline" className={`h-6 text-[10px] px-2 gap-1 ${u.isActive ? "hover:text-amber-600 hover:border-amber-300" : "hover:text-green-600 hover:border-green-300"}`}
+                          onClick={() => handleToggleActive(u)} disabled={togglingId === u.id}>
+                          {u.isActive ? <UserX className="h-3 w-3"/> : <UserCheck className="h-3 w-3"/>}
+                          {u.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

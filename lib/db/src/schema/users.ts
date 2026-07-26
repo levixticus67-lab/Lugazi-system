@@ -21,6 +21,7 @@ export const usersTable = pgTable("users", {
   // Password reset — stored in DB so tokens survive server restarts
   passwordResetToken: text("password_reset_token"),
   passwordResetTokenExpiry: timestamp("password_reset_token_expiry", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
