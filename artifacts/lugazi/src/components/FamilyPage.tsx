@@ -146,7 +146,7 @@ export default function FamilyPage({ navItems }: { navItems: NavItem[] }) {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex flex-col gap-1 shrink-0">
                       <button onClick={()=>openEdit(m)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition"><Edit2 className="h-3.5 w-3.5"/></button>
                       <button onClick={()=>{ if(confirm("Remove this family member?")) remove.mutate(m.id); }} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"><Trash2 className="h-3.5 w-3.5"/></button>
                     </div>
