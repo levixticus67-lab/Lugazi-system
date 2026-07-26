@@ -79,10 +79,41 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           PGSSLMODE: require
 
+      # ── Pre-migration: apply column type changes with explicit USING clause ──────
+      # drizzle-kit push --force skips interactive prompts but does NOT add the
+      # USING clause that PostgreSQL requires for certain type changes:
+      #
+      #   H4: transactions.date   text → date
+      #       PostgreSQL refuses "ALTER COLUMN TYPE date" on a text column without
+      #       "USING date::date" because it cannot implicitly cast text→date.
+      #
+      #   H5: contributions.amount  integer → numeric(12,2)
+      #       integer→numeric is normally safe, but an explicit USING eliminates
+      #       any ambiguity and makes this step idempotent on re-runs.
+      #
+      # Running these ALTER statements first means drizzle-kit sees the columns
+      # are already the correct type and skips them — no conflict, no error.
+      # Both statements are idempotent: if the column is already the target type
+      # PostgreSQL is a no-op.
+      - name: Apply column type changes with USING clause (H4 + H5)
+        run: |
+          psql "$DATABASE_URL" << 'SQL'
+            -- H4: text → date (requires explicit USING; drizzle-kit cannot add this)
+            ALTER TABLE transactions
+              ALTER COLUMN date TYPE date USING date::date;
+
+            -- H5: integer → numeric(12,2)
+            ALTER TABLE contributions
+              ALTER COLUMN amount TYPE numeric(12, 2) USING amount::numeric;
+          SQL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGSSLMODE: require
+
       # ── Push schema ───────────────────────────────────────────────────────────
-      # Uses push-force so drizzle-kit never waits for interactive confirmation
-      # in the non-TTY CI environment. Without --force, drizzle-kit prompts on
-      # any column-type change (H4, H5) and silently aborts when there is no TTY.
+      # H4 and H5 columns are already the right type by this point, so drizzle-kit
+      # will skip them and cleanly apply everything else (H1 indexes, H2 enum,
+      # H7 new columns, password-reset columns, etc.).
       - name: Push schema to Neon
         run: pnpm --filter @workspace/db run push-force
         env:
