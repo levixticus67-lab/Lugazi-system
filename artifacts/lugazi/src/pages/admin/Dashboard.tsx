@@ -18,10 +18,9 @@ import { useGetDashboardStats } from "@workspace/api-client-react";
     Bell, UserPlus, TrendingUp, Calendar, Activity,
   } from "lucide-react";
   import {
-    ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+    ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer,
   } from "recharts";
-import { ChartTooltip } from "@/components/ui/chart";
 
   type ChartData = {
     weeklyAttendance: { week: string; count: number }[];
@@ -124,7 +123,7 @@ import { ChartTooltip } from "@/components/ui/chart";
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                  <ChartTooltip />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))', fontSize: 12 }} labelStyle={{ color: 'hsl(var(--muted-foreground))' }} itemStyle={{ color: 'hsl(var(--foreground))' }} />
                   <Bar dataKey="count" fill="url(#grad-admin-bar)" radius={[4, 4, 0, 0]} name="Attendance" />
                   <Line type="monotone" dataKey="avg" stroke="#f59e0b" strokeWidth={2.5} dot={false} name="3-Wk Avg" />
                 </ComposedChart>
