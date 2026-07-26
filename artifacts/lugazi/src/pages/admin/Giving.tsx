@@ -8,8 +8,7 @@ import LiveChat from "@/components/LiveChat";
 import AIAssistant from "@/components/AIAssistant";
 import { adminNavItems } from "./navItems";
 import { DollarSign, TrendingUp, Plus, X, Trash2, Heart, HandCoins, Coins } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
-import { ChartTooltip } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from "recharts";
 
 interface Contribution {
   id: number;
@@ -100,7 +99,7 @@ export default function AdminGiving() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis dataKey="name" tick={{ fontSize:10 }} />
               <YAxis tick={{ fontSize:10 }} tickFormatter={v=>v>=1000000?`${(v/1000000).toFixed(1)}M`:v>=1000?`${(v/1000).toFixed(0)}K`:`${v}`} />
-              <ChartTooltip formatter={(v:number)=>fmt(v,"UGX")} />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))', fontSize: 12 }} labelStyle={{ color: 'hsl(var(--muted-foreground))' }} itemStyle={{ color: 'hsl(var(--foreground))' }} formatter={(v:number)=>fmt(v,"UGX")} />
               <Bar dataKey="total" radius={[4,4,0,0]}>
                 {totByType.map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
               </Bar>
