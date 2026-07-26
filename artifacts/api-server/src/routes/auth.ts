@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
-import { eq, and, gt, sql } from "drizzle-orm";
+import { eq, and, gt } from "drizzle-orm";
 import { promises as dns } from "dns";
 import { db, usersTable, membersTable } from "@workspace/db";
 import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
@@ -135,10 +135,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) { res.status(401).json({ error: "Invalid email or password" }); return; }
   if (!user.isActive) { res.status(403).json({ error: "Account deactivated. Contact admin." }); return; }
-  // H7: block sign-in for explicitly-unverified users only.
-  // safeUserCols omits emailVerified so (user as any).emailVerified is undefined
-  // when the DB column hasn't been migrated yet — undefined !== false keeps login open.
-  if ((user as any).emailVerified === false) {
+  // Block sign-in for explicitly-unverified users. emailVerified is selected via safeUserCols.
+  if (user.emailVerified === false) {
     res.status(403).json({ error: "Please verify your email before signing in. Check your inbox for the verification link.", needsVerification: true, email: user.email });
     return;
   }
@@ -171,18 +169,12 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const startVerified = !transport;
 
-  const insertResult = await db.execute(sql`
-    INSERT INTO users (email, password_hash, display_name, role, is_active,
-                       email_verified, email_verification_token, email_verification_token_expiry)
-    VALUES (
-      ${email}, ${hash}, ${displayName}, 'member', true,
-      ${startVerified},
-      ${startVerified ? null : verificationToken},
-      ${startVerified ? null : tokenExpiry}
-    )
-    RETURNING id, email
-  `);
-  const newUser = insertResult.rows[0] as { id: number; email: string };
+  const [newUser] = await db.insert(usersTable).values({
+    email, passwordHash: hash, displayName, role: "member", isActive: true,
+    emailVerified: startVerified,
+    emailVerificationToken: startVerified ? null : verificationToken,
+    emailVerificationTokenExpiry: startVerified ? null : tokenExpiry,
+  }).returning({ id: usersTable.id, email: usersTable.email });
   if (!newUser) { res.status(500).json({ error: "Internal server error" }); return; }
   logger.info({ userId: newUser.id, email, emailVerified: startVerified }, "New user registered");
   await logActivity({ userId: newUser.id, displayName, action: "register", details: `Registered with email ${email}`, ipAddress: ip });
@@ -229,11 +221,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   } catch (mailErr) {
     // Email failed after account created — auto-verify so user is never locked out.
     logger.error({ mailErr, userId: newUser.id }, "Register: failed to send verification email — auto-verifying");
-    await db.execute(sql`
-      UPDATE users
-      SET email_verified = true, email_verification_token = null, email_verification_token_expiry = null
-      WHERE id = ${newUser.id}
-    `);
+    await db.update(usersTable)
+      .set({ emailVerified: true, emailVerificationToken: null, emailVerificationTokenExpiry: null })
+      .where(eq(usersTable.id, newUser.id));
     res.status(201).json({ message: "Account created. Verification email could not be sent — you can sign in now." });
   }
 });
@@ -324,13 +314,12 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     let [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (!user) {
       const unusableHash = await bcrypt.hash(uuidv4(), 12);
-      const googleInsert = await db.execute(sql`
-        INSERT INTO users (email, password_hash, display_name, role, is_active, photo_url)
-        VALUES (${email}, ${unusableHash}, ${gUser.name}, 'member', true, ${gUser.picture ?? null})
-        RETURNING id, email, display_name, role, photo_url, phone, birthday, branch_id, is_active, created_at, updated_at
-      `);
-      const gr = googleInsert.rows[0] as any;
-      user = { id: gr.id, email: gr.email, passwordHash: unusableHash, displayName: gr.display_name, role: gr.role, photoUrl: gr.photo_url ?? null, phone: gr.phone ?? null, birthday: gr.birthday ?? null, branchId: gr.branch_id ?? null, isActive: gr.is_active, createdAt: gr.created_at, updatedAt: gr.updated_at } as typeof user;
+      const [created] = await db.insert(usersTable).values({
+        email, passwordHash: unusableHash, displayName: gUser.name,
+        role: "member", isActive: true, photoUrl: gUser.picture ?? null,
+        emailVerified: true, // Google-verified accounts skip email verification
+      }).returning(safeUserCols);
+      user = created;
       // Sync member record — wrapped so a schema mismatch (e.g. H2 enum not yet migrated)
       // never causes a google_server_error for new Google sign-ups.
       try {

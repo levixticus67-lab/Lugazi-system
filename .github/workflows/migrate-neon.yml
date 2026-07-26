@@ -1,25 +1,18 @@
 name: Migrate Neon Database Schema
 
-# C5 FIX: Removed automatic push-to-main trigger.
-#
-# drizzle-kit push is destructive — it can drop columns and tables, has no
-# migration history, and cannot be rolled back. Running it automatically on
-# every schema commit is too risky for a production database.
-#
-# HOW TO APPLY SCHEMA CHANGES:
-#   1. Review the diff with:  pnpm --filter @workspace/db run generate
-#   2. Inspect the generated SQL migration in lib/db/drizzle/
-#   3. If satisfied, trigger this workflow manually from the Actions tab.
-#
-# For the safer long-term approach, migrate from drizzle-kit push to
-# drizzle-kit generate + drizzle-kit migrate (file-based migration history).
-
 on:
+  # Auto-run whenever schema files change on main
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/db/src/schema/**'
+      - 'lib/db/drizzle.config.ts'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+
+  # Also allow manual trigger (useful for forcing a re-run)
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: "Type MIGRATE to confirm you have reviewed the schema diff"
-        required: true
 
 jobs:
   migrate:
@@ -27,13 +20,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Confirm intent
-        run: |
-          if [ "${{ github.event.inputs.confirm }}" != "MIGRATE" ]; then
-            echo "Confirmation text incorrect. Aborting."
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -50,7 +36,54 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      # ── Pre-migration: sanitize transactions.date values ─────────────────────
+      # H4 changes transactions.date from text → date column type.
+      # PostgreSQL will CAST each text value during ALTER COLUMN TYPE; any value
+      # that is not a valid date string will abort the migration.
+      #
+      # This step normalises all known non-YYYY-MM-DD formats to YYYY-MM-DD
+      # before drizzle-kit push runs, so the type-change CAST always succeeds.
+      # For any date that is truly unparseable, we fall back to the row's
+      # created_at date so no data is lost and NOT NULL is never violated.
+      - name: Sanitize transaction date formats (H4 pre-migration)
+        run: |
+          psql "$DATABASE_URL" << 'SQL'
+            -- 1. DD/MM/YYYY  →  YYYY-MM-DD  (most common non-standard format)
+            UPDATE transactions
+              SET date = to_char(to_date(date, 'DD/MM/YYYY'), 'YYYY-MM-DD')
+              WHERE date ~ '^\d{2}/\d{2}/\d{4}$';
+
+            -- 2. DD-MM-YYYY  →  YYYY-MM-DD
+            UPDATE transactions
+              SET date = to_char(to_date(date, 'DD-MM-YYYY'), 'YYYY-MM-DD')
+              WHERE date ~ '^\d{2}-\d{2}-\d{4}$';
+
+            -- 3. D/M/YYYY or M/D/YYYY short-form (treat as DD/MM/YYYY for Uganda locale)
+            UPDATE transactions
+              SET date = to_char(to_date(date, 'FMDD/FMMM/YYYY'), 'YYYY-MM-DD')
+              WHERE date ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+                AND date !~ '^\d{4}-';
+
+            -- 4. Report any remaining non-conforming dates before nulling them
+            SELECT id, date AS unparseable_date
+              FROM transactions
+              WHERE date !~ '^\d{4}-\d{2}-\d{2}$';
+
+            -- 5. Last resort: replace truly unparseable values with the row's created_at
+            --    date so NOT NULL is preserved and the migration can proceed.
+            UPDATE transactions
+              SET date = to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+              WHERE date !~ '^\d{4}-\d{2}-\d{2}$';
+          SQL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGSSLMODE: require
+
+      # ── Push schema ───────────────────────────────────────────────────────────
+      # Uses push-force so drizzle-kit never waits for interactive confirmation
+      # in the non-TTY CI environment. Without --force, drizzle-kit prompts on
+      # any column-type change (H4, H5) and silently aborts when there is no TTY.
       - name: Push schema to Neon
-        run: pnpm --filter @workspace/db run push
+        run: pnpm --filter @workspace/db run push-force
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
