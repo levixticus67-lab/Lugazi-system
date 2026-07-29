@@ -626,7 +626,7 @@ export default function LiveChat() {
 
         {/* Action menu */}
         {menuOpen && (
-          <div className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end mr-6" : "self-start ml-6"}`}>
+          <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-0.5 mt-1 p-1 rounded-xl bg-popover border border-border shadow-md ${isMe ? "self-end mr-6" : "self-start ml-6"}`}>
             <button
               onClick={() => { setDmReplyTo(msg); setDmMsgMenu(null); dmInputRef.current?.focus(); }}
               className="p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground" title="Reply">
@@ -644,7 +644,7 @@ export default function LiveChat() {
 
         {/* Delete confirmation */}
         {confirmingDelete && (
-          <div className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end mr-6" : "self-start ml-6"}`}>
+          <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} className={`flex items-center gap-2 mt-1 px-2 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 ${isMe ? "self-end mr-6" : "self-start ml-6"}`}>
             <span className="text-[11px] text-destructive font-medium">Delete?</span>
             <button onPointerDown={() => deleteDmMessage(msg.id)}
               className="text-[10px] px-2 py-0.5 rounded-md bg-destructive text-white font-medium">Yes</button>
