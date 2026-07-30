@@ -118,7 +118,7 @@ export default function AdminActivityLogs() {
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by action" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-h-60 overflow-y-auto">
             <SelectItem value="all">All actions</SelectItem>
             {uniqueActions.map(a => (
               <SelectItem key={a} value={a}>{getMeta(a).label}</SelectItem>
