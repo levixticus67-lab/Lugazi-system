@@ -50,6 +50,7 @@ const ACTION_META: Record<string, { label: string; color: "default" | "success" 
   role_request_approved:   { label: "Role Request Approved",  color: "success",  icon: <UserCog className="h-3.5 w-3.5" /> },
   role_request_rejected:   { label: "Role Request Rejected",  color: "danger",   icon: <UserCog className="h-3.5 w-3.5" /> },
   sign_out:                { label: "Sign Out",                color: "default",  icon: <LogOut className="h-3.5 w-3.5" /> },
+  blocked_access:          { label: "Access Blocked",           color: "danger",   icon: <Shield className="h-3.5 w-3.5" /> },
   activate_user:           { label: "User Activated",          color: "success",  icon: <UserCog className="h-3.5 w-3.5" /> },
   deactivate_member:       { label: "Member Deactivated",      color: "warning",  icon: <UserX className="h-3.5 w-3.5" /> },
   activate_member:         { label: "Member Activated",        color: "success",  icon: <UserPlus className="h-3.5 w-3.5" /> },

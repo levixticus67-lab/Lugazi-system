@@ -142,10 +142,21 @@ router.delete("/members/:id", requireAuth, requireRole(["admin", "pastor"]), asy
   const [target] = await db.select({ fullName: membersTable.fullName, role: membersTable.role, userId: membersTable.userId, email: membersTable.email }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
   if (!target) { res.status(404).json({ error: "Member not found" }); return; }
   if (target.role === "admin" && req.userRole !== "admin") { res.status(403).json({ error: "You cannot delete an admin account" }); return; }
-  // Mark linked user as deleted (deletedAt) so they appear tagged in Users & Roles, not just hidden
+  // Deactivate the linked user account so they cannot log in or use the app after deletion.
+  // Errors are surfaced (not swallowed) so a failed deactivation is visible in server logs.
   const deletedMark = { isActive: false, deletedAt: new Date() };
-  if (target.userId) { await db.update(usersTable).set(deletedMark).where(eq(usersTable.id, target.userId)).catch(() => {}); }
-  if (target.email && !target.userId) { await db.update(usersTable).set(deletedMark).where(eq(usersTable.email, target.email)).catch(() => {}); }
+  try {
+    if (target.userId) {
+      await db.update(usersTable).set(deletedMark).where(eq(usersTable.id, target.userId));
+    } else if (target.email) {
+      // Fallback: member may not have a userId yet (registered but not linked) — match by email
+      await db.update(usersTable).set(deletedMark).where(eq(usersTable.email, target.email));
+    }
+  } catch (deactivateErr) {
+    // Log loudly — if this fails the user account remains active, which is a security concern
+    req.log.warn({ deactivateErr, memberId: id, userId: target.userId, email: target.email },
+      "DELETE /members: failed to deactivate linked user account — manual cleanup required");
+  }
   await db.delete(membersTable).where(eq(membersTable.id, id));
   const memberLabel = target.fullName ?? ("Member #" + id);
   await logActivity({ userId: req.userId, action: "delete_member", entityType: "member", entityId: id, entityName: memberLabel, ipAddress: req.ip ?? "unknown" });

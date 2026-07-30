@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, activityLogsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
 // Hard-fail on startup if JWT_SECRET is missing — never fall back to a known string
@@ -52,12 +52,24 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   // blocked immediately instead of retaining access until their JWT expires (up to 7 days).
   try {
     const [user] = await db
-      .select({ isActive: usersTable.isActive })
+      .select({ isActive: usersTable.isActive, displayName: usersTable.displayName, deletedAt: usersTable.deletedAt })
       .from(usersTable)
       .where(eq(usersTable.id, decoded.userId))
       .limit(1);
 
     if (!user || !user.isActive) {
+      // Log the blocked attempt so admins can see it in Activity Logs.
+      // Only log when the account actually exists (isActive=false) — not for missing rows.
+      if (user) {
+        const reason = user.deletedAt ? "member was deleted" : "account deactivated";
+        db.insert(activityLogsTable).values({
+          userId: decoded.userId,
+          displayName: user.displayName ?? `User #${decoded.userId}`,
+          action: "blocked_access",
+          details: `Blocked (${reason}): ${req.method} ${req.path}`,
+          ipAddress: req.ip ?? "unknown",
+        }).catch(() => {}); // non-blocking — a log failure must never affect auth
+      }
       res.status(401).json({ error: "Account is deactivated. Contact your administrator." });
       return;
     }
