@@ -1,5 +1,6 @@
-import { and, eq, isNotNull, isNull, lt, notInArray, or } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lt, notInArray, or } from "drizzle-orm";
 import { v2 as cloudinary } from "cloudinary";
+import { archiveLogsToSheets } from "./sheetsArchive";
 import {
   db,
   usersTable,
@@ -84,11 +85,37 @@ async function purgeOldNotifications(): Promise<void> {
     );
 }
 
-/** Trim activity logs older than 90 days.  Keeps the log table from becoming
- *  the largest table in the DB — 90 days is enough audit history for a church. */
+/** Archive logs older than 90 days to Google Sheets, then delete from Neon.
+ *  If the Sheets write fails the logs are kept for the next cycle — nothing
+ *  is ever deleted without a confirmed successful archive first. */
 async function trimActivityLogs(): Promise<void> {
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-  await db.delete(activityLogsTable).where(lt(activityLogsTable.createdAt, ninetyDaysAgo));
+
+  // Fetch the rows that are about to be deleted
+  const expiring = await db
+    .select()
+    .from(activityLogsTable)
+    .where(lt(activityLogsTable.createdAt, ninetyDaysAgo));
+
+  if (expiring.length === 0) return;
+
+  // Archive to Google Sheets first — only delete if it succeeds
+  const archived = await archiveLogsToSheets(expiring);
+  if (!archived) {
+    logger.warn(
+      { count: expiring.length },
+      "Activity log trim skipped this cycle — Sheets archive was not confirmed. " +
+      "Logs will be retried next run.",
+    );
+    return;
+  }
+
+  // Safe to hard-delete from Neon now
+  await db
+    .delete(activityLogsTable)
+    .where(lt(activityLogsTable.createdAt, ninetyDaysAgo));
+
+  logger.info({ count: expiring.length }, "Activity logs archived to Sheets and removed from Neon");
 }
 
 /** Hard-delete announcements whose expiresAt has passed.
