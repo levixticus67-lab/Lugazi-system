@@ -2,7 +2,9 @@
 
 ## Reports — File Attachment Support
 
-Run the following SQL on your production database (Render) to apply the schema changes for report file attachments:
+The schema changes below are applied automatically by the GitHub Actions workflow (drizzle-kit push → Neon).
+
+If you ever need to apply them manually:
 
 ```sql
 -- Make content nullable (reports can now be file-only)
