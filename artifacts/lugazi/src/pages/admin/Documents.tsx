@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Plus, Trash2, ExternalLink, FileText, FileSpreadsheet, File, Presentation } from "lucide-react";
+import { Plus, Trash2, FileText, FileSpreadsheet, File, Presentation } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 type Document = { id: number; title: string; description?: string | null; category: string; fileUrl: string; fileType: string; uploadedByName?: string | null; createdAt: string };
 
@@ -34,6 +36,14 @@ function DocIcon({ type }: { type: string }) {
   if (t.includes("ppt") || t.includes("odp")) return <Presentation className="h-5 w-5 text-orange-500" />;
   if (t.includes("pdf")) return <FileText className="h-5 w-5 text-red-500" />;
   return <File className="h-5 w-5 text-blue-500" />;
+}
+
+async function openDocument(url: string) {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url });
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 }
 
 const blank = { title: "", description: "", category: "general" };
@@ -60,7 +70,8 @@ export default function AdminDocuments() {
     });
   }
 
-  function handleDelete(id: number) {
+  function handleDelete(e: React.MouseEvent, id: number) {
+    e.stopPropagation();
     if (!confirm("Delete this document?")) return;
     deleteMutation.mutate({ id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() }) });
   }
@@ -97,7 +108,13 @@ export default function AdminDocuments() {
           {displayed.map(doc => {
             const cfg = CAT_CONFIG[doc.category] ?? CAT_CONFIG.other;
             return (
-              <div key={doc.id} className="glass-card p-4 flex items-center gap-3">
+              <div key={doc.id}
+                className="glass-card p-4 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
+                onClick={() => openDocument(doc.fileUrl)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === "Enter" && openDocument(doc.fileUrl)}
+              >
                 <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <DocIcon type={doc.fileType} />
                 </div>
@@ -112,16 +129,12 @@ export default function AdminDocuments() {
                     <span>{new Date(doc.createdAt).toLocaleDateString("en-UG",{day:"numeric",month:"short",year:"numeric"})}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
-                    className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                    <ExternalLink className="h-4 w-4"/>
-                  </a>
-                  <button onClick={() => handleDelete(doc.id)}
-                    className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash2 className="h-4 w-4"/>
-                  </button>
-                </div>
+                <button
+                  onClick={e => handleDelete(e, doc.id)}
+                  className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                >
+                  <Trash2 className="h-4 w-4"/>
+                </button>
               </div>
             );
           })}
