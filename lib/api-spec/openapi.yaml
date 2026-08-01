@@ -1841,7 +1841,7 @@ components:
         branchId:
           type: ["integer", "null"]
         content:
-          type: string
+          type: ["string", "null"]
         attendance:
           type: ["integer", "null"]
         soulWinning:
@@ -1850,12 +1850,18 @@ components:
           type: string
         status:
           type: string
+        fileUrl:
+          type: ["string", "null"]
+        fileType:
+          type: ["string", "null"]
+        fileSize:
+          type: ["string", "null"]
         createdAt:
           type: string
 
     ReportInput:
       type: object
-      required: [title, type, content, period]
+      required: [title, type, period]
       properties:
         title:
           type: string
@@ -1871,6 +1877,12 @@ components:
           type: integer
         soulWinning:
           type: integer
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: string
 
     ReportUpdate:
       type: object
@@ -1882,6 +1894,12 @@ components:
         soulWinning:
           type: integer
         status:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
           type: string
 
     # Pipeline

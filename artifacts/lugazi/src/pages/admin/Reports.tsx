@@ -8,15 +8,63 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle2, Clock, Users, TrendingUp, ChevronRight } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Users, TrendingUp, ChevronRight, Paperclip } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { FileOpener } from "@capacitor-community/file-opener";
 
-type Report = { id: number; title: string; type: string; submittedByName?: string | null; period: string; status: string; content?: string | null; attendance?: number | null; soulWinning?: number | null; createdAt: string };
+type Report = {
+  id: number; title: string; type: string; submittedByName?: string | null;
+  period: string; status: string; content?: string | null;
+  attendance?: number | null; soulWinning?: number | null; createdAt: string;
+  fileUrl?: string | null; fileType?: string | null;
+};
 
 const TYPE_LABEL: Record<string,string> = { weekly_branch:"Weekly Branch", monthly_branch:"Monthly Branch", quarterly:"Quarterly", annual:"Annual", special:"Special" };
 const STATUS_CONFIG: Record<string,{label:string;color:string;icon:React.ReactNode}> = {
   draft:    { label:"Submitted", color:"bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",  icon:<Clock className="h-3 w-3"/> },
   reviewed: { label:"Reviewed",  color:"bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",  icon:<CheckCircle2 className="h-3 w-3"/> },
 };
+
+function getMimeType(fileType: string): string {
+  const t = (fileType ?? "").toLowerCase();
+  if (t === "pdf") return "application/pdf";
+  if (t === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (t === "doc") return "application/msword";
+  if (t === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (t === "xls") return "application/vnd.ms-excel";
+  if (t === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  if (t === "ppt") return "application/vnd.ms-powerpoint";
+  if (t === "txt") return "text/plain";
+  if (t === "csv") return "text/csv";
+  return "application/octet-stream";
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function openDocument(url: string, fileType: string) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const fileName = (url.split("/").pop()?.split("?")[0] ?? "report") + "." + fileType;
+      const response = await fetch(url);
+      const base64 = await blobToBase64(await response.blob());
+      const { uri } = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+      await FileOpener.open({ filePath: uri, contentType: getMimeType(fileType), openWithDefault: true });
+    } catch {
+      await Browser.open({ url });
+    }
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
 
 export default function AdminReports() {
   const { data: reports = [], isLoading } = useListReports();
@@ -31,7 +79,6 @@ export default function AdminReports() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListReportsQueryKey() });
         toast({ title: "Report marked as reviewed" });
-        // Update the sheet view too so the badge reflects the change immediately
         setViewReport(prev => prev?.id === id ? { ...prev, status: "reviewed" } : prev);
       },
       onError: () => toast({ title: "Failed to update", variant:"destructive" }),
@@ -94,6 +141,7 @@ export default function AdminReports() {
                       <p className="text-xs text-muted-foreground truncate">{r.submittedByName ?? "Unknown"} · {r.period}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                      {r.fileUrl && <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"><Paperclip className="h-2.5 w-2.5"/>Attachment</span>}
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{TYPE_LABEL[r.type]??r.type}</span>
                       <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.icon}{cfg.label}</span>
                     </div>
@@ -147,7 +195,25 @@ export default function AdminReports() {
                   {viewReport.content ? (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{viewReport.content}</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground italic">No content provided.</p>
+                    <p className="text-sm text-muted-foreground italic">No typed content.</p>
+                  )}
+
+                  {viewReport.fileUrl && (
+                    <div className="mt-5 pt-4 border-t border-border/50">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Attached Document</p>
+                      <button
+                        onClick={() => openDocument(viewReport.fileUrl!, viewReport.fileType ?? "pdf")}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/40 hover:bg-muted transition-colors text-left"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
+                          <Paperclip className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">Report Attachment</p>
+                          <p className="text-xs text-muted-foreground">{(viewReport.fileType ?? "file").toUpperCase()} · Tap to open</p>
+                        </div>
+                      </button>
+                    </div>
                   )}
                 </ScrollArea>
 

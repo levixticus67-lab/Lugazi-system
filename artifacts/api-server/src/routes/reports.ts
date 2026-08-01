@@ -23,15 +23,19 @@ router.get("/reports", requireAuth, requireRole(["admin", "pastor", "leadership"
 // Only admin, pastor, leadership can submit reports
 router.post("/reports", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   try {
-    const { title, type, content, period, branchId, attendance, soulWinning } = req.body;
-    if (!title || !type || !content || !period) {
-      res.status(400).json({ error: "title, type, content, period required" }); return;
+    const { title, type, content, period, branchId, attendance, soulWinning, fileUrl, fileType, fileSize } = req.body;
+    if (!title || !type || !period) {
+      res.status(400).json({ error: "title, type, period required" }); return;
+    }
+    if (!content && !fileUrl) {
+      res.status(400).json({ error: "Either content or an attached file is required" }); return;
     }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     const [report] = await db.insert(reportsTable).values({
-      title, type, content, period,
+      title, type, content: content || null, period,
       submittedBy: req.userId!, submittedByName: user?.displayName ?? null,
       branchId, attendance, soulWinning, status: "draft",
+      fileUrl: fileUrl || null, fileType: fileType || null, fileSize: fileSize || null,
     }).returning();
     res.status(201).json({ ...report, createdAt: report.createdAt.toISOString(), updatedAt: report.updatedAt.toISOString() });
   } catch (err) {
@@ -39,7 +43,7 @@ router.post("/reports", requireAuth, requireRole(["admin", "pastor", "leadership
   }
 });
 
-// Admin/pastor can update status (review reports); author can edit content
+// Admin/pastor can update status (review reports); author can edit content/attachment
 router.patch("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id), 10);
@@ -52,12 +56,15 @@ router.patch("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leade
     const isPastor = req.userRole === "pastor";
     const isOwner = existing.submittedBy === req.userId;
 
-    const { content, attendance, soulWinning, status } = req.body;
+    const { content, attendance, soulWinning, status, fileUrl, fileType, fileSize } = req.body;
     const updateData: Record<string, unknown> = {};
 
     if (content !== undefined && isOwner) updateData.content = content;
     if (attendance !== undefined && isOwner) updateData.attendance = attendance;
     if (soulWinning !== undefined && isOwner) updateData.soulWinning = soulWinning;
+    if (fileUrl !== undefined && isOwner) updateData.fileUrl = fileUrl;
+    if (fileType !== undefined && isOwner) updateData.fileType = fileType;
+    if (fileSize !== undefined && isOwner) updateData.fileSize = fileSize;
     // Only admin or pastor can change status
     if (status !== undefined && (isAdmin || isPastor)) updateData.status = status;
 
