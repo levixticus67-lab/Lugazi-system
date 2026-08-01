@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { desc, eq, and, ilike, or, sql, ne } from "drizzle-orm";
+import { desc, eq, and, ilike, or, sql, ne, gte } from "drizzle-orm";
 import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
 import { checkDbRateLimit } from "../lib/rateLimiter";
@@ -244,18 +244,36 @@ router.delete("/chat/dm/:otherUserId/end-private", requireAuth, async (req: Auth
 });
 
 // Get global chat messages
-router.get("/chat/:scope", requireAuth, async (_req, res): Promise<void> => {
+router.get("/chat/:scope", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const canSeeAll = req.userRole === "admin" || req.userRole === "pastor";
+
+  let joinedAt: Date | undefined;
+  if (!canSeeAll) {
+    const [user] = await db
+      .select({ createdAt: usersTable.createdAt })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.userId!))
+      .limit(1);
+    joinedAt = user?.createdAt;
+  }
+
+  const baseFilter = and(
+    eq(chatMessagesTable.portalScope, GLOBAL),
+    eq(chatMessagesTable.isDeleted, false),
+    joinedAt ? gte(chatMessagesTable.createdAt, joinedAt) : undefined,
+  );
+
   const messages = await db
     .select()
     .from(chatMessagesTable)
-    .where(and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false)))
+    .where(baseFilter)
     .orderBy(desc(chatMessagesTable.createdAt))
     .limit(LIVE_LIMIT);
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(chatMessagesTable)
-    .where(and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false)));
+    .where(baseFilter);
 
   const msgIds = messages.map(m => m.id);
   let reactions: typeof chatReactionsTable.$inferSelect[] = [];
@@ -274,21 +292,36 @@ router.get("/chat/:scope", requireAuth, async (_req, res): Promise<void> => {
 });
 
 // Get archived / searchable logs
-router.get("/chat/:scope/logs", requireAuth, async (req, res): Promise<void> => {
+router.get("/chat/:scope/logs", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const search = (req.query.search as string) || "";
   const page = Math.max(0, Number(req.query.page ?? 0));
   const limit = 50;
+
+  const canSeeAll = req.userRole === "admin" || req.userRole === "pastor";
+
+  let joinedAt: Date | undefined;
+  if (!canSeeAll) {
+    const [user] = await db
+      .select({ createdAt: usersTable.createdAt })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.userId!))
+      .limit(1);
+    joinedAt = user?.createdAt;
+  }
+
+  const joinFilter = joinedAt ? gte(chatMessagesTable.createdAt, joinedAt) : undefined;
 
   const condition = search.trim()
     ? and(
         eq(chatMessagesTable.portalScope, GLOBAL),
         eq(chatMessagesTable.isDeleted, false),
+        joinFilter,
         or(
           ilike(chatMessagesTable.message, `%${search}%`),
           ilike(chatMessagesTable.displayName, `%${search}%`)
         )
       )
-    : and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false));
+    : and(eq(chatMessagesTable.portalScope, GLOBAL), eq(chatMessagesTable.isDeleted, false), joinFilter);
 
   const rows = await db.select().from(chatMessagesTable).where(condition)
     .orderBy(desc(chatMessagesTable.createdAt)).limit(limit).offset(page * limit);

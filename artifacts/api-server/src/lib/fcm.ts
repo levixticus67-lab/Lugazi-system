@@ -1,6 +1,6 @@
 import admin from "firebase-admin";
 import { db, fcmTokensTable, inAppNotificationsTable } from "@workspace/db";
-import { eq, and, isNull, gte } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 
 const PUSH_CHANNEL_ID = "dcl-push";
@@ -75,16 +75,10 @@ async function sendFcmPush(
 
 async function tick(messaging: admin.messaging.Messaging): Promise<void> {
   try {
-    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
     const pending = await db
       .select()
       .from(inAppNotificationsTable)
-      .where(
-        and(
-          isNull(inAppNotificationsTable.fcmSentAt),
-          gte(inAppNotificationsTable.createdAt, cutoff),
-        ),
-      )
+      .where(isNull(inAppNotificationsTable.fcmSentAt))
       .limit(50);
 
     if (pending.length === 0) return;
