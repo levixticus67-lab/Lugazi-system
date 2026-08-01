@@ -2,6 +2,8 @@ import { useState, useCallback, useRef } from "react";
 import axios from "@/lib/axios";
 import { cn } from "@/lib/utils";
 import { Upload, X, CheckCircle2, Loader2, FileText, Music, Video, Image as ImageIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export interface UploadResult {
   url: string;
@@ -17,6 +19,12 @@ interface CloudinaryUploaderProps {
   label?: string;
   className?: string;
   currentUrl?: string | null;
+  /** When true, shows a name field — the user's typed name becomes the Cloudinary public_id.
+   *  Use for documents and report attachments.
+   *  When false (default), the original filename is used automatically via use_filename=true. */
+  showNameInput?: boolean;
+  /** Placeholder for the name field when showNameInput is true */
+  namePlaceholder?: string;
 }
 
 function getResourceType(file: File): "image" | "video" | "raw" {
@@ -38,12 +46,24 @@ function formatBytes(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+/** Sanitize a user-typed name into a safe Cloudinary public_id:
+ *  lowercase, spaces/special chars → hyphens, trim leading/trailing hyphens */
+function sanitizePublicId(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export default function CloudinaryUploader({
   onUpload,
   accept = "*/*",
   label = "Upload file",
   className,
   currentUrl,
+  showNameInput = false,
+  namePlaceholder = "e.g. Q1-Branch-Report-2026",
 }: CloudinaryUploaderProps) {
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [progress, setProgress] = useState(0);
@@ -51,9 +71,10 @@ export default function CloudinaryUploader({
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentUrl ?? null);
   const [isDragging, setIsDragging] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [fileName, setFileName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = useCallback(async (file: File, nameOverride?: string) => {
     setSelectedFile(file);
     setStatus("uploading");
     setProgress(0);
@@ -68,12 +89,22 @@ export default function CloudinaryUploader({
     }
 
     try {
+      // Build signature request URL
+      let sigUrl = "/api/media/upload-signature";
+      if (showNameInput && nameOverride) {
+        const safeId = sanitizePublicId(nameOverride);
+        if (safeId) sigUrl += `?public_id=${encodeURIComponent(safeId)}`;
+      }
+
       const { data: sig } = await axios.get<{
         signature: string;
         timestamp: number;
         cloudName: string;
         apiKey: string;
-      }>("/api/media/upload-signature");
+        publicId?: string;
+        useFilename?: boolean;
+        uniqueFilename?: boolean;
+      }>(sigUrl);
 
       const resourceType = getResourceType(file);
       const formData = new FormData();
@@ -82,6 +113,15 @@ export default function CloudinaryUploader({
       formData.append("timestamp", String(sig.timestamp));
       formData.append("signature", sig.signature);
       formData.append("folder", "dcl-lugazi");
+
+      if (sig.publicId) {
+        // Named upload — explicit public_id
+        formData.append("public_id", sig.publicId);
+      } else {
+        // Auto-name — use original filename
+        formData.append("use_filename", "true");
+        formData.append("unique_filename", "true");
+      }
 
       const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/${resourceType}/upload`;
 
@@ -116,18 +156,18 @@ export default function CloudinaryUploader({
       setStatus("error");
       setErrorMsg(err instanceof Error ? err.message : "Upload failed");
     }
-  }, [onUpload]);
+  }, [onUpload, showNameInput]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    if (file) processFile(file, fileName);
+  }, [processFile, fileName]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) processFile(file, fileName);
   };
 
   const reset = (e?: React.MouseEvent) => {
@@ -137,6 +177,7 @@ export default function CloudinaryUploader({
     setSelectedFile(null);
     setPreviewUrl(currentUrl ?? null);
     setErrorMsg("");
+    setFileName("");
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -144,6 +185,20 @@ export default function CloudinaryUploader({
 
   return (
     <div className={cn("space-y-2", className)}>
+      {showNameInput && (
+        <div>
+          <Label className="text-xs text-muted-foreground">File name</Label>
+          <Input
+            className="mt-1 h-8 text-sm"
+            placeholder={namePlaceholder}
+            value={fileName}
+            onChange={e => setFileName(e.target.value)}
+            disabled={status === "uploading"}
+          />
+          <p className="text-[11px] text-muted-foreground mt-0.5">This becomes the download filename</p>
+        </div>
+      )}
+
       <div
         className={cn(
           "relative border-2 border-dashed rounded-xl transition-all cursor-pointer select-none",

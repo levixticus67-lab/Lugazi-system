@@ -268,8 +268,9 @@ export default function PastorReports() {
               <div className="mt-1">
                 <CloudinaryUploader
                   onUpload={setUploadResult}
-                  resourceType="raw"
                   accept={DOC_ACCEPT}
+                  showNameInput
+                  namePlaceholder="e.g. Weekly-Branch-Report-Jan-2026"
                   label={uploadResult ? `✓ ${(uploadResult.format ?? "file").toUpperCase()} attached` : "Upload PDF, Word, Excel…"}
                 />
               </div>

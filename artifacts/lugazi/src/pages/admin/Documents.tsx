@@ -189,7 +189,9 @@ export default function AdminDocuments() {
             </div>
             <div><Label>File *</Label>
               <div className="mt-1">
-                <CloudinaryUploader accept={DOC_ACCEPT} resourceType="raw" onUpload={r => setUploadResult(r)}
+                <CloudinaryUploader accept={DOC_ACCEPT} onUpload={r => setUploadResult(r)}
+                  showNameInput
+                  namePlaceholder="e.g. Church-Constitution-2026"
                   label={uploadResult ? `✓ ${uploadResult.url.split("/").pop()?.slice(0,30)}…` : "Choose file to upload"} />
               </div>
             </div>

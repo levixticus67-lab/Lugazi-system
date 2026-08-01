@@ -20,14 +20,32 @@ router.get("/media", requireAuth, async (_req, res): Promise<void> => {
   res.json(items.map(m => ({ ...m, createdAt: m.createdAt.toISOString() })));
 });
 
-// Get Cloudinary upload signature for direct browser upload
-router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce", "member"]), async (_req, res): Promise<void> => {
+// Get Cloudinary upload signature for direct browser upload.
+//
+// Two modes:
+//  - ?public_id=my-file-name  → sign with explicit public_id (documents, reports)
+//  - (no param)               → sign with use_filename=true + unique_filename=true (media, photos)
+router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce", "member"]), async (req, res): Promise<void> => {
   const config = getCloudinaryConfig();
   const timestamp = Math.round(new Date().getTime() / 1000);
   const folder = "dcl-lugazi";
-  const paramsToSign = `folder=${folder}&timestamp=${timestamp}`;
+  const publicId = typeof req.query.public_id === "string" ? req.query.public_id.trim() : null;
+
+  let paramsToSign: string;
+  let extra: Record<string, unknown>;
+
+  if (publicId) {
+    // Explicit name — sign folder + public_id + timestamp (alphabetical)
+    paramsToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}`;
+    extra = { publicId };
+  } else {
+    // Auto-name from original filename — sign folder + timestamp + unique_filename + use_filename (alphabetical)
+    paramsToSign = `folder=${folder}&timestamp=${timestamp}&unique_filename=true&use_filename=true`;
+    extra = { useFilename: true, uniqueFilename: true };
+  }
+
   const signature = crypto.createHash("sha256").update(paramsToSign + config.api_secret).digest("hex");
-  res.json({ signature, timestamp, cloudName: config.cloud_name, apiKey: config.api_key });
+  res.json({ signature, timestamp, cloudName: config.cloud_name, apiKey: config.api_key, ...extra });
 });
 
 router.post("/media", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce"]), async (req: AuthRequest, res): Promise<void> => {
