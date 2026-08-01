@@ -15,6 +15,8 @@ import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploade
 import { Plus, Trash2, FileText, FileSpreadsheet, File, Presentation } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { FileOpener } from "@capacitor-community/file-opener";
 
 type Document = { id: number; title: string; description?: string | null; category: string; fileUrl: string; fileType: string; uploadedByName?: string | null; createdAt: string };
 
@@ -38,9 +40,41 @@ function DocIcon({ type }: { type: string }) {
   return <File className="h-5 w-5 text-blue-500" />;
 }
 
-async function openDocument(url: string) {
+function getMimeType(fileType: string): string {
+  const t = (fileType ?? "").toLowerCase();
+  if (t === "pdf") return "application/pdf";
+  if (t === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (t === "doc") return "application/msword";
+  if (t === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (t === "xls") return "application/vnd.ms-excel";
+  if (t === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  if (t === "ppt") return "application/vnd.ms-powerpoint";
+  if (t === "txt") return "text/plain";
+  if (t === "csv") return "text/csv";
+  return "application/octet-stream";
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function openDocument(url: string, fileType: string) {
   if (Capacitor.isNativePlatform()) {
-    await Browser.open({ url });
+    try {
+      const fileName = (url.split("/").pop()?.split("?")[0] ?? "document") + "." + fileType;
+      const response = await fetch(url);
+      const base64 = await blobToBase64(await response.blob());
+      const { uri } = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+      await FileOpener.open({ filePath: uri, contentType: getMimeType(fileType), openWithDefault: true });
+    } catch {
+      // fallback — open in browser if native viewer fails
+      await Browser.open({ url });
+    }
   } else {
     window.open(url, "_blank", "noopener,noreferrer");
   }
@@ -110,10 +144,10 @@ export default function AdminDocuments() {
             return (
               <div key={doc.id}
                 className="glass-card p-4 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
-                onClick={() => openDocument(doc.fileUrl)}
+                onClick={() => openDocument(doc.fileUrl, doc.fileType)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={e => e.key === "Enter" && openDocument(doc.fileUrl)}
+                onKeyDown={e => e.key === "Enter" && openDocument(doc.fileUrl, doc.fileType)}
               >
                 <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <DocIcon type={doc.fileType} />
