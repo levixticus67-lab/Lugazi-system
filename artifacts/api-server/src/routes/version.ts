@@ -17,15 +17,21 @@ function parseBuildNumber(name: string): number {
 }
 
 function fetchLatestRelease(): Promise<GithubRelease> {
+  const headers: Record<string, string> = {
+    "User-Agent": "dcl-lugazi-server",
+    Accept: "application/vnd.github.v3+json",
+  };
+  // Use token if available — raises rate limit from 60 to 5000 req/hour
+  if (process.env.GITHUB_TOKEN) {
+    headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+  }
+
   return new Promise((resolve, reject) => {
     const req = https.get(
       {
         hostname: "api.github.com",
         path: "/repos/levixticus67-lab/Lugazi-system/releases/tags/latest-build",
-        headers: {
-          "User-Agent": "dcl-lugazi-server",
-          Accept: "application/vnd.github.v3+json",
-        },
+        headers,
       },
       (res) => {
         let data = "";
