@@ -11,6 +11,8 @@ export interface UploadResult {
   format: string;
   resourceType: string;
   bytes: number;
+  /** Original filename from the device (e.g. "report.doc") — use this for the file extension, not format */
+  originalName: string;
 }
 
 interface CloudinaryUploaderProps {
@@ -151,6 +153,7 @@ export default function CloudinaryUploader({
         format: result.format as string,
         resourceType: result.resource_type as string,
         bytes: result.bytes as number,
+        originalName: file.name,
       });
     } catch (err) {
       setStatus("error");

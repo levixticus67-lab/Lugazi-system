@@ -93,7 +93,7 @@ export default function LeadershipReports() {
       title: form.title, type: form.type, content: form.content || undefined, period: form.period,
       attendance: form.attendance ? Number(form.attendance) : undefined,
       soulWinning: form.soulWinning ? Number(form.soulWinning) : undefined,
-      ...(uploadResult ? { fileUrl: uploadResult.url, fileType: uploadResult.format || "pdf", fileSize: String(uploadResult.bytes) } : {}),
+      ...(uploadResult ? { fileUrl: uploadResult.url, fileType: uploadResult.originalName.split('.').pop() ?? uploadResult.format ?? "file", fileSize: String(uploadResult.bytes) } : {}),
     }}, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey:getListReportsQueryKey() });
@@ -158,16 +158,16 @@ export default function LeadershipReports() {
                   <FileText className="h-4 w-4 text-white"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">{r.title}</p>
                       <p className="text-xs text-muted-foreground">{r.period}</p>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                      {r.fileUrl && <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"><Paperclip className="h-2.5 w-2.5"/>Attachment</span>}
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{TYPE_CONFIG[r.type]??r.type}</span>
-                      <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.icon}{cfg.label}</span>
-                    </div>
+                    <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${cfg.color}`}>{cfg.icon}{cfg.label}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{TYPE_CONFIG[r.type]??r.type}</span>
+                    {r.fileUrl && <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"><Paperclip className="h-2.5 w-2.5"/>Attachment</span>}
                   </div>
                   {(r.attendance||r.soulWinning) && (
                     <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
@@ -271,7 +271,7 @@ export default function LeadershipReports() {
                   accept={DOC_ACCEPT}
                   showNameInput
                   namePlaceholder="e.g. Weekly-Branch-Report-Jan-2026"
-                  label={uploadResult ? `✓ ${(uploadResult.format ?? "file").toUpperCase()} attached` : "Upload PDF, Word, Excel…"}
+                  label={uploadResult ? `✓ ${(uploadResult.originalName.split('.').pop() ?? uploadResult.format ?? "file").toUpperCase()} attached` : "Upload PDF, Word, Excel…"}
                 />
               </div>
             </div>
