@@ -56,9 +56,11 @@ router.patch("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leade
     const isPastor = req.userRole === "pastor";
     const isOwner = existing.submittedBy === req.userId;
 
-    const { content, attendance, soulWinning, status, fileUrl, fileType, fileSize } = req.body;
+    const { title, period, content, attendance, soulWinning, status, fileUrl, fileType, fileSize } = req.body;
     const updateData: Record<string, unknown> = {};
 
+    if (title !== undefined && isOwner) updateData.title = title;
+    if (period !== undefined && isOwner) updateData.period = period;
     if (content !== undefined && isOwner) updateData.content = content;
     if (attendance !== undefined && isOwner) updateData.attendance = attendance;
     if (soulWinning !== undefined && isOwner) updateData.soulWinning = soulWinning;
@@ -76,6 +78,27 @@ router.patch("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leade
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update report" });
+  }
+});
+
+
+// Owner can delete their own report; admin can delete any
+router.delete("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [existing] = await db.select().from(reportsTable).where(eq(reportsTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Report not found" }); return; }
+
+    const isAdmin = req.userRole === "admin";
+    const isOwner = existing.submittedBy === req.userId;
+    if (!isAdmin && !isOwner) { res.status(403).json({ error: "Not authorised" }); return; }
+
+    await db.delete(reportsTable).where(eq(reportsTable.id, id));
+    res.sendStatus(204);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete report" });
   }
 });
 

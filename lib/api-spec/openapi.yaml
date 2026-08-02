@@ -979,7 +979,7 @@ paths:
     patch:
       operationId: updateReport
       tags: [reports]
-      summary: Update a report
+      summary: Update a report (owner edits content/title; admin/pastor change status)
       security:
         - bearerAuth: []
       parameters:
@@ -1001,6 +1001,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Report"
+
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete a report (owner or admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
 
   # ── Pipeline ──
   /pipeline:
@@ -1887,6 +1903,10 @@ components:
     ReportUpdate:
       type: object
       properties:
+        title:
+          type: string
+        period:
+          type: string
         content:
           type: string
         attendance:

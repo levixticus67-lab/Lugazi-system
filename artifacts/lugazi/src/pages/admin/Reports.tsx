@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { useListReports, useUpdateReport, getListReportsQueryKey } from "@workspace/api-client-react";
+import { useListReports, useUpdateReport, useDeleteReport, getListReportsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
 import { adminNavItems } from "./navItems";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle2, Clock, Users, TrendingUp, ChevronRight, Paperclip } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Users, TrendingUp, ChevronRight, Paperclip, Trash2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { Filesystem, Directory } from "@capacitor/filesystem";
@@ -27,17 +28,17 @@ const STATUS_CONFIG: Record<string,{label:string;color:string;icon:React.ReactNo
   reviewed: { label:"Reviewed",  color:"bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",  icon:<CheckCircle2 className="h-3 w-3"/> },
 };
 
-function getMimeType(fileType: string): string {
-  const t = (fileType ?? "").toLowerCase();
-  if (t === "pdf") return "application/pdf";
+function getMimeType(ext: string): string {
+  const t = (ext ?? "").toLowerCase();
+  if (t === "pdf")  return "application/pdf";
   if (t === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  if (t === "doc") return "application/msword";
+  if (t === "doc")  return "application/msword";
   if (t === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  if (t === "xls") return "application/vnd.ms-excel";
+  if (t === "xls")  return "application/vnd.ms-excel";
   if (t === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-  if (t === "ppt") return "application/vnd.ms-powerpoint";
-  if (t === "txt") return "text/plain";
-  if (t === "csv") return "text/csv";
+  if (t === "ppt")  return "application/vnd.ms-powerpoint";
+  if (t === "txt")  return "text/plain";
+  if (t === "csv")  return "text/csv";
   return "application/octet-stream";
 }
 
@@ -53,11 +54,14 @@ function blobToBase64(blob: Blob): Promise<string> {
 async function openDocument(url: string, fileType: string) {
   if (Capacitor.isNativePlatform()) {
     try {
-      const fileName = (url.split("/").pop()?.split("?")[0] ?? "report") + "." + fileType;
+      const rawName = url.split("/").pop()?.split("?")[0] ?? "report";
+      const hasExt = rawName.includes(".");
+      const fileName = hasExt ? rawName : rawName + "." + fileType;
+      const ext = fileName.split(".").pop() ?? fileType;
       const response = await fetch(url);
       const base64 = await blobToBase64(await response.blob());
       const { uri } = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-      await FileOpener.open({ filePath: uri, contentType: getMimeType(fileType), openWithDefault: true });
+      await FileOpener.open({ filePath: uri, contentType: getMimeType(ext), openWithDefault: true });
     } catch {
       await Browser.open({ url });
     }
@@ -69,10 +73,12 @@ async function openDocument(url: string, fileType: string) {
 export default function AdminReports() {
   const { data: reports = [], isLoading } = useListReports();
   const updateMutation = useUpdateReport();
+  const deleteMutation = useDeleteReport();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState("all");
   const [viewReport, setViewReport] = useState<Report|null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Report | null>(null);
 
   function handleReview(id: number) {
     updateMutation.mutate({ id, data: { status: "reviewed" } }, {
@@ -82,6 +88,19 @@ export default function AdminReports() {
         setViewReport(prev => prev?.id === id ? { ...prev, status: "reviewed" } : prev);
       },
       onError: () => toast({ title: "Failed to update", variant:"destructive" }),
+    });
+  }
+
+  function handleDelete() {
+    if (!deleteTarget) return;
+    deleteMutation.mutate({ id: deleteTarget.id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListReportsQueryKey() });
+        toast({ title: "Report deleted" });
+        setDeleteTarget(null);
+        setViewReport(null);
+      },
+      onError: () => toast({ title: "Failed to delete", variant:"destructive" }),
     });
   }
 
@@ -127,9 +146,7 @@ export default function AdminReports() {
               <div key={r.id}
                 className="glass-card p-4 flex gap-3 items-center cursor-pointer active:scale-[0.98] transition-transform"
                 onClick={() => setViewReport(r)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => e.key === "Enter" && setViewReport(r)}
+                role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && setViewReport(r)}
               >
                 <div className="w-9 h-9 rounded-xl blue-gradient-bg flex items-center justify-center shrink-0">
                   <FileText className="h-4 w-4 text-white"/>
@@ -161,7 +178,7 @@ export default function AdminReports() {
         </div>
       )}
 
-      {/* Full-page report sheet */}
+      {/* View sheet */}
       <Sheet open={!!viewReport} onOpenChange={open => { if (!open) setViewReport(null); }}>
         <SheetContent side="bottom" className="h-[90vh] flex flex-col rounded-t-2xl px-0 pb-0">
           {viewReport && (() => {
@@ -197,7 +214,6 @@ export default function AdminReports() {
                   ) : (
                     <p className="text-sm text-muted-foreground italic">No typed content.</p>
                   )}
-
                   {viewReport.fileUrl && (
                     <div className="mt-5 pt-4 border-t border-border/50">
                       <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Attached Document</p>
@@ -217,19 +233,38 @@ export default function AdminReports() {
                   )}
                 </ScrollArea>
 
-                {viewReport.status === "draft" && (
-                  <div className="px-5 py-4 border-t border-border/50 shrink-0 pb-safe">
-                    <Button className="w-full" onClick={() => handleReview(viewReport.id)} disabled={updateMutation.isPending}>
+                <div className="px-5 py-4 border-t border-border/50 shrink-0 pb-safe flex gap-2">
+                  {viewReport.status === "draft" && (
+                    <Button className="flex-1" onClick={() => handleReview(viewReport.id)} disabled={updateMutation.isPending}>
                       <CheckCircle2 className="h-4 w-4 mr-2"/>
                       {updateMutation.isPending ? "Marking…" : "Mark as Reviewed"}
                     </Button>
-                  </div>
-                )}
+                  )}
+                  <Button variant="destructive" className={viewReport.status === "draft" ? "" : "flex-1"} onClick={() => setDeleteTarget(viewReport)}>
+                    <Trash2 className="h-4 w-4 mr-2"/>Delete
+                  </Button>
+                </div>
               </>
             );
           })()}
         </SheetContent>
       </Sheet>
+
+      {/* Delete confirm */}
+      <Dialog open={!!deleteTarget} onOpenChange={open=>{ if(!open) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Delete Report?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground py-1">
+            "<span className="font-medium text-foreground">{deleteTarget?.title}</span>" by <span className="font-medium text-foreground">{deleteTarget?.submittedByName ?? "Unknown"}</span> will be permanently deleted.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending?"Deleting…":"Delete Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PortalLayout>
   );
 }

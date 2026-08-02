@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListReports, useCreateReport, getListReportsQueryKey } from "@workspace/api-client-react";
+import { useListReports, useCreateReport, useUpdateReport, useDeleteReport, getListReportsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { FileText, CheckCircle2, Clock, Plus, Users, TrendingUp, ChevronRight, Paperclip } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Plus, Users, TrendingUp, ChevronRight, Paperclip, Pencil, Trash2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { Filesystem, Directory } from "@capacitor/filesystem";
@@ -23,7 +23,7 @@ import { FileOpener } from "@capacitor-community/file-opener";
 type Report = {
   id: number; title: string; type: string; period: string; status: string;
   content?: string | null; attendance?: number | null; soulWinning?: number | null;
-  createdAt: string; fileUrl?: string | null; fileType?: string | null;
+  createdAt: string; fileUrl?: string | null; fileType?: string | null; fileSize?: string | null;
 };
 
 const TYPE_CONFIG: Record<string,string> = { weekly_branch:"Weekly Branch", monthly_branch:"Monthly Branch", quarterly:"Quarterly", annual:"Annual", special:"Special" };
@@ -34,17 +34,17 @@ const STATUS_CONFIG: Record<string,{label:string;color:string;icon:React.ReactNo
 const REPORT_TYPES = ["weekly_branch","monthly_branch","quarterly","annual","special"];
 const DOC_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp";
 
-function getMimeType(fileType: string): string {
-  const t = (fileType ?? "").toLowerCase();
-  if (t === "pdf") return "application/pdf";
+function getMimeType(ext: string): string {
+  const t = (ext ?? "").toLowerCase();
+  if (t === "pdf")  return "application/pdf";
   if (t === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  if (t === "doc") return "application/msword";
+  if (t === "doc")  return "application/msword";
   if (t === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  if (t === "xls") return "application/vnd.ms-excel";
+  if (t === "xls")  return "application/vnd.ms-excel";
   if (t === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-  if (t === "ppt") return "application/vnd.ms-powerpoint";
-  if (t === "txt") return "text/plain";
-  if (t === "csv") return "text/csv";
+  if (t === "ppt")  return "application/vnd.ms-powerpoint";
+  if (t === "txt")  return "text/plain";
+  if (t === "csv")  return "text/csv";
   return "application/octet-stream";
 }
 
@@ -60,11 +60,15 @@ function blobToBase64(blob: Blob): Promise<string> {
 async function openDocument(url: string, fileType: string) {
   if (Capacitor.isNativePlatform()) {
     try {
-      const fileName = (url.split("/").pop()?.split("?")[0] ?? "report") + "." + fileType;
+      // If the URL already has an extension (new uploads embed it in public_id), use as-is
+      const rawName = url.split("/").pop()?.split("?")[0] ?? "report";
+      const hasExt = rawName.includes(".");
+      const fileName = hasExt ? rawName : rawName + "." + fileType;
+      const ext = fileName.split(".").pop() ?? fileType;
       const response = await fetch(url);
       const base64 = await blobToBase64(await response.blob());
       const { uri } = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-      await FileOpener.open({ filePath: uri, contentType: getMimeType(fileType), openWithDefault: true });
+      await FileOpener.open({ filePath: uri, contentType: getMimeType(ext), openWithDefault: true });
     } catch {
       await Browser.open({ url });
     }
@@ -73,18 +77,35 @@ async function openDocument(url: string, fileType: string) {
   }
 }
 
+const blank = { title:"", type:"weekly_branch", content:"", period:"", attendance:"", soulWinning:"" };
+
 export default function PastorReports() {
   const { data: reports = [], isLoading } = useListReports();
   const createMutation = useCreateReport();
+  const updateMutation = useUpdateReport();
+  const deleteMutation = useDeleteReport();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const blank = { title:"", type:"weekly_branch", content:"", period:"", attendance:"", soulWinning:"" };
+
+  // Add dialog
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blank);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+
+  // Edit dialog
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState(blank);
+  const [editUploadResult, setEditUploadResult] = useState<UploadResult | null>(null);
+  const [editKeepFile, setEditKeepFile] = useState(true); // keep existing attachment unless user replaces
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<Report | null>(null);
+
   const [filterStatus, setFilterStatus] = useState("all");
   const [viewReport, setViewReport] = useState<Report|null>(null);
+
   function f(k: string, v: string) { setForm(p=>({...p,[k]:v})); }
+  function ef(k: string, v: string) { setEditForm(p=>({...p,[k]:v})); }
 
   function handleAdd() {
     if (!form.title || !form.period) { toast({ title:"Title and period are required", variant:"destructive" }); return; }
@@ -93,7 +114,11 @@ export default function PastorReports() {
       title: form.title, type: form.type, content: form.content || undefined, period: form.period,
       attendance: form.attendance ? Number(form.attendance) : undefined,
       soulWinning: form.soulWinning ? Number(form.soulWinning) : undefined,
-      ...(uploadResult ? { fileUrl: uploadResult.url, fileType: uploadResult.originalName.split('.').pop() ?? uploadResult.format ?? "file", fileSize: String(uploadResult.bytes) } : {}),
+      ...(uploadResult ? {
+        fileUrl: uploadResult.url,
+        fileType: uploadResult.originalName.split(".").pop() ?? uploadResult.format ?? "file",
+        fileSize: String(uploadResult.bytes),
+      } : {}),
     }}, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey:getListReportsQueryKey() });
@@ -101,6 +126,56 @@ export default function PastorReports() {
         setShowAdd(false); setForm(blank); setUploadResult(null);
       },
       onError: () => toast({ title:"Failed to submit", variant:"destructive" }),
+    });
+  }
+
+  function openEditDialog(r: Report) {
+    setEditForm({
+      title: r.title, type: r.type, content: r.content ?? "",
+      period: r.period,
+      attendance: r.attendance != null ? String(r.attendance) : "",
+      soulWinning: r.soulWinning != null ? String(r.soulWinning) : "",
+    });
+    setEditUploadResult(null);
+    setEditKeepFile(true);
+    setShowEdit(true);
+  }
+
+  function handleEdit() {
+    if (!viewReport) return;
+    if (!editForm.title || !editForm.period) { toast({ title:"Title and period are required", variant:"destructive" }); return; }
+    const fileFields = editUploadResult
+      ? { fileUrl: editUploadResult.url, fileType: editUploadResult.originalName.split(".").pop() ?? editUploadResult.format ?? "file", fileSize: String(editUploadResult.bytes) }
+      : editKeepFile
+        ? {} // keep existing — send nothing
+        : { fileUrl: null, fileType: null, fileSize: null };
+    updateMutation.mutate({ id: viewReport.id, data: {
+      title: editForm.title, type: editForm.type as string,
+      period: editForm.period, content: editForm.content || undefined,
+      attendance: editForm.attendance ? Number(editForm.attendance) : undefined,
+      soulWinning: editForm.soulWinning ? Number(editForm.soulWinning) : undefined,
+      ...fileFields,
+    }}, {
+      onSuccess: (updated) => {
+        queryClient.invalidateQueries({ queryKey:getListReportsQueryKey() });
+        toast({ title:"Report updated" });
+        setViewReport(updated as unknown as Report);
+        setShowEdit(false);
+      },
+      onError: () => toast({ title:"Failed to update", variant:"destructive" }),
+    });
+  }
+
+  function handleDelete() {
+    if (!deleteTarget) return;
+    deleteMutation.mutate({ id: deleteTarget.id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey:getListReportsQueryKey() });
+        toast({ title:"Report deleted" });
+        setDeleteTarget(null);
+        setViewReport(null);
+      },
+      onError: () => toast({ title:"Failed to delete", variant:"destructive" }),
     });
   }
 
@@ -150,9 +225,7 @@ export default function PastorReports() {
               <div key={r.id}
                 className="glass-card p-4 flex gap-3 items-center cursor-pointer active:scale-[0.98] transition-transform"
                 onClick={() => setViewReport(r)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => e.key === "Enter" && setViewReport(r)}
+                role="button" tabIndex={0} onKeyDown={e => e.key==="Enter" && setViewReport(r)}
               >
                 <div className="w-9 h-9 rounded-xl blue-gradient-bg flex items-center justify-center shrink-0">
                   <FileText className="h-4 w-4 text-white"/>
@@ -184,7 +257,7 @@ export default function PastorReports() {
         </div>
       )}
 
-      {/* Full-page report sheet */}
+      {/* View sheet */}
       <Sheet open={!!viewReport} onOpenChange={open => { if (!open) setViewReport(null); }}>
         <SheetContent side="bottom" className="h-[90vh] flex flex-col rounded-t-2xl px-0 pb-0">
           {viewReport && (() => {
@@ -213,13 +286,13 @@ export default function PastorReports() {
                     )}
                   </div>
                 </SheetHeader>
+
                 <ScrollArea className="flex-1 px-5 py-4">
                   {viewReport.content ? (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{viewReport.content}</p>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">No typed content.</p>
                   )}
-
                   {viewReport.fileUrl && (
                     <div className="mt-5 pt-4 border-t border-border/50">
                       <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Attached Document</p>
@@ -238,12 +311,23 @@ export default function PastorReports() {
                     </div>
                   )}
                 </ScrollArea>
+
+                {/* Action footer */}
+                <div className="px-5 py-4 border-t border-border/50 shrink-0 pb-safe flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => openEditDialog(viewReport)}>
+                    <Pencil className="h-4 w-4 mr-2"/>Edit
+                  </Button>
+                  <Button variant="destructive" className="flex-1" onClick={() => setDeleteTarget(viewReport)}>
+                    <Trash2 className="h-4 w-4 mr-2"/>Delete
+                  </Button>
+                </div>
               </>
             );
           })()}
         </SheetContent>
       </Sheet>
 
+      {/* Submit dialog */}
       <Dialog open={showAdd} onOpenChange={v=>{if(!v){ setShowAdd(false); setUploadResult(null); }}}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Submit Report to Admin</DialogTitle></DialogHeader>
@@ -271,7 +355,7 @@ export default function PastorReports() {
                   accept={DOC_ACCEPT}
                   showNameInput
                   namePlaceholder="e.g. Weekly-Branch-Report-Jan-2026"
-                  label={uploadResult ? `✓ ${(uploadResult.originalName.split('.').pop() ?? uploadResult.format ?? "file").toUpperCase()} attached` : "Upload PDF, Word, Excel…"}
+                  label={uploadResult ? `✓ ${(uploadResult.originalName.split(".").pop() ?? uploadResult.format ?? "file").toUpperCase()} attached` : "Upload PDF, Word, Excel…"}
                 />
               </div>
             </div>
@@ -279,6 +363,70 @@ export default function PastorReports() {
           <DialogFooter>
             <Button variant="outline" onClick={()=>{ setShowAdd(false); setUploadResult(null); }}>Cancel</Button>
             <Button onClick={handleAdd} disabled={createMutation.isPending}>{createMutation.isPending?"Submitting…":"Submit to Admin"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={showEdit} onOpenChange={v=>{ if(!v) setShowEdit(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Report</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-1">
+            <div><Label>Title *</Label><Input className="mt-1" value={editForm.title} onChange={e=>ef("title",e.target.value)}/></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Type</Label>
+                <Select value={editForm.type} onValueChange={v=>ef("type",v)}>
+                  <SelectTrigger className="mt-1"><SelectValue/></SelectTrigger>
+                  <SelectContent>{REPORT_TYPES.map(t=><SelectItem key={t} value={t}>{TYPE_CONFIG[t]??t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Period *</Label><Input className="mt-1" value={editForm.period} onChange={e=>ef("period",e.target.value)}/></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Attendance</Label><Input className="mt-1" type="number" value={editForm.attendance} onChange={e=>ef("attendance",e.target.value)}/></div>
+              <div><Label>Soul-winning</Label><Input className="mt-1" type="number" value={editForm.soulWinning} onChange={e=>ef("soulWinning",e.target.value)}/></div>
+            </div>
+            <div><Label>Content</Label><Textarea className="mt-1 resize-none" rows={3} value={editForm.content} onChange={e=>ef("content",e.target.value)}/></div>
+            <div>
+              <Label>Attachment</Label>
+              {viewReport?.fileUrl && editKeepFile && !editUploadResult ? (
+                <div className="mt-1 flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
+                  <Paperclip className="h-4 w-4 text-blue-500 shrink-0"/>
+                  <span className="text-xs flex-1 truncate">{(viewReport.fileType ?? "file").toUpperCase()} · existing attachment</span>
+                  <button className="text-xs text-red-500 hover:underline shrink-0" onClick={()=>setEditKeepFile(false)}>Remove</button>
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <CloudinaryUploader
+                    onUpload={r=>{ setEditUploadResult(r); setEditKeepFile(false); }}
+                    accept={DOC_ACCEPT}
+                    showNameInput
+                    namePlaceholder="e.g. Updated-Report"
+                    label={editUploadResult ? `✓ ${(editUploadResult.originalName.split(".").pop() ?? "file").toUpperCase()} attached` : "Upload replacement document"}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setShowEdit(false)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending}>{updateMutation.isPending?"Saving…":"Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={open=>{ if(!open) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Delete Report?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground py-1">
+            "<span className="font-medium text-foreground">{deleteTarget?.title}</span>" will be permanently deleted. This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending?"Deleting…":"Delete Report"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

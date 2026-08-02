@@ -94,7 +94,10 @@ export default function CloudinaryUploader({
       // Build signature request URL
       let sigUrl = "/api/media/upload-signature";
       if (showNameInput && nameOverride) {
-        const safeId = sanitizePublicId(nameOverride);
+        // Include the original file extension in the public_id so Cloudinary
+        // records the correct format and the URL itself carries the extension.
+        const ext = file.name.includes('.') ? ('.' + file.name.split('.').pop()!) : '';
+        const safeId = sanitizePublicId(nameOverride) + ext;
         if (safeId) sigUrl += `?public_id=${encodeURIComponent(safeId)}`;
       }
 
