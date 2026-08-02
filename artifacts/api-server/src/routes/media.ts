@@ -31,6 +31,21 @@ router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor
   const folder = "dcl-lugazi";
   const publicId = typeof req.query.public_id === "string" ? req.query.public_id.trim() : null;
 
+  // Block code / script extensions — both at the UI and here at the server so
+  // the signature endpoint can never be used to store executable files.
+  const CODE_EXTENSIONS = new Set([
+    "js","mjs","cjs","ts","tsx","jsx","html","htm","php","py","rb","java",
+    "c","cpp","cs","go","rs","sh","bash","zsh","fish","ps1","bat","cmd",
+    "sql","env","yaml","yml","toml","json","xml","ini","cfg","conf","htaccess",
+    "exe","dll","so","dylib","bin","apk","ipa","dmg","iso",
+  ]);
+  if (publicId) {
+    const ext = publicId.includes(".") ? publicId.split(".").pop()!.toLowerCase() : "";
+    if (ext && CODE_EXTENSIONS.has(ext)) {
+      res.status(400).json({ error: `File type ".${ext}" is not allowed` }); return;
+    }
+  }
+
   let paramsToSign: string;
   let extra: Record<string, unknown>;
 
