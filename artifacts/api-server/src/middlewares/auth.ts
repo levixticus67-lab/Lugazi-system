@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
-import { db, usersTable, activityLogsTable } from "@workspace/db";
+import { db, usersTable, activityLogsTable, sessionsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
 // Hard-fail on startup if JWT_SECRET is missing — never fall back to a known string
@@ -18,6 +19,12 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export interface AuthRequest extends Request {
   userId?: number;
   userRole?: string;
+  rawToken?: string; // the original token string, available to routes that need to delete the session
+}
+
+/** SHA-256 hash of a raw JWT — what gets stored in the sessions table. */
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -48,8 +55,8 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     return;
   }
 
-  // FIX: re-check isActive on every request so that deactivated accounts are
-  // blocked immediately instead of retaining access until their JWT expires (up to 7 days).
+  // Re-check isActive on every request so that deactivated accounts are
+  // blocked immediately instead of retaining access until their JWT expires.
   try {
     const [user] = await db
       .select({ isActive: usersTable.isActive, displayName: usersTable.displayName, deletedAt: usersTable.deletedAt })
@@ -59,7 +66,6 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
 
     if (!user || !user.isActive) {
       // Log the blocked attempt so admins can see it in Activity Logs.
-      // Only log when the account actually exists (isActive=false) — not for missing rows.
       if (user) {
         const reason = user.deletedAt ? "member was deleted" : "account deactivated";
         db.insert(activityLogsTable).values({
@@ -74,17 +80,37 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       return;
     }
   } catch (err) {
-    // M2 fix: fail CLOSED on DB error. A compromised or deactivated account
-    // must not retain access just because the DB is temporarily unreachable.
-    // Clients will retry; a brief 503 during a DB hiccup is safer than
-    // silently allowing a deactivated user through.
+    // Fail CLOSED on DB error — safer than silently allowing a deactivated user through.
     logger.error({ err, userId: decoded.userId }, "requireAuth: DB isActive check failed — failing closed");
+    res.status(503).json({ error: "Service temporarily unavailable. Please try again in a moment." });
+    return;
+  }
+
+  // ── Session whitelist check ───────────────────────────────────────────────
+  // The token must exist in the sessions table. On logout the row is deleted,
+  // so recycled tokens are rejected immediately — no waiting for JWT expiry.
+  try {
+    const tHash = hashToken(token);
+    const [session] = await db
+      .select({ id: sessionsTable.id })
+      .from(sessionsTable)
+      .where(eq(sessionsTable.tokenHash, tHash))
+      .limit(1);
+
+    if (!session) {
+      res.status(401).json({ error: "Session has ended. Please sign in again." });
+      return;
+    }
+  } catch (err) {
+    // Fail CLOSED — an unreachable DB must not let unknown tokens through.
+    logger.error({ err, userId: decoded.userId }, "requireAuth: session whitelist check failed — failing closed");
     res.status(503).json({ error: "Service temporarily unavailable. Please try again in a moment." });
     return;
   }
 
   req.userId = decoded.userId;
   req.userRole = decoded.role;
+  req.rawToken = token; // available to logout / refresh routes
   next();
 }
 

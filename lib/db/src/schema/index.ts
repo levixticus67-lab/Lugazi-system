@@ -29,3 +29,4 @@ export * from "./activityLogs";
 export * from "./inAppNotifications";
 export * from "./fcmTokens";
 export * from "./rateLimits";
+export * from "./sessions";

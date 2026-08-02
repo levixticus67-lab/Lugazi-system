@@ -1,10 +1,10 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, lt } from "drizzle-orm";
 import { promises as dns } from "dns";
-import { db, usersTable, membersTable } from "@workspace/db";
-import { requireAuth, generateToken, AuthRequest } from "../middlewares/auth";
+import { db, usersTable, membersTable, sessionsTable } from "@workspace/db";
+import { requireAuth, generateToken, hashToken, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { logActivity } from "../lib/activityLog";
 import { checkDbRateLimit, clearDbRateLimit } from "../lib/rateLimiter";
@@ -63,6 +63,30 @@ function clearAuthCookie(res: import("express").Response): void {
     sameSite: isProd ? "none" : "lax",
     path: "/",
   });
+}
+
+// ── Session whitelist helpers ─────────────────────────────────────────────────
+
+/** Register a new token in the sessions whitelist. */
+async function saveSession(userId: number, token: string, maxAgeMs: number): Promise<void> {
+  const tHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + maxAgeMs);
+  await db.insert(sessionsTable)
+    .values({ userId, tokenHash: tHash, expiresAt })
+    .onConflictDoNothing(); // idempotent — harmless if called twice for same token
+}
+
+/** Remove a token from the sessions whitelist so it can never be used again. */
+async function deleteSession(token: string): Promise<void> {
+  const tHash = hashToken(token);
+  await db.delete(sessionsTable).where(eq(sessionsTable.tokenHash, tHash));
+}
+
+/** Non-blocking lazy cleanup — purge expired rows on each login. */
+function pruneExpiredSessions(): void {
+  db.delete(sessionsTable)
+    .where(lt(sessionsTable.expiresAt, new Date()))
+    .catch((err) => logger.warn({ err }, "Session prune failed — will retry on next login"));
 }
 
 // ── MX record check ───────────────────────────────────────────────────────────
@@ -142,8 +166,18 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
   await clearDbRateLimit(`auth:${ip}`);
   await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
-  const token = generateToken(user.id, user.role, rememberMe ? "14d" : "2d");
-  setAuthCookie(res, token, rememberMe ? REMEMBER_MAX_AGE : COOKIE_MAX_AGE);
+
+  const maxAge = rememberMe ? REMEMBER_MAX_AGE : COOKIE_MAX_AGE;
+  const tokenTtl = rememberMe ? "14d" : "2d";
+  const token = generateToken(user.id, user.role, tokenTtl);
+
+  // Register in whitelist before sending — the cookie and session must stay in sync.
+  await saveSession(user.id, token, maxAge);
+  setAuthCookie(res, token, maxAge);
+
+  // Lazy cleanup of expired sessions (non-blocking — never delays the login response).
+  pruneExpiredSessions();
+
   const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() };
   res.json({ token, user: userData });
 });
@@ -230,7 +264,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
 router.post("/auth/logout", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  // Log sign-out before clearing cookie while we still have user context
+  // Delete the session first — token is immediately dead after this point.
+  if (req.rawToken) {
+    await deleteSession(req.rawToken).catch(() => {});
+  }
   await logActivity({ userId: req.userId, action: "sign_out", ipAddress: req.ip ?? "unknown" }).catch(() => {});
   clearAuthCookie(res);
   res.json({ message: "Logged out successfully" });
@@ -241,8 +278,11 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
   const [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   if (req.userRole !== user.role) {
+    // Role changed — retire old session and issue a fresh token.
     logger.info({ userId: user.id, oldRole: req.userRole, newRole: user.role }, "Role mismatch — re-issuing auth cookie");
+    if (req.rawToken) await deleteSession(req.rawToken).catch(() => {});
     const freshToken = generateToken(user.id, user.role);
+    await saveSession(user.id, freshToken, COOKIE_MAX_AGE);
     setAuthCookie(res, freshToken);
   }
   res.json({ id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, birthday: user.birthday ?? null, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() });
@@ -252,7 +292,10 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
 router.post("/auth/refresh", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db.select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user || !user.isActive) { res.status(401).json({ error: "Account not found or deactivated" }); return; }
+  // Retire old session and issue a fresh 2-day one.
+  if (req.rawToken) await deleteSession(req.rawToken).catch(() => {});
   const token = generateToken(user.id, user.role, "2d");
+  await saveSession(user.id, token, COOKIE_MAX_AGE);
   setAuthCookie(res, token);
   res.json({ token });
 });
@@ -345,6 +388,8 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const token = generateToken(user.id, user.role);
     const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl ?? null, branchId: user.branchId ?? null, phone: user.phone ?? null, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() };
     const oauthCode = uuidv4();
+    // Store token in the one-time code map — session is registered when the
+    // frontend redeems it via /auth/oauth-exchange (where we have the token string).
     oauthCodes.set(oauthCode, { token, userData, expiresAt: Date.now() + 60_000 });
     res.redirect(`${frontendLogin}?oauth_code=${oauthCode}`);
   } catch (err) {
@@ -369,6 +414,12 @@ router.post("/auth/oauth-exchange", async (req, res): Promise<void> => {
   const entry = oauthCodes.get(code);
   if (!entry || Date.now() > entry.expiresAt) { res.status(400).json({ error: "This sign-in link has expired. Please try Google sign-in again." }); return; }
   oauthCodes.delete(code);
+  // Register token in the whitelist now that we have the raw string.
+  await saveSession(
+    (entry.userData as { id: number }).id,
+    entry.token,
+    COOKIE_MAX_AGE,
+  );
   setAuthCookie(res, entry.token);
   res.json({ token: entry.token, user: entry.userData });
 });
@@ -565,4 +616,3 @@ router.post("/auth/resend-verification", async (req, res): Promise<void> => {
 });
 
 export default router;
-
