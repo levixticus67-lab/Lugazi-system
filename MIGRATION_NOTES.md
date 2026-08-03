@@ -39,3 +39,17 @@ CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions (expires_at);
 ```
 
 Additive change — no existing data is affected. All current users will be signed out once on their next request (their token won't be in the whitelist yet) and will need to sign in again. This is expected and intentional.
+
+## Device Tracking — Sessions Table New Columns
+
+Applied automatically by the GitHub Actions workflow (drizzle-kit push → Neon).
+
+If you ever need to apply manually:
+
+```sql
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_name  text;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address   text;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_seen_at timestamptz NOT NULL DEFAULT now();
+```
+
+Additive change — existing session rows will have NULL device_name, NULL ip_address, and last_seen_at defaulting to now(). No data is lost. Existing active sessions will continue to work; they simply won't show a device name or IP until the next login.
