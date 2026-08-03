@@ -6,11 +6,14 @@ import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg
 // token completely, so a recycled copy is rejected immediately.
 // Expired rows are cleaned up lazily on each login (non-blocking).
 export const sessionsTable = pgTable("sessions", {
-  id:         serial("id").primaryKey(),
-  userId:     integer("user_id").notNull(),
-  tokenHash:  text("token_hash").notNull().unique(),
-  expiresAt:  timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  id:          serial("id").primaryKey(),
+  userId:      integer("user_id").notNull(),
+  tokenHash:   text("token_hash").notNull().unique(),
+  deviceName:  text("device_name"),       // e.g. "Chrome on Android"
+  ipAddress:   text("ip_address"),        // sign-in IP
+  lastSeenAt:  timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt:   timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt:   timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("sessions_user_id_idx").on(table.userId),
   index("sessions_token_hash_idx").on(table.tokenHash),

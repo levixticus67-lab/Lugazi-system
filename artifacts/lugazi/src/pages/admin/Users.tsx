@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cldAvatar } from "@/lib/cloudinary";
-import { useListUsers, useUpdateUserRole, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useListUsers, useUpdateUserRole, getListUsersQueryKey, useListUserSessions, useDeleteSession, getListUserSessionsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check, UserCheck, UserX } from "lucide-react";
+import { Users, Shield, Search, Mail, Calendar, KeyRound, Copy, Check, UserCheck, UserX, MonitorSmartphone, LogOut, MapPin, Clock } from "lucide-react";
 import axios from "@/lib/axios";
 
 type User = { id: number; email: string; displayName: string; role: string; isActive: boolean; deletedAt?: string | null; createdAt: string; photoUrl?: string | null };
@@ -42,6 +42,24 @@ export default function AdminUsers() {
   const [resetPending, setResetPending] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Active sessions state
+  const [sessionsUser, setSessionsUser] = useState<User | null>(null);
+  const { data: userSessions = [], isLoading: sessionsLoading } = useListUserSessions(
+    { userId: sessionsUser?.id ?? 0 },
+    { query: { enabled: !!sessionsUser } }
+  );
+  const deleteSessionMutation = useDeleteSession();
+
+  function handleSignOutSession(sessionId: number) {
+    deleteSessionMutation.mutate({ id: sessionId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListUserSessionsQueryKey({ userId: sessionsUser?.id ?? 0 }) });
+        toast({ title: "Session signed out" });
+      },
+      onError: () => toast({ title: "Failed to sign out session", variant: "destructive" }),
+    });
+  }
 
   async function handleToggleActive(u: User) {
     setTogglingId(u.id);
@@ -178,7 +196,7 @@ export default function AdminUsers() {
                       <Calendar className="h-3 w-3"/>
                       {new Date(u.createdAt).toLocaleDateString("en-UG",{day:"numeric",month:"short",year:"numeric"})}
                     </span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1"
                         onClick={() => { setResetUser(u); setTempPassword(null); }}>
                         <KeyRound className="h-3 w-3"/>Reset
@@ -186,6 +204,10 @@ export default function AdminUsers() {
                       <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1"
                         onClick={() => { setEditUser(u); setNewRole(u.role); }}>
                         <Shield className="h-3 w-3"/>Role
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 hover:text-blue-600 hover:border-blue-300"
+                        onClick={() => setSessionsUser(u)}>
+                        <MonitorSmartphone className="h-3 w-3"/>Sessions
                       </Button>
                       {!u.deletedAt && (
                         <Button size="sm" variant="outline" className={`h-6 text-[10px] px-2 gap-1 ${u.isActive ? "hover:text-amber-600 hover:border-amber-300" : "hover:text-green-600 hover:border-green-300"}`}
@@ -283,6 +305,55 @@ export default function AdminUsers() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Active Sessions Dialog ── */}
+      <Dialog open={!!sessionsUser} onOpenChange={v => { if (!v) setSessionsUser(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MonitorSmartphone className="h-4 w-4 text-blue-500"/>
+              {sessionsUser?.displayName}'s Active Sessions
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3 max-h-[60vh] overflow-y-auto">
+            {sessionsLoading ? (
+              <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse"/>)}</div>
+            ) : userSessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MonitorSmartphone className="h-8 w-8 mx-auto mb-2 opacity-40"/>
+                <p className="text-sm font-medium">No active sessions</p>
+                <p className="text-xs mt-1">This user is not currently signed in anywhere.</p>
+              </div>
+            ) : (
+              userSessions.map(s => (
+                <div key={s.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center shrink-0">
+                    <MonitorSmartphone className="h-4 w-4 text-blue-600 dark:text-blue-300"/>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{s.deviceName}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-3 w-3 shrink-0"/>{s.ipAddress}
+                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3 shrink-0"/>Last seen {new Date(s.lastSeenAt).toLocaleString("en-UG", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-[10px] px-2 gap-1 shrink-0 hover:text-red-600 hover:border-red-300"
+                    onClick={() => handleSignOutSession(s.id)}
+                    disabled={deleteSessionMutation.isPending}>
+                    <LogOut className="h-3 w-3"/>Sign out
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSessionsUser(null)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PortalLayout>

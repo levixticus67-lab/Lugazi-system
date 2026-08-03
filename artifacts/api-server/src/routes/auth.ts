@@ -65,14 +65,51 @@ function clearAuthCookie(res: import("express").Response): void {
   });
 }
 
+// ── Device name parser ────────────────────────────────────────────────────────
+function parseDeviceName(ua: string | undefined): string {
+  if (!ua) return "Unknown device";
+  if (/android/i.test(ua)) {
+    if (/chrome/i.test(ua)) return "Chrome on Android";
+    if (/firefox/i.test(ua)) return "Firefox on Android";
+    return "Browser on Android";
+  }
+  if (/iphone/i.test(ua)) return /crios/i.test(ua) ? "Chrome on iPhone" : "Safari on iPhone";
+  if (/ipad/i.test(ua)) return "Safari on iPad";
+  if (/windows/i.test(ua)) {
+    if (/edg\//i.test(ua)) return "Edge on Windows";
+    if (/chrome/i.test(ua)) return "Chrome on Windows";
+    if (/firefox/i.test(ua)) return "Firefox on Windows";
+    return "Browser on Windows";
+  }
+  if (/macintosh|mac os x/i.test(ua)) {
+    if (/chrome/i.test(ua)) return "Chrome on Mac";
+    if (/safari/i.test(ua)) return "Safari on Mac";
+    if (/firefox/i.test(ua)) return "Firefox on Mac";
+    return "Browser on Mac";
+  }
+  if (/linux/i.test(ua)) return "Browser on Linux";
+  return "Unknown device";
+}
+
 // ── Session whitelist helpers ─────────────────────────────────────────────────
 
 /** Register a new token in the sessions whitelist. */
-async function saveSession(userId: number, token: string, maxAgeMs: number): Promise<void> {
+async function saveSession(
+  userId: number,
+  token: string,
+  maxAgeMs: number,
+  opts?: { deviceName?: string; ipAddress?: string },
+): Promise<void> {
   const tHash = hashToken(token);
   const expiresAt = new Date(Date.now() + maxAgeMs);
   await db.insert(sessionsTable)
-    .values({ userId, tokenHash: tHash, expiresAt })
+    .values({
+      userId,
+      tokenHash: tHash,
+      expiresAt,
+      deviceName: opts?.deviceName ?? null,
+      ipAddress:  opts?.ipAddress  ?? null,
+    })
     .onConflictDoNothing(); // idempotent — harmless if called twice for same token
 }
 
@@ -165,14 +202,17 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
   await clearDbRateLimit(`auth:${ip}`);
-  await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip });
+  await logActivity({ userId: user.id, displayName: user.displayName, action: "login", ipAddress: ip, details: parseDeviceName(req.headers["user-agent"]) });
 
   const maxAge = rememberMe ? REMEMBER_MAX_AGE : COOKIE_MAX_AGE;
   const tokenTtl = rememberMe ? "14d" : "2d";
   const token = generateToken(user.id, user.role, tokenTtl);
 
   // Register in whitelist before sending — the cookie and session must stay in sync.
-  await saveSession(user.id, token, maxAge);
+  await saveSession(user.id, token, maxAge, {
+    deviceName: parseDeviceName(req.headers["user-agent"]),
+    ipAddress:  req.ip ?? "unknown",
+  });
   setAuthCookie(res, token, maxAge);
 
   // Lazy cleanup of expired sessions (non-blocking — never delays the login response).
@@ -384,7 +424,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       }
     }
     if (!user.isActive) { res.redirect(`${frontendBase}?error=account_deactivated`); return; }
-    await logActivity({ userId: user.id, displayName: user.displayName, action: "login", details: "Google OAuth", ipAddress: req.ip ?? "unknown" });
+    await logActivity({ userId: user.id, displayName: user.displayName, action: "login", details: `Google OAuth · ${parseDeviceName(req.headers["user-agent"])}`, ipAddress: req.ip ?? "unknown" });
     const token = generateToken(user.id, user.role);
     const userData = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl ?? null, branchId: user.branchId ?? null, phone: user.phone ?? null, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() };
     const oauthCode = uuidv4();
@@ -419,6 +459,10 @@ router.post("/auth/oauth-exchange", async (req, res): Promise<void> => {
     (entry.userData as { id: number }).id,
     entry.token,
     COOKIE_MAX_AGE,
+    {
+      deviceName: parseDeviceName(req.headers["user-agent"]),
+      ipAddress:  req.ip ?? "unknown",
+    },
   );
   setAuthCookie(res, entry.token);
   res.json({ token: entry.token, user: entry.userData });

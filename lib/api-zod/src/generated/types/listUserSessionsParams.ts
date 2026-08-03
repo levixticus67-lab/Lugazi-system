@@ -6,8 +6,6 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface BranchUpdate {
-  name?: string;
-  location?: string;
-  leaderName?: string;
-}
+export type ListUserSessionsParams = {
+userId: number;
+};

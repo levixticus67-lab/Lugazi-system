@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cldAvatar } from "@/lib/cloudinary";
 import axios from "@/lib/axios";
-import { useListMembers, useCreateMember, useDeleteMember, getListMembersQueryKey } from "@workspace/api-client-react";
+import { useListMembers, useCreateMember, useDeleteMember, getListMembersQueryKey, useListMemberSessions, useDeleteSession, getListMemberSessionsQueryKey } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PortalLayout from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
@@ -12,12 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CloudinaryUploader, { UploadResult } from "@/components/CloudinaryUploader";
-import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search, UserCheck, UserX, Heart, X, Cake } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Phone, Mail, Building2, Search, UserCheck, UserX, Heart, Cake, MonitorSmartphone, LogOut, MapPin, Clock } from "lucide-react";
 
 type Member = {
   id: number; fullName: string; email: string; phone?: string | null;
   role: string; branchId: number; department?: string | null;
   isActive: boolean; photoUrl?: string | null; createdAt: string; qrToken: string;
+  userId?: number | null;
 };
 
 interface FamilyMember {
@@ -88,12 +89,30 @@ export default function AdminMembers() {
   const [showAdd, setShowAdd] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [familyMember, setFamilyMember] = useState<Member | null>(null);
+  const [sessionsMember, setSessionsMember] = useState<Member | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [photoResult, setPhotoResult] = useState<UploadResult | null>(null);
   const [editPhotoResult, setEditPhotoResult] = useState<UploadResult | null>(null);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+
+  // Active sessions for the selected member
+  const { data: memberSessions = [], isLoading: sessionsLoading } = useListMemberSessions(
+    sessionsMember?.id ?? 0,
+    { query: { enabled: !!sessionsMember } }
+  );
+  const deleteSessionMutation = useDeleteSession();
+
+  function handleSignOutSession(sessionId: number) {
+    deleteSessionMutation.mutate({ id: sessionId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMemberSessionsQueryKey(sessionsMember?.id ?? 0) });
+        toast({ title: "Session signed out" });
+      },
+      onError: () => toast({ title: "Failed to sign out session", variant: "destructive" }),
+    });
+  }
 
   // Fetch family members for whichever member the admin is viewing
   const { data: familyData, isLoading: familyLoading } = useQuery<FamilyResponse>({
@@ -218,6 +237,9 @@ export default function AdminMembers() {
                   <button onClick={() => setFamilyMember(m)} className="p-1 rounded-md hover:bg-rose-100 text-muted-foreground hover:text-rose-600 transition" title="View family">
                     <Heart className="h-3.5 w-3.5"/>
                   </button>
+                  <button onClick={() => setSessionsMember(m)} className="p-1 rounded-md hover:bg-blue-100 text-muted-foreground hover:text-blue-600 transition" title="Active sessions">
+                    <MonitorSmartphone className="h-3.5 w-3.5"/>
+                  </button>
                   <button onClick={() => handleDelete(m.id)} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition" title="Delete"><Trash2 className="h-3.5 w-3.5"/></button>
                 </div>
               </div>
@@ -257,6 +279,60 @@ export default function AdminMembers() {
           <DialogFooter>
             <Button variant="outline" onClick={()=>setEditMember(null)}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={saving}>{saving?"Saving…":"Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Active Sessions Dialog ── */}
+      <Dialog open={!!sessionsMember} onOpenChange={v => { if (!v) setSessionsMember(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MonitorSmartphone className="h-4 w-4 text-blue-500"/>
+              {sessionsMember?.fullName}'s Active Sessions
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3 max-h-[60vh] overflow-y-auto">
+            {sessionsLoading ? (
+              <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse"/>)}</div>
+            ) : !sessionsMember?.userId ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MonitorSmartphone className="h-8 w-8 mx-auto mb-2 opacity-40"/>
+                <p className="text-sm font-medium">No account linked</p>
+                <p className="text-xs mt-1">This member doesn't have a login account yet.</p>
+              </div>
+            ) : memberSessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MonitorSmartphone className="h-8 w-8 mx-auto mb-2 opacity-40"/>
+                <p className="text-sm">No active sessions</p>
+              </div>
+            ) : (
+              memberSessions.map(s => (
+                <div key={s.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center shrink-0">
+                    <MonitorSmartphone className="h-4 w-4 text-blue-600 dark:text-blue-300"/>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{s.deviceName}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-3 w-3 shrink-0"/>{s.ipAddress}
+                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3 shrink-0"/>Last seen {new Date(s.lastSeenAt).toLocaleString("en-UG", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-[10px] px-2 gap-1 shrink-0 hover:text-red-600 hover:border-red-300"
+                    onClick={() => handleSignOutSession(s.id)}
+                    disabled={deleteSessionMutation.isPending}>
+                    <LogOut className="h-3 w-3"/>Sign out
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSessionsMember(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

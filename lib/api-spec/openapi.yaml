@@ -1185,6 +1185,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/MemberStats"
 
+  # ── Admin Sessions ──
+  /admin/sessions:
+    get:
+      operationId: listUserSessions
+      tags: [auth]
+      summary: List active sessions for a user (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActiveSession"
+
+  /admin/members/{memberId}/sessions:
+    get:
+      operationId: listMemberSessions
+      tags: [auth]
+      summary: List active sessions for a member (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActiveSession"
+
+  /admin/sessions/{id}:
+    delete:
+      operationId: deleteSession
+      tags: [auth]
+      summary: Force sign-out a session (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Session deleted
+
   # ── Settings ──
   /settings:
     get:
@@ -1273,6 +1337,25 @@ components:
         currentPassword:
           type: string
         newPassword:
+          type: string
+
+    ActiveSession:
+      type: object
+      required: [id, userId, deviceName, ipAddress, lastSeenAt, expiresAt, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        deviceName:
+          type: string
+        ipAddress:
+          type: string
+        lastSeenAt:
+          type: string
+        expiresAt:
+          type: string
+        createdAt:
           type: string
 
     UserProfile:

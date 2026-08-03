@@ -6,12 +6,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface Branch {
+export interface ActiveSession {
   id: number;
-  name: string;
-  location: string;
-  /** @nullable */
-  leaderName?: string | null;
-  memberCount?: number;
+  userId: number;
+  deviceName: string;
+  ipAddress: string;
+  lastSeenAt: string;
+  expiresAt: string;
   createdAt: string;
 }

@@ -34,11 +34,13 @@ import notificationsRouter from "./notifications";
 import inAppNotificationsRouter from "./inAppNotifications";
 import fcmTokensRouter from "./fcmTokens";
 import versionRouter from "./version";
+import sessionsRouter from "./sessions";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(versionRouter);
+router.use(sessionsRouter);
 router.use(authRouter);
 router.use(usersRouter);
 router.use(roleRequestsRouter);

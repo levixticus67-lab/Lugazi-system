@@ -147,8 +147,16 @@ export default function AdminActivityLogs() {
                         <span className="text-sm text-muted-foreground truncate">→ {log.entityName}</span>
                       )}
                     </div>
-                    {log.details && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{log.details}</p>
+                    {(log.details || log.ipAddress) && (
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        {log.details && <span>{log.details}</span>}
+                        {log.ipAddress && (
+                          <span className="flex items-center gap-1 opacity-60">
+                            <span>·</span>
+                            {log.ipAddress}
+                          </span>
+                        )}
+                      </p>
                     )}
                   </div>
                   <div className="shrink-0 text-right">

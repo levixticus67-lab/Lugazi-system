@@ -19,13 +19,20 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export interface AuthRequest extends Request {
   userId?: number;
   userRole?: string;
-  rawToken?: string; // the original token string, available to routes that need to delete the session
+  rawToken?: string;   // the original token string — available to logout/refresh routes
+  sessionId?: number;  // the sessions.id row — available to routes that need it
 }
 
 /** SHA-256 hash of a raw JWT — what gets stored in the sessions table. */
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+// ── lastSeenAt throttle ───────────────────────────────────────────────────────
+// To avoid a DB write on every single request we throttle per-session to once
+// every 5 minutes. The Map is keyed by tokenHash and holds the last update ms.
+const lastSeenThrottle = new Map<string, number>();
+const LAST_SEEN_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   // Prefer HttpOnly cookie (XSS-safe). Fall back to Authorization header for
@@ -65,7 +72,6 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       .limit(1);
 
     if (!user || !user.isActive) {
-      // Log the blocked attempt so admins can see it in Activity Logs.
       if (user) {
         const reason = user.deletedAt ? "member was deleted" : "account deactivated";
         db.insert(activityLogsTable).values({
@@ -74,13 +80,12 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
           action: "blocked_access",
           details: `Blocked (${reason}): ${req.method} ${req.path}`,
           ipAddress: req.ip ?? "unknown",
-        }).catch(() => {}); // non-blocking — a log failure must never affect auth
+        }).catch(() => {});
       }
       res.status(401).json({ error: "Account is deactivated. Contact your administrator." });
       return;
     }
   } catch (err) {
-    // Fail CLOSED on DB error — safer than silently allowing a deactivated user through.
     logger.error({ err, userId: decoded.userId }, "requireAuth: DB isActive check failed — failing closed");
     res.status(503).json({ error: "Service temporarily unavailable. Please try again in a moment." });
     return;
@@ -89,10 +94,11 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   // ── Session whitelist check ───────────────────────────────────────────────
   // The token must exist in the sessions table. On logout the row is deleted,
   // so recycled tokens are rejected immediately — no waiting for JWT expiry.
+  let sessionRow: { id: number; tokenHash: string } | undefined;
   try {
     const tHash = hashToken(token);
     const [session] = await db
-      .select({ id: sessionsTable.id })
+      .select({ id: sessionsTable.id, tokenHash: sessionsTable.tokenHash })
       .from(sessionsTable)
       .where(eq(sessionsTable.tokenHash, tHash))
       .limit(1);
@@ -101,16 +107,28 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       res.status(401).json({ error: "Session has ended. Please sign in again." });
       return;
     }
+    sessionRow = session;
+
+    // Update lastSeenAt at most once per 5 minutes (non-blocking — never delays requests).
+    const now = Date.now();
+    const lastUpdate = lastSeenThrottle.get(tHash) ?? 0;
+    if (now - lastUpdate > LAST_SEEN_INTERVAL) {
+      lastSeenThrottle.set(tHash, now);
+      db.update(sessionsTable)
+        .set({ lastSeenAt: new Date() })
+        .where(eq(sessionsTable.tokenHash, tHash))
+        .catch(() => {});
+    }
   } catch (err) {
-    // Fail CLOSED — an unreachable DB must not let unknown tokens through.
     logger.error({ err, userId: decoded.userId }, "requireAuth: session whitelist check failed — failing closed");
     res.status(503).json({ error: "Service temporarily unavailable. Please try again in a moment." });
     return;
   }
 
-  req.userId = decoded.userId;
-  req.userRole = decoded.role;
-  req.rawToken = token; // available to logout / refresh routes
+  req.userId    = decoded.userId;
+  req.userRole  = decoded.role;
+  req.rawToken  = token;
+  req.sessionId = sessionRow?.id;
   next();
 }
 
