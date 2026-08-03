@@ -43,7 +43,7 @@ function playChime() {
  * that when the user opens it. Mount once inside AuthProvider.
  */
 export default function InAppNotifications() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const shownIds = useRef<Set<number>>(new Set());
@@ -63,7 +63,11 @@ export default function InAppNotifications() {
   const { data: notifications = [] } = useQuery<InAppNotification[]>({
     queryKey: ["inbox-notifications", user?.id],
     queryFn: () => axios.get("/api/notifications/inbox").then(r => r.data),
-    enabled: !!user,
+    // Wait until /auth/me has confirmed the session (isLoading = false).
+    // Firing while isLoading is true means the query races with /auth/me:
+    // a 401 here would trigger a token refresh that deletes the session
+    // /auth/me is still using, causing /auth/me to fail and log the user out.
+    enabled: !!user && !isLoading,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   });

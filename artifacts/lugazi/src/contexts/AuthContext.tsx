@@ -126,13 +126,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.location.href = destination;
         }
       })
-      .catch((err: unknown) => {
+      .catch(async (err: unknown) => {
         // Only clear session on definitive auth rejection (401/403).
         // Network errors or server errors (5xx) on Capacitor/slow connections
         // should keep the cached user — losing the session on a bad network
         // frame is worse than keeping a stale session.
         const status = (err as { response?: { status?: number } })?.response?.status;
         if (status === 401 || status === 403) {
+          // A concurrent request (e.g. InAppNotifications) may have triggered
+          // a token refresh that deleted the session this /auth/me call was
+          // using, causing a spurious 401. Retry once — if a refresh just ran,
+          // localStorage now holds the new token and the retry will succeed.
+          if (status === 401) {
+            try {
+              const retry = await axios.get<AuthUser & { freshToken?: string }>("/api/auth/me");
+              const { freshToken, ...fresh } = retry.data;
+              if (freshToken) localStorage.setItem("dcl_token_jwt", freshToken);
+              writeCachedUser(fresh);
+              setUser(fresh);
+              setToken(String(fresh.id));
+              return; // recovered — do not clear session
+            } catch {
+              // retry also failed — genuine auth failure, fall through to clear
+            }
+          }
           localStorage.removeItem("dcl_user");
           localStorage.removeItem("dcl_token_jwt");
           setUser(null);

@@ -38,10 +38,13 @@ async function ensurePushChannel() {
  *   foreground (FCM suppresses the UI in that case by default).
  */
 export default function PushNotificationsSetup() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!user || !Capacitor.isNativePlatform()) return;
+    // Wait until /auth/me has confirmed the session before registering the FCM
+    // token. Firing during isLoading risks a refresh race that can invalidate
+    // the session /auth/me is using and log the user out immediately.
+    if (!user || isLoading || !Capacitor.isNativePlatform()) return;
 
     let active = true;
 
