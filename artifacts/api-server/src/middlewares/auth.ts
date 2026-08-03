@@ -35,19 +35,18 @@ const lastSeenThrottle = new Map<string, number>();
 const LAST_SEEN_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  // Prefer HttpOnly cookie (XSS-safe). Fall back to Authorization header for
-  // backward compatibility during rolling deployments.
+  // Bearer token takes priority over cookie.
+  // On native Capacitor (Android WebView), the app always sends a Bearer token
+  // from localStorage. The WebView may also forward a stale HttpOnly cookie from
+  // its cross-origin cookie jar — if the cookie were preferred, a stale cookie
+  // would silently override a valid Bearer token and cause spurious 401s.
+  // For pure web sessions the Bearer header is absent and the cookie is used.
   let token: string | undefined;
 
+  const header = req.headers.authorization;
+  const bearerToken = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
   const cookieToken = (req as any).cookies?.dcl_token as string | undefined;
-  if (cookieToken) {
-    token = cookieToken;
-  } else {
-    const header = req.headers.authorization;
-    if (header?.startsWith("Bearer ")) {
-      token = header.slice(7);
-    }
-  }
+  token = bearerToken ?? cookieToken;
 
   if (!token) {
     res.status(401).json({ error: "Unauthorized — missing token" });

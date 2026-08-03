@@ -317,15 +317,33 @@ router.post("/auth/logout", requireAuth, async (req: AuthRequest, res): Promise<
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db.select(safeUserCols).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  let roleMismatchToken: string | undefined;
   if (req.userRole !== user.role) {
     // Role changed — retire old session and issue a fresh token.
-    logger.info({ userId: user.id, oldRole: req.userRole, newRole: user.role }, "Role mismatch — re-issuing auth cookie");
+    // The fresh token is returned in the response body (not only as a cookie)
+    // so that native Capacitor clients (which cannot reliably receive cross-origin
+    // HttpOnly cookies) can update their localStorage immediately.
+    logger.info({ userId: user.id, oldRole: req.userRole, newRole: user.role }, "Role mismatch — re-issuing token");
     if (req.rawToken) await deleteSession(req.rawToken).catch(() => {});
-    const freshToken = generateToken(user.id, user.role);
-    await saveSession(user.id, freshToken, COOKIE_MAX_AGE);
-    setAuthCookie(res, freshToken);
+    roleMismatchToken = generateToken(user.id, user.role);
+    await saveSession(user.id, roleMismatchToken, COOKIE_MAX_AGE);
+    setAuthCookie(res, roleMismatchToken);
   }
-  res.json({ id: user.id, email: user.email, displayName: user.displayName, role: user.role, photoUrl: user.photoUrl, branchId: user.branchId, phone: user.phone, birthday: user.birthday ?? null, isActive: user.isActive, createdAt: new Date(user.createdAt).toISOString() });
+  res.json({
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    photoUrl: user.photoUrl,
+    branchId: user.branchId,
+    phone: user.phone,
+    birthday: user.birthday ?? null,
+    isActive: user.isActive,
+    createdAt: new Date(user.createdAt).toISOString(),
+    // Only present when the role changed and a new token was issued.
+    // Native clients must save this to localStorage immediately.
+    ...(roleMismatchToken ? { freshToken: roleMismatchToken } : {}),
+  });
 });
 
 // ── POST /auth/refresh ────────────────────────────────────────────────────────

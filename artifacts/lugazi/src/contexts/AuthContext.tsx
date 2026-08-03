@@ -104,9 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(String(cached.id));
 
     axios
-      .get<AuthUser>("/api/auth/me")
+      .get<AuthUser & { freshToken?: string }>("/api/auth/me")
       .then((res) => {
-        const fresh = res.data;
+        const { freshToken, ...fresh } = res.data;
+
+        // When the server re-issued a token due to a role change, update
+        // localStorage immediately so the next request uses the new token.
+        // Without this, the old (now-deleted) token would cause a 401 on the
+        // next page load on native Capacitor where cookies are unreliable.
+        if (freshToken) {
+          localStorage.setItem("dcl_token_jwt", freshToken);
+        }
+
         writeCachedUser(fresh);
         setUser(fresh);
         setToken(String(fresh.id));
