@@ -27,12 +27,12 @@ export const LoginBody = zod.object({
 export const LoginResponse = zod.object({
   "token": zod.string(),
   "user": zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -52,12 +52,12 @@ export const RegisterBody = zod.object({
 export const RegisterResponse = zod.object({
   "token": zod.string(),
   "user": zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -69,12 +69,12 @@ export const RegisterResponse = zod.object({
  * @summary Get current authenticated user
  */
 export const GetMeResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -96,12 +96,12 @@ export const ChangePasswordResponse = zod.unknown()
  * @summary List all users (admin only)
  */
 export const ListUsersResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -117,12 +117,12 @@ export const GetUserParams = zod.object({
 })
 
 export const GetUserResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -140,17 +140,17 @@ export const UpdateUserBody = zod.object({
   "displayName": zod.string().optional(),
   "photoUrl": zod.string().optional(),
   "phone": zod.string().optional(),
-  "branchId": zod.int().optional(),
+  "branchId": zod.number().int().optional(),
   "isActive": zod.boolean().optional()
 })
 
 export const UpdateUserResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -179,12 +179,12 @@ export const UpdateUserRoleBody = zod.object({
 })
 
 export const UpdateUserRoleResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "email": zod.string(),
   "displayName": zod.string(),
   "role": zod.string(),
   "photoUrl": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -195,8 +195,8 @@ export const UpdateUserRoleResponse = zod.object({
  * @summary List pending role upgrade requests (admin only)
  */
 export const ListRoleRequestsResponseItem = zod.object({
-  "id": zod.int(),
-  "userId": zod.int(),
+  "id": zod.number().int(),
+  "userId": zod.number().int(),
   "userEmail": zod.string().nullish(),
   "userDisplayName": zod.string().nullish(),
   "requestedRole": zod.string(),
@@ -219,8 +219,8 @@ export const CreateRoleRequestBody = zod.object({
 })
 
 export const CreateRoleRequestResponse = zod.object({
-  "id": zod.int(),
-  "userId": zod.int(),
+  "id": zod.number().int(),
+  "userId": zod.number().int(),
   "userEmail": zod.string().nullish(),
   "userDisplayName": zod.string().nullish(),
   "requestedRole": zod.string(),
@@ -241,8 +241,8 @@ export const ApproveRoleRequestParams = zod.object({
 })
 
 export const ApproveRoleRequestResponse = zod.object({
-  "id": zod.int(),
-  "userId": zod.int(),
+  "id": zod.number().int(),
+  "userId": zod.number().int(),
   "userEmail": zod.string().nullish(),
   "userDisplayName": zod.string().nullish(),
   "requestedRole": zod.string(),
@@ -267,8 +267,8 @@ export const RejectRoleRequestBody = zod.object({
 })
 
 export const RejectRoleRequestResponse = zod.object({
-  "id": zod.int(),
-  "userId": zod.int(),
+  "id": zod.number().int(),
+  "userId": zod.number().int(),
   "userEmail": zod.string().nullish(),
   "userDisplayName": zod.string().nullish(),
   "requestedRole": zod.string(),
@@ -285,13 +285,13 @@ export const RejectRoleRequestResponse = zod.object({
  * @summary List all members
  */
 export const ListMembersResponseItem = zod.object({
-  "id": zod.int(),
-  "userId": zod.int().nullish(),
+  "id": zod.number().int(),
+  "userId": zod.number().int().nullish(),
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullish(),
   "role": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "department": zod.string().nullish(),
   "profession": zod.string().nullish(),
   "photoUrl": zod.string().nullish(),
@@ -312,7 +312,7 @@ export const CreateMemberBody = zod.object({
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().optional(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "department": zod.string().optional(),
   "profession": zod.string().optional(),
   "photoUrl": zod.string().optional(),
@@ -322,13 +322,13 @@ export const CreateMemberBody = zod.object({
 })
 
 export const CreateMemberResponse = zod.object({
-  "id": zod.int(),
-  "userId": zod.int().nullish(),
+  "id": zod.number().int(),
+  "userId": zod.number().int().nullish(),
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullish(),
   "role": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "department": zod.string().nullish(),
   "profession": zod.string().nullish(),
   "photoUrl": zod.string().nullish(),
@@ -349,13 +349,13 @@ export const GetMemberParams = zod.object({
 })
 
 export const GetMemberResponse = zod.object({
-  "id": zod.int(),
-  "userId": zod.int().nullish(),
+  "id": zod.number().int(),
+  "userId": zod.number().int().nullish(),
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullish(),
   "role": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "department": zod.string().nullish(),
   "profession": zod.string().nullish(),
   "photoUrl": zod.string().nullish(),
@@ -378,7 +378,7 @@ export const UpdateMemberParams = zod.object({
 export const UpdateMemberBody = zod.object({
   "fullName": zod.string().optional(),
   "phone": zod.string().optional(),
-  "branchId": zod.int().optional(),
+  "branchId": zod.number().int().optional(),
   "department": zod.string().optional(),
   "profession": zod.string().optional(),
   "photoUrl": zod.string().optional(),
@@ -389,13 +389,13 @@ export const UpdateMemberBody = zod.object({
 })
 
 export const UpdateMemberResponse = zod.object({
-  "id": zod.int(),
-  "userId": zod.int().nullish(),
+  "id": zod.number().int(),
+  "userId": zod.number().int().nullish(),
   "fullName": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullish(),
   "role": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "department": zod.string().nullish(),
   "profession": zod.string().nullish(),
   "photoUrl": zod.string().nullish(),
@@ -427,7 +427,7 @@ export const GetMemberQrParams = zod.object({
 
 export const GetMemberQrResponse = zod.object({
   "qrToken": zod.string(),
-  "memberId": zod.int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string()
 })
 
@@ -436,11 +436,11 @@ export const GetMemberQrResponse = zod.object({
  * @summary List all branches
  */
 export const ListBranchesResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
   "location": zod.string(),
   "leaderName": zod.string().nullish(),
-  "memberCount": zod.int().optional(),
+  "memberCount": zod.number().int().optional(),
   "createdAt": zod.string()
 })
 export const ListBranchesResponse = zod.array(ListBranchesResponseItem)
@@ -456,11 +456,11 @@ export const CreateBranchBody = zod.object({
 })
 
 export const CreateBranchResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
   "location": zod.string(),
   "leaderName": zod.string().nullish(),
-  "memberCount": zod.int().optional(),
+  "memberCount": zod.number().int().optional(),
   "createdAt": zod.string()
 })
 
@@ -479,11 +479,11 @@ export const UpdateBranchBody = zod.object({
 })
 
 export const UpdateBranchResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
   "location": zod.string(),
   "leaderName": zod.string().nullish(),
-  "memberCount": zod.int().optional(),
+  "memberCount": zod.number().int().optional(),
   "createdAt": zod.string()
 })
 
@@ -502,14 +502,14 @@ export const DeleteBranchResponse = zod.void()
  * @summary List all groups
  */
 export const ListGroupsResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "leaderName": zod.string().nullish(),
   "location": zod.string().nullish(),
   "meetingDay": zod.string().nullish(),
   "meetingTime": zod.string().nullish(),
-  "memberCount": zod.int().optional(),
+  "memberCount": zod.number().int().optional(),
   "createdAt": zod.string()
 })
 export const ListGroupsResponse = zod.array(ListGroupsResponseItem)
@@ -520,7 +520,7 @@ export const ListGroupsResponse = zod.array(ListGroupsResponseItem)
  */
 export const CreateGroupBody = zod.object({
   "name": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "leaderName": zod.string().optional(),
   "location": zod.string().optional(),
   "meetingDay": zod.string().optional(),
@@ -528,14 +528,14 @@ export const CreateGroupBody = zod.object({
 })
 
 export const CreateGroupResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "leaderName": zod.string().nullish(),
   "location": zod.string().nullish(),
   "meetingDay": zod.string().nullish(),
   "meetingTime": zod.string().nullish(),
-  "memberCount": zod.int().optional(),
+  "memberCount": zod.number().int().optional(),
   "createdAt": zod.string()
 })
 
@@ -556,14 +556,14 @@ export const UpdateGroupBody = zod.object({
 })
 
 export const UpdateGroupResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "leaderName": zod.string().nullish(),
   "location": zod.string().nullish(),
   "meetingDay": zod.string().nullish(),
   "meetingTime": zod.string().nullish(),
-  "memberCount": zod.int().optional(),
+  "memberCount": zod.number().int().optional(),
   "createdAt": zod.string()
 })
 
@@ -582,14 +582,14 @@ export const DeleteGroupResponse = zod.void()
  * @summary List attendance records
  */
 export const ListAttendanceResponseItem = zod.object({
-  "id": zod.int(),
-  "memberId": zod.int(),
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string(),
-  "eventId": zod.int().nullish(),
+  "eventId": zod.number().int().nullish(),
   "eventName": zod.string(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "checkedInAt": zod.string(),
-  "checkedInBy": zod.int().nullish(),
+  "checkedInBy": zod.number().int().nullish(),
   "method": zod.string()
 })
 export const ListAttendanceResponse = zod.array(ListAttendanceResponseItem)
@@ -599,21 +599,21 @@ export const ListAttendanceResponse = zod.array(ListAttendanceResponseItem)
  * @summary Check in a member (QR scan or manual)
  */
 export const CheckInBody = zod.object({
-  "memberId": zod.int(),
-  "eventId": zod.int().optional(),
+  "memberId": zod.number().int(),
+  "eventId": zod.number().int().optional(),
   "eventName": zod.string(),
   "method": zod.string()
 })
 
 export const CheckInResponse = zod.object({
-  "id": zod.int(),
-  "memberId": zod.int(),
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string(),
-  "eventId": zod.int().nullish(),
+  "eventId": zod.number().int().nullish(),
   "eventName": zod.string(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "checkedInAt": zod.string(),
-  "checkedInBy": zod.int().nullish(),
+  "checkedInBy": zod.number().int().nullish(),
   "method": zod.string()
 })
 
@@ -624,18 +624,18 @@ export const CheckInResponse = zod.object({
 export const QrScanCheckInBody = zod.object({
   "qrToken": zod.string(),
   "eventName": zod.string(),
-  "eventId": zod.int().optional()
+  "eventId": zod.number().int().optional()
 })
 
 export const QrScanCheckInResponse = zod.object({
-  "id": zod.int(),
-  "memberId": zod.int(),
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string(),
-  "eventId": zod.int().nullish(),
+  "eventId": zod.number().int().nullish(),
   "eventName": zod.string(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "checkedInAt": zod.string(),
-  "checkedInBy": zod.int().nullish(),
+  "checkedInBy": zod.number().int().nullish(),
   "method": zod.string()
 })
 
@@ -644,16 +644,16 @@ export const QrScanCheckInResponse = zod.object({
  * @summary List all events
  */
 export const ListEventsResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "date": zod.string(),
   "time": zod.string(),
   "location": zod.string(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "category": zod.string(),
-  "attendeeCount": zod.int().optional(),
-  "createdBy": zod.int().nullish(),
+  "attendeeCount": zod.number().int().optional(),
+  "createdBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 export const ListEventsResponse = zod.array(ListEventsResponseItem)
@@ -668,21 +668,21 @@ export const CreateEventBody = zod.object({
   "date": zod.string(),
   "time": zod.string(),
   "location": zod.string(),
-  "branchId": zod.int().optional(),
+  "branchId": zod.number().int().optional(),
   "category": zod.string()
 })
 
 export const CreateEventResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "date": zod.string(),
   "time": zod.string(),
   "location": zod.string(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "category": zod.string(),
-  "attendeeCount": zod.int().optional(),
-  "createdBy": zod.int().nullish(),
+  "attendeeCount": zod.number().int().optional(),
+  "createdBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 
@@ -704,16 +704,16 @@ export const UpdateEventBody = zod.object({
 })
 
 export const UpdateEventResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "date": zod.string(),
   "time": zod.string(),
   "location": zod.string(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "category": zod.string(),
-  "attendeeCount": zod.int().optional(),
-  "createdBy": zod.int().nullish(),
+  "attendeeCount": zod.number().int().optional(),
+  "createdBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 
@@ -732,16 +732,16 @@ export const DeleteEventResponse = zod.void()
  * @summary List all finance transactions
  */
 export const ListTransactionsResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "type": zod.string(),
   "amount": zod.number(),
   "currency": zod.string(),
-  "memberId": zod.int().nullish(),
+  "memberId": zod.number().int().nullish(),
   "memberName": zod.string().nullish(),
   "description": zod.string(),
   "category": zod.string(),
-  "branchId": zod.int().nullish(),
-  "recordedBy": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
+  "recordedBy": zod.number().int().nullish(),
   "date": zod.string(),
   "createdAt": zod.string()
 })
@@ -755,25 +755,25 @@ export const CreateTransactionBody = zod.object({
   "type": zod.string(),
   "amount": zod.number(),
   "currency": zod.string(),
-  "memberId": zod.int().optional(),
+  "memberId": zod.number().int().optional(),
   "memberName": zod.string().optional(),
   "description": zod.string(),
   "category": zod.string(),
-  "branchId": zod.int().optional(),
+  "branchId": zod.number().int().optional(),
   "date": zod.string()
 })
 
 export const CreateTransactionResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "type": zod.string(),
   "amount": zod.number(),
   "currency": zod.string(),
-  "memberId": zod.int().nullish(),
+  "memberId": zod.number().int().nullish(),
   "memberName": zod.string().nullish(),
   "description": zod.string(),
   "category": zod.string(),
-  "branchId": zod.int().nullish(),
-  "recordedBy": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
+  "recordedBy": zod.number().int().nullish(),
   "date": zod.string(),
   "createdAt": zod.string()
 })
@@ -808,14 +808,14 @@ export const DeleteTransactionResponse = zod.void()
  * @summary List media items
  */
 export const ListMediaResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "type": zod.string(),
   "url": zod.string(),
   "thumbnailUrl": zod.string().nullish(),
   "description": zod.string().nullish(),
   "cloudinaryId": zod.string().nullish(),
-  "uploadedBy": zod.int().nullish(),
+  "uploadedBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 export const ListMediaResponse = zod.array(ListMediaResponseItem)
@@ -834,14 +834,14 @@ export const CreateMediaBody = zod.object({
 })
 
 export const CreateMediaResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "type": zod.string(),
   "url": zod.string(),
   "thumbnailUrl": zod.string().nullish(),
   "description": zod.string().nullish(),
   "cloudinaryId": zod.string().nullish(),
-  "uploadedBy": zod.int().nullish(),
+  "uploadedBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 
@@ -851,7 +851,7 @@ export const CreateMediaResponse = zod.object({
  */
 export const GetUploadSignatureResponse = zod.object({
   "signature": zod.string(),
-  "timestamp": zod.int(),
+  "timestamp": zod.number().int(),
   "cloudName": zod.string(),
   "apiKey": zod.string()
 })
@@ -871,15 +871,15 @@ export const DeleteMediaResponse = zod.void()
  * @summary List welfare requests
  */
 export const ListWelfareResponseItem = zod.object({
-  "id": zod.int(),
-  "memberId": zod.int(),
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string(),
   "category": zod.string(),
   "description": zod.string(),
   "amountRequested": zod.number().nullish(),
   "status": zod.string(),
   "adminNote": zod.string().nullish(),
-  "reviewedBy": zod.int().nullish(),
+  "reviewedBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 export const ListWelfareResponse = zod.array(ListWelfareResponseItem)
@@ -895,15 +895,15 @@ export const CreateWelfareBody = zod.object({
 })
 
 export const CreateWelfareResponse = zod.object({
-  "id": zod.int(),
-  "memberId": zod.int(),
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string(),
   "category": zod.string(),
   "description": zod.string(),
   "amountRequested": zod.number().nullish(),
   "status": zod.string(),
   "adminNote": zod.string().nullish(),
-  "reviewedBy": zod.int().nullish(),
+  "reviewedBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 
@@ -921,15 +921,15 @@ export const UpdateWelfareBody = zod.object({
 })
 
 export const UpdateWelfareResponse = zod.object({
-  "id": zod.int(),
-  "memberId": zod.int(),
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
   "memberName": zod.string(),
   "category": zod.string(),
   "description": zod.string(),
   "amountRequested": zod.number().nullish(),
   "status": zod.string(),
   "adminNote": zod.string().nullish(),
-  "reviewedBy": zod.int().nullish(),
+  "reviewedBy": zod.number().int().nullish(),
   "createdAt": zod.string()
 })
 
@@ -938,15 +938,15 @@ export const UpdateWelfareResponse = zod.object({
  * @summary List reports
  */
 export const ListReportsResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "type": zod.string(),
-  "submittedBy": zod.int(),
+  "submittedBy": zod.number().int(),
   "submittedByName": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "content": zod.string().nullish(),
-  "attendance": zod.int().nullish(),
-  "soulWinning": zod.int().nullish(),
+  "attendance": zod.number().int().nullish(),
+  "soulWinning": zod.number().int().nullish(),
   "period": zod.string(),
   "status": zod.string(),
   "fileUrl": zod.string().nullish(),
@@ -965,24 +965,24 @@ export const CreateReportBody = zod.object({
   "type": zod.string(),
   "content": zod.string().optional(),
   "period": zod.string(),
-  "branchId": zod.int().optional(),
-  "attendance": zod.int().optional(),
-  "soulWinning": zod.int().optional(),
+  "branchId": zod.number().int().optional(),
+  "attendance": zod.number().int().optional(),
+  "soulWinning": zod.number().int().optional(),
   "fileUrl": zod.string().optional(),
   "fileType": zod.string().optional(),
   "fileSize": zod.string().optional()
 })
 
 export const CreateReportResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "type": zod.string(),
-  "submittedBy": zod.int(),
+  "submittedBy": zod.number().int(),
   "submittedByName": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "content": zod.string().nullish(),
-  "attendance": zod.int().nullish(),
-  "soulWinning": zod.int().nullish(),
+  "attendance": zod.number().int().nullish(),
+  "soulWinning": zod.number().int().nullish(),
   "period": zod.string(),
   "status": zod.string(),
   "fileUrl": zod.string().nullish(),
@@ -1003,8 +1003,8 @@ export const UpdateReportBody = zod.object({
   "title": zod.string().optional(),
   "period": zod.string().optional(),
   "content": zod.string().optional(),
-  "attendance": zod.int().optional(),
-  "soulWinning": zod.int().optional(),
+  "attendance": zod.number().int().optional(),
+  "soulWinning": zod.number().int().optional(),
   "status": zod.string().optional(),
   "fileUrl": zod.string().optional(),
   "fileType": zod.string().optional(),
@@ -1012,15 +1012,15 @@ export const UpdateReportBody = zod.object({
 })
 
 export const UpdateReportResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "type": zod.string(),
-  "submittedBy": zod.int(),
+  "submittedBy": zod.number().int(),
   "submittedByName": zod.string().nullish(),
-  "branchId": zod.int().nullish(),
+  "branchId": zod.number().int().nullish(),
   "content": zod.string().nullish(),
-  "attendance": zod.int().nullish(),
-  "soulWinning": zod.int().nullish(),
+  "attendance": zod.number().int().nullish(),
+  "soulWinning": zod.number().int().nullish(),
   "period": zod.string(),
   "status": zod.string(),
   "fileUrl": zod.string().nullish(),
@@ -1044,16 +1044,16 @@ export const DeleteReportResponse = zod.void()
  * @summary List pipeline contacts
  */
 export const ListPipelineResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
   "phone": zod.string(),
   "email": zod.string().nullish(),
   "stage": zod.string(),
-  "assignedTo": zod.int(),
+  "assignedTo": zod.number().int(),
   "assignedToName": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "source": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "createdAt": zod.string(),
   "lastContactedAt": zod.string().nullish()
 })
@@ -1070,20 +1070,20 @@ export const CreatePipelineContactBody = zod.object({
   "stage": zod.string(),
   "notes": zod.string().optional(),
   "source": zod.string(),
-  "branchId": zod.int()
+  "branchId": zod.number().int()
 })
 
 export const CreatePipelineContactResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
   "phone": zod.string(),
   "email": zod.string().nullish(),
   "stage": zod.string(),
-  "assignedTo": zod.int(),
+  "assignedTo": zod.number().int(),
   "assignedToName": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "source": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "createdAt": zod.string(),
   "lastContactedAt": zod.string().nullish()
 })
@@ -1103,16 +1103,16 @@ export const UpdatePipelineContactBody = zod.object({
 })
 
 export const UpdatePipelineContactResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "name": zod.string(),
   "phone": zod.string(),
   "email": zod.string().nullish(),
   "stage": zod.string(),
-  "assignedTo": zod.int(),
+  "assignedTo": zod.number().int(),
   "assignedToName": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "source": zod.string(),
-  "branchId": zod.int(),
+  "branchId": zod.number().int(),
   "createdAt": zod.string(),
   "lastContactedAt": zod.string().nullish()
 })
@@ -1132,14 +1132,14 @@ export const DeletePipelineContactResponse = zod.void()
  * @summary List documents
  */
 export const ListDocumentsResponseItem = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "category": zod.string(),
   "fileUrl": zod.string(),
   "fileType": zod.string(),
-  "fileSize": zod.int().nullish(),
-  "uploadedBy": zod.int(),
+  "fileSize": zod.number().int().nullish(),
+  "uploadedBy": zod.number().int(),
   "uploadedByName": zod.string().nullish(),
   "accessRoles": zod.array(zod.string()).optional(),
   "createdAt": zod.string()
@@ -1156,19 +1156,19 @@ export const CreateDocumentBody = zod.object({
   "category": zod.string(),
   "fileUrl": zod.string(),
   "fileType": zod.string(),
-  "fileSize": zod.int().optional(),
+  "fileSize": zod.number().int().optional(),
   "accessRoles": zod.array(zod.string()).optional()
 })
 
 export const CreateDocumentResponse = zod.object({
-  "id": zod.int(),
+  "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "category": zod.string(),
   "fileUrl": zod.string(),
   "fileType": zod.string(),
-  "fileSize": zod.int().nullish(),
-  "uploadedBy": zod.int(),
+  "fileSize": zod.number().int().nullish(),
+  "uploadedBy": zod.number().int(),
   "uploadedByName": zod.string().nullish(),
   "accessRoles": zod.array(zod.string()).optional(),
   "createdAt": zod.string()
@@ -1189,21 +1189,21 @@ export const DeleteDocumentResponse = zod.void()
  * @summary Get admin dashboard summary statistics
  */
 export const GetDashboardStatsResponse = zod.object({
-  "totalMembers": zod.int(),
-  "activeMembers": zod.int(),
-  "totalBranches": zod.int(),
-  "totalGroups": zod.int(),
-  "cellGroups": zod.int().optional(),
-  "thisWeekAttendance": zod.int(),
-  "lastWeekAttendance": zod.int().optional(),
-  "attendanceToday": zod.int().optional(),
-  "newMembersThisMonth": zod.int().optional(),
+  "totalMembers": zod.number().int(),
+  "activeMembers": zod.number().int(),
+  "totalBranches": zod.number().int(),
+  "totalGroups": zod.number().int(),
+  "cellGroups": zod.number().int().optional(),
+  "thisWeekAttendance": zod.number().int(),
+  "lastWeekAttendance": zod.number().int().optional(),
+  "attendanceToday": zod.number().int().optional(),
+  "newMembersThisMonth": zod.number().int().optional(),
   "monthlyIncome": zod.number(),
   "monthlyExpenses": zod.number(),
-  "pendingWelfare": zod.int(),
-  "pendingWelfareRequests": zod.int().optional(),
-  "pendingRoleRequests": zod.int(),
-  "upcomingEvents": zod.int()
+  "pendingWelfare": zod.number().int(),
+  "pendingWelfareRequests": zod.number().int().optional(),
+  "pendingRoleRequests": zod.number().int(),
+  "upcomingEvents": zod.number().int()
 })
 
 
@@ -1211,10 +1211,10 @@ export const GetDashboardStatsResponse = zod.object({
  * @summary Get member portal stats
  */
 export const GetMemberStatsResponse = zod.object({
-  "myAttendanceCount": zod.int(),
+  "myAttendanceCount": zod.number().int(),
   "myGivingTotal": zod.number(),
-  "pendingWelfareRequests": zod.int(),
-  "upcomingEvents": zod.int()
+  "pendingWelfareRequests": zod.number().int(),
+  "upcomingEvents": zod.number().int()
 })
 
 
@@ -1226,8 +1226,8 @@ export const ListUserSessionsQueryParams = zod.object({
 })
 
 export const ListUserSessionsResponseItem = zod.object({
-  "id": zod.int(),
-  "userId": zod.int(),
+  "id": zod.number().int(),
+  "userId": zod.number().int(),
   "deviceName": zod.string(),
   "ipAddress": zod.string(),
   "lastSeenAt": zod.string(),
@@ -1245,8 +1245,8 @@ export const ListMemberSessionsParams = zod.object({
 })
 
 export const ListMemberSessionsResponseItem = zod.object({
-  "id": zod.int(),
-  "userId": zod.int(),
+  "id": zod.number().int(),
+  "userId": zod.number().int(),
   "deviceName": zod.string(),
   "ipAddress": zod.string(),
   "lastSeenAt": zod.string(),
