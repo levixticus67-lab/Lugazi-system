@@ -483,12 +483,12 @@ export default function HeroBanner() {
         >
           {/* Left: text content */}
           <div className="flex-1 min-w-0">
-            {/* Type badge */}
-            <div className="flex items-center gap-2 mb-3">
+            {/* Type badge — pinned dot merged in so there's only one pill at the top */}
+            <div className="flex items-center gap-2 mb-2.5">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm border border-white/20">
                 {isBirthday ? <><Cake className="h-3 w-3" /> Birthday Celebration</> : <><Megaphone className="h-3 w-3" /> {banner?.audience === "all" ? "Church Announcement" : `${banner?.audience?.charAt(0).toUpperCase()}${banner?.audience?.slice(1)} Notice`}</>}
+                {banner?.isPinned && <><span className="opacity-30 mx-0.5">·</span><Pin className="h-2.5 w-2.5 opacity-75" /></>}
               </span>
-              {banner?.isPinned && <span className="inline-flex items-center gap-1 text-[10px] text-white/70 bg-white/10 px-2 py-0.5 rounded-full"><Pin className="h-3 w-3" />Pinned</span>}
             </div>
 
             {/* Title */}
@@ -496,40 +496,10 @@ export default function HeroBanner() {
               {isBirthday ? `Happy Birthday, ${member!.fullName}! 🎉` : banner!.title}
             </h2>
 
-            {/* Message */}
-            <p className="text-white/85 text-sm md:text-base leading-relaxed line-clamp-2 mb-4">
+            {/* Message — more room now that action buttons live below the card */}
+            <p className="text-white/85 text-sm md:text-base leading-relaxed line-clamp-3 mt-1">
               {isBirthday ? "The church family is celebrating you today. You are loved! 🙏" : banner!.message}
             </p>
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              {isBirthday && (
-                <button
-                  onClick={() => sendWishes(member!)}
-                  disabled={wishSent.has(slide.key) || wishSending === slide.key}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-gray-900 text-sm font-semibold shadow-lg hover:bg-white/90 transition disabled:opacity-70"
-                >
-                  {wishSent.has(slide.key)
-                    ? <><Check className="h-3.5 w-3.5 text-green-600" /> Wishes Sent!</>
-                    : wishSending === slide.key
-                    ? "Sending…"
-                    : <><Send className="h-3.5 w-3.5" /> Send Wishes</>}
-                </button>
-              )}
-              {banner?.linkUrl && (
-                <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-gray-900 text-sm font-semibold shadow-lg hover:bg-white/90 transition">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  {banner.linkLabel || "Learn More"}
-                </a>
-              )}
-              <button
-                onClick={() => dismiss(slide.key)}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white/15 text-white text-xs font-medium hover:bg-white/25 transition backdrop-blur-sm border border-white/20"
-              >
-                <X className="h-3 w-3" /> Dismiss
-              </button>
-            </div>
           </div>
 
           {/* Right: avatar (birthday) or media thumbnail */}
@@ -549,7 +519,7 @@ export default function HeroBanner() {
             <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm transition">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button onClick={next} className="absolute right-10 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm transition">
+            <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm transition">
               <ChevronRight className="h-4 w-4" />
             </button>
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
@@ -580,12 +550,49 @@ export default function HeroBanner() {
           </button>
         )}
 
-        {/* ── Slide counter ── */}
-        {slides.length > 1 && (
-          <div className="absolute top-3 left-3 z-20 text-[10px] text-white/60 bg-black/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-            {current + 1} / {slides.length}
-          </div>
-        )}
+        {/* Slide counter moved to the action row below the card */}
+      </div>
+
+      {/* ── Action row — lives below the card so nothing covers the content ── */}
+      <div className="flex items-center justify-between mt-2 px-0.5">
+        {/* Left: slide counter as text (dots already inside card) */}
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          {slides.length > 1 ? `${current + 1} / ${slides.length}` : ""}
+        </span>
+
+        {/* Right: all action buttons, compact pill style */}
+        <div className="flex items-center gap-2">
+          {isBirthday && (
+            <button
+              onClick={() => sendWishes(member!)}
+              disabled={wishSent.has(slide.key) || wishSending === slide.key}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-foreground text-xs font-medium hover:bg-muted/80 transition disabled:opacity-60 border border-border"
+            >
+              {wishSent.has(slide.key)
+                ? <><Check className="h-3 w-3 text-green-500" /> Sent!</>
+                : wishSending === slide.key
+                ? "Sending…"
+                : <><Send className="h-3 w-3" /> Send Wishes</>}
+            </button>
+          )}
+          {banner?.linkUrl && (
+            <a
+              href={banner.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-foreground text-xs font-medium hover:bg-muted/80 transition border border-border"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {banner.linkLabel || "Learn More"}
+            </a>
+          )}
+          <button
+            onClick={() => dismiss(slide.key)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition border border-border"
+          >
+            <X className="h-3 w-3" /> Dismiss
+          </button>
+        </div>
       </div>
 
       {/* Admin modal */}
