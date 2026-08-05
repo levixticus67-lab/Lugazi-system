@@ -118,22 +118,16 @@ axios.interceptors.response.use(
       }
     }
 
-    // Refresh failed or exhausted. On Capacitor native the httpOnly refresh
-    // cookie is not forwarded cross-origin, so refresh always fails even with
-    // a valid JWT. Only wipe the session when the token is genuinely expired
-    // (or absent) — not on every transient 401 + failed refresh.
-    if (err.response?.status === 401 && !isAuthEndpoint) {
-      const storedToken = localStorage.getItem("dcl_token_jwt");
-      const expiry = storedToken ? getTokenExpiryMs(storedToken) : null;
-      if (!expiry || expiry < Date.now()) {
-        // Token is expired or absent — session is genuinely invalid
+       // Refresh failed or exhausted. Whether the token expired naturally or an
+      // admin revoked the session, the server has definitively rejected it.
+      // Clear the local session and redirect to login so the user isn't left in
+      // a broken state where every API call silently fails but the UI still
+      // shows them as logged in.
+      if (err.response?.status === 401 && !isAuthEndpoint) {
         localStorage.removeItem("dcl_user");
         localStorage.removeItem("dcl_token_jwt");
         window.location.href = "/login";
       }
-      // Token still valid → transient server issue, let caller handle the rejection
-    }
-
     return Promise.reject(err);
   }
 );
