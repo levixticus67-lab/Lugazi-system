@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, desc, or } from "drizzle-orm";
 import { db, tasksTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.get("/tasks", requireAuth, async (req: AuthRequest, res): Promise<void> =
   })));
 });
 
+// admin + pastor + leadership
 router.post("/tasks", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { title, description, assignedToUserId, assignedToName, dueDate, priority, category, notes } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Title is required" }); return; }
@@ -57,9 +59,19 @@ router.post("/tasks", requireAuth, requireRole(["admin", "pastor", "leadership"]
       relatedEntityId: record.id,
     });
   }
+  await logActivity({
+    userId: req.userId,
+    action: "create_task",
+    entityType: "task",
+    entityId: record.id,
+    entityName: title.trim(),
+    details: assignedToName ? `Assigned to: ${assignedToName}` : undefined,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString(), completedAt: null });
 });
 
+// auth (any role — assigned person can update status; admin/leadership can edit everything)
 router.patch("/tasks/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -97,13 +109,35 @@ router.patch("/tasks/:id", requireAuth, async (req: AuthRequest, res): Promise<v
     });
   }
 
+  // auth — log meaningful status changes and edits
+  const actionDetails = status ? `Status changed to: ${status}` : "Task details updated";
+  await logActivity({
+    userId: req.userId,
+    action: "update_task",
+    entityType: "task",
+    entityId: id,
+    entityName: updated.title,
+    details: actionDetails,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString(), completedAt: updated.completedAt?.toISOString() ?? null });
 });
 
-router.delete("/tasks/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+// admin + pastor + leadership
+router.delete("/tasks/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ title: tasksTable.title }).from(tasksTable).where(eq(tasksTable.id, id)).limit(1);
   await db.delete(tasksTable).where(eq(tasksTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "delete_task",
+    entityType: "task",
+    entityId: id,
+    entityName: existing?.title,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.sendStatus(204);
 });
 

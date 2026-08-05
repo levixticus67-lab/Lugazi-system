@@ -113,6 +113,9 @@ router.patch("/announcements/:id", requireAuth, requireRole(["admin", "pastor"])
     ...(isPinned !== undefined && { isPinned }),
   }).where(eq(announcementsTable.id, id)).returning();
   if (!record) { res.status(404).json({ error: "Not found" }); return; }
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  // admin + pastor
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "update_announcement", entityType: "announcement", entityId: id, entityName: record.title, ipAddress: req.ip ?? "unknown" });
   res.json({ ...record, createdAt: record.createdAt.toISOString(), expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null });
 });
 

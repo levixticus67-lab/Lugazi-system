@@ -2,6 +2,7 @@ import { Router } from "express";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, prayerRequestsTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.get("/prayer-requests", requireAuth, async (req: AuthRequest, res): Promi
   res.json(records.map(r => ({ ...r, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() })));
 });
 
+// auth — any member can submit
 router.post("/prayer-requests", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { subject, request, displayName, isAnonymous } = req.body;
   if (!subject || !request) { res.status(400).json({ error: "Subject and request are required" }); return; }
@@ -45,10 +47,20 @@ router.post("/prayer-requests", requireAuth, async (req: AuthRequest, res): Prom
       }))
     );
   }
+  // auth — log submission (skip details if anonymous to protect privacy)
+  await logActivity({
+    userId: req.userId,
+    action: "submit_prayer_request",
+    entityType: "prayer_request",
+    entityId: record.id,
+    entityName: isAnonymous ? "Anonymous request" : subject,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() });
 });
 
-router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+// admin + pastor + leadership
+router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const { status, adminNote } = req.body;
@@ -69,13 +81,33 @@ router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor"
       relatedEntityId: id,
     });
   }
+  // admin + pastor + leadership
+  await logActivity({
+    userId: req.userId,
+    action: "update_prayer_request",
+    entityType: "prayer_request",
+    entityId: id,
+    entityName: updated.subject,
+    details: status ? `Status: ${status}` : "Note updated",
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
+// admin + pastor only
+router.delete("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ subject: prayerRequestsTable.subject }).from(prayerRequestsTable).where(eq(prayerRequestsTable.id, id)).limit(1);
   await db.delete(prayerRequestsTable).where(eq(prayerRequestsTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "delete_prayer_request",
+    entityType: "prayer_request",
+    entityId: id,
+    entityName: existing?.subject,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.sendStatus(204);
 });
 

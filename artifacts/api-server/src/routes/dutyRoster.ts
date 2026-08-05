@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, dutyRosterTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.get("/duty-roster", requireAuth, async (req: AuthRequest, res): Promise<v
   res.json(records.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
+// admin + pastor + leadership
 router.post("/duty-roster", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { assignedToUserId, assignedToName, serviceDate, serviceType, dutyRole, location, notes } = req.body;
   if (!assignedToName || !serviceDate || !serviceType || !dutyRole) {
@@ -46,13 +48,35 @@ router.post("/duty-roster", requireAuth, requireRole(["admin", "pastor", "leader
       relatedEntityId: record.id,
     });
   }
+  // admin + pastor + leadership
+  await logActivity({
+    userId: req.userId,
+    action: "assign_duty",
+    entityType: "duty_roster",
+    entityId: record.id,
+    entityName: assignedToName,
+    details: `Role: ${dutyRole} | Service: ${serviceType} | Date: ${serviceDate}`,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.status(201).json({ ...record, createdAt: record.createdAt.toISOString() });
 });
 
-router.delete("/duty-roster/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+// admin + pastor + leadership
+router.delete("/duty-roster/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ assignedToName: dutyRosterTable.assignedToName, dutyRole: dutyRosterTable.dutyRole, serviceDate: dutyRosterTable.serviceDate })
+    .from(dutyRosterTable).where(eq(dutyRosterTable.id, id)).limit(1);
   await db.delete(dutyRosterTable).where(eq(dutyRosterTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "remove_duty",
+    entityType: "duty_roster",
+    entityId: id,
+    entityName: existing?.assignedToName,
+    details: existing ? `Role: ${existing.dutyRole} | Date: ${existing.serviceDate}` : undefined,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.sendStatus(204);
 });
 

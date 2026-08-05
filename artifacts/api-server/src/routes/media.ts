@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, mediaTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 import { v2 as cloudinary } from "cloudinary";
 import crypto from "crypto";
 
@@ -50,11 +51,9 @@ router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor
   let extra: Record<string, unknown>;
 
   if (publicId) {
-    // Explicit name — sign folder + public_id + timestamp (alphabetical)
     paramsToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}`;
     extra = { publicId };
   } else {
-    // Auto-name from original filename — sign folder + timestamp + unique_filename + use_filename (alphabetical)
     paramsToSign = `folder=${folder}&timestamp=${timestamp}&unique_filename=true&use_filename=true`;
     extra = { useFilename: true, uniqueFilename: true };
   }
@@ -63,16 +62,27 @@ router.get("/media/upload-signature", requireAuth, requireRole(["admin", "pastor
   res.json({ signature, timestamp, cloudName: config.cloud_name, apiKey: config.api_key, ...extra });
 });
 
+// admin + pastor + leadership + workforce
 router.post("/media", requireAuth, requireRole(["admin", "pastor", "leadership", "workforce"]), async (req: AuthRequest, res): Promise<void> => {
   const { title, type, url, thumbnailUrl, description, cloudinaryId } = req.body;
   if (!title || !type || !url) {
     res.status(400).json({ error: "title, type, url required" }); return;
   }
   const [item] = await db.insert(mediaTable).values({ title, type, url, thumbnailUrl, description, cloudinaryId, uploadedBy: req.userId }).returning();
+  await logActivity({
+    userId: req.userId,
+    action: "upload_media",
+    entityType: "media",
+    entityId: item.id,
+    entityName: title,
+    details: `Type: ${type}`,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
 });
 
-router.delete("/media/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
+// admin + pastor only
+router.delete("/media/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -83,6 +93,14 @@ router.delete("/media/:id", requireAuth, requireRole(["admin", "pastor"]), async
     await cloudinary.uploader.destroy(item.cloudinaryId).catch(() => {});
   }
   await db.delete(mediaTable).where(eq(mediaTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "delete_media",
+    entityType: "media",
+    entityId: id,
+    entityName: item?.title,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.sendStatus(204);
 });
 

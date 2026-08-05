@@ -2,6 +2,7 @@ import { Router } from "express";
 import { desc, eq, inArray, or, and, lt } from "drizzle-orm";
 import { db, meetingsTable, usersTable, inAppNotificationsTable, ministryTeamMembersTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -39,8 +40,6 @@ router.get("/meetings/mine", requireAuth, async (req: AuthRequest, res): Promise
     const teamRows = await db.select({ teamId: ministryTeamMembersTable.teamId }).from(ministryTeamMembersTable).where(eq(ministryTeamMembersTable.userId, req.userId!));
     const teamTargets = teamRows.map(t => `team:${t.teamId}`);
 
-    // Push the audience match into SQL instead of loading every meeting into
-    // memory and filtering in JS — keeps this cheap as the meetings table grows.
     const conditions = [
       eq(meetingsTable.portalTarget, role ?? ""),
       eq(meetingsTable.notifyAudience, "all"),
@@ -55,6 +54,7 @@ router.get("/meetings/mine", requireAuth, async (req: AuthRequest, res): Promise
   res.json(relevant.map(m => ({ ...m, scheduledAt: m.scheduledAt.toISOString(), createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() })));
 });
 
+// auth (role-scoped portals control who sees what)
 router.post("/meetings", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { title, description, agenda, scheduledAt, location, portalTarget, notes, notifyAudience } = req.body;
   if (!title || !scheduledAt) { res.status(400).json({ error: "title and scheduledAt required" }); return; }
@@ -86,7 +86,6 @@ router.post("/meetings", requireAuth, async (req: AuthRequest, res): Promise<voi
       userIds = rows.map(r => r.userId);
     }
 
-    // Don't notify the person who scheduled it
     userIds = userIds.filter(id => id !== req.userId);
 
     if (userIds.length > 0) {
@@ -104,20 +103,52 @@ router.post("/meetings", requireAuth, async (req: AuthRequest, res): Promise<voi
     }
   }
 
+  // auth
+  await logActivity({
+    userId: req.userId,
+    action: "create_meeting",
+    entityType: "meeting",
+    entityId: record.id,
+    entityName: title,
+    details: `Scheduled: ${new Date(scheduledAt).toLocaleDateString("en-GB")} | Portal: ${portalTarget || "leadership"}`,
+    ipAddress: req.ip ?? "unknown",
+  });
+
   res.status(201).json({ ...record, scheduledAt: record.scheduledAt.toISOString(), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() });
 });
 
+// auth
 router.patch("/meetings/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id);
   const { status, notes, attendees } = req.body;
   const [record] = await db.update(meetingsTable).set({ status, notes, attendees }).where(eq(meetingsTable.id, id)).returning();
   if (!record) { res.status(404).json({ error: "Not found" }); return; }
+  const details = status ? `Status: ${status}` : "Minutes/attendees updated";
+  await logActivity({
+    userId: req.userId,
+    action: "update_meeting",
+    entityType: "meeting",
+    entityId: id,
+    entityName: record.title,
+    details,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ ...record, scheduledAt: record.scheduledAt.toISOString(), createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() });
 });
 
+// auth
 router.delete("/meetings/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const id = Number(req.params.id);
+  const [existing] = await db.select({ title: meetingsTable.title }).from(meetingsTable).where(eq(meetingsTable.id, id)).limit(1);
   await db.delete(meetingsTable).where(eq(meetingsTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "delete_meeting",
+    entityType: "meeting",
+    entityId: id,
+    entityName: existing?.title,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ success: true });
 });
 

@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { eq, and, gt } from "drizzle-orm";
-import { db, sessionsTable, membersTable } from "@workspace/db";
+import { db, sessionsTable, membersTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
 // ── GET /admin/sessions?userId=X ──────────────────────────────────────────────
-// Returns all active (non-expired) sessions for a given user. Admin only.
+// Returns all active (non-expired) sessions for a given user. Admin + Pastor.
 router.get("/admin/sessions", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const rawUserId = req.query.userId;
   if (!rawUserId) { res.status(400).json({ error: "userId query param is required" }); return; }
@@ -45,7 +46,7 @@ router.get("/admin/sessions", requireAuth, requireRole(["admin", "pastor"]), asy
 
 // ── GET /admin/members/:memberId/sessions ─────────────────────────────────────
 // Convenience endpoint for the Members page — looks up the member's userId then
-// proxies to the sessions query above. Admin only.
+// proxies to the sessions query above. Admin + Pastor.
 router.get("/admin/members/:memberId/sessions", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const memberId = parseInt(req.params.memberId, 10);
   if (isNaN(memberId)) { res.status(400).json({ error: "Invalid memberId" }); return; }
@@ -91,12 +92,41 @@ router.get("/admin/members/:memberId/sessions", requireAuth, requireRole(["admin
 
 // ── DELETE /admin/sessions/:id ────────────────────────────────────────────────
 // Force sign-out: deletes the session row so the token is immediately dead.
-// Admin only.
+// Admin + Pastor only.
 router.delete("/admin/sessions/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const sessionId = parseInt(req.params.id, 10);
   if (isNaN(sessionId)) { res.status(400).json({ error: "Invalid session id" }); return; }
 
+  // Fetch session details before deleting so we can log them
+  const [session] = await db
+    .select({ userId: sessionsTable.userId, deviceName: sessionsTable.deviceName, ipAddress: sessionsTable.ipAddress })
+    .from(sessionsTable)
+    .where(eq(sessionsTable.id, sessionId))
+    .limit(1);
+
   await db.delete(sessionsTable).where(eq(sessionsTable.id, sessionId));
+
+  // Log: who force-signed-out whom, and which device was revoked
+  if (session) {
+    const [targetUser] = await db
+      .select({ displayName: usersTable.displayName })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId))
+      .limit(1);
+    const deviceLabel = session.deviceName ?? "Unknown device";
+    const targetLabel = targetUser?.displayName ?? `User #${session.userId}`;
+    // admin + pastor
+    await logActivity({
+      userId: req.userId,
+      action: "force_sign_out",
+      entityType: "user",
+      entityId: session.userId,
+      entityName: targetLabel,
+      details: `Revoked session on ${deviceLabel}`,
+      ipAddress: req.ip ?? "unknown",
+    });
+  }
+
   res.status(204).send();
 });
 

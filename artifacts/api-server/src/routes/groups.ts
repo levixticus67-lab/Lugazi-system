@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, sql, isNotNull } from "drizzle-orm";
 import { db, groupsTable, membersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.get("/groups/:id/members", requireAuth, async (req, res): Promise<void> =
   res.json(members);
 });
 
+// admin + pastor + leadership
 router.post("/groups/:id/members/:memberId", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const groupId = parseInt(req.params.id, 10);
   const memberId = parseInt(req.params.memberId, 10);
@@ -32,13 +34,25 @@ router.post("/groups/:id/members/:memberId", requireAuth, async (req: AuthReques
   if (group.leaderUserId !== req.userId && req.userRole !== "admin" && req.userRole !== "leadership") {
     res.status(403).json({ error: "Forbidden" }); return;
   }
+  const [member] = await db.select({ fullName: membersTable.fullName }).from(membersTable).where(eq(membersTable.id, memberId)).limit(1);
   await db.update(membersTable)
     .set({ cellGroupId: groupId, cellGroupName: group.name })
     .where(eq(membersTable.id, memberId));
   await db.update(groupsTable).set({ memberCount: group.memberCount + 1 }).where(eq(groupsTable.id, groupId));
+  // admin + pastor + leadership (group leader)
+  await logActivity({
+    userId: req.userId,
+    action: "group_member_added",
+    entityType: "group",
+    entityId: groupId,
+    entityName: group.name,
+    details: `Added member: ${member?.fullName ?? `#${memberId}`}`,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ success: true });
 });
 
+// admin + pastor + leadership
 router.delete("/groups/:id/members/:memberId", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const groupId = parseInt(req.params.id, 10);
   const memberId = parseInt(req.params.memberId, 10);
@@ -48,11 +62,22 @@ router.delete("/groups/:id/members/:memberId", requireAuth, async (req: AuthRequ
   if (group.leaderUserId !== req.userId && req.userRole !== "admin" && req.userRole !== "leadership") {
     res.status(403).json({ error: "Forbidden" }); return;
   }
+  const [member] = await db.select({ fullName: membersTable.fullName }).from(membersTable).where(eq(membersTable.id, memberId)).limit(1);
   await db.update(membersTable)
     .set({ cellGroupId: null, cellGroupName: null })
     .where(eq(membersTable.id, memberId));
   const newCount = Math.max(0, group.memberCount - 1);
   await db.update(groupsTable).set({ memberCount: newCount }).where(eq(groupsTable.id, groupId));
+  // admin + pastor + leadership (group leader)
+  await logActivity({
+    userId: req.userId,
+    action: "group_member_removed",
+    entityType: "group",
+    entityId: groupId,
+    entityName: group.name,
+    details: `Removed member: ${member?.fullName ?? `#${memberId}`}`,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ success: true });
 });
 
@@ -73,17 +98,28 @@ router.get("/groups", requireAuth, async (_req, res): Promise<void> => {
   })));
 });
 
-router.post("/groups", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+// admin + pastor + leadership
+router.post("/groups", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const { name, branchId, leaderName, leaderUserId, location, meetingDay, meetingTime, type, isActive } = req.body;
   if (!name || !branchId) { res.status(400).json({ error: "name and branchId required" }); return; }
   const [group] = await db.insert(groupsTable).values({
     name, branchId, leaderName, leaderUserId: leaderUserId ?? null, location, meetingDay, meetingTime,
     type: type ?? "cell", isActive: isActive ?? true,
   }).returning();
+  await logActivity({
+    userId: req.userId,
+    action: "create_group",
+    entityType: "group",
+    entityId: group.id,
+    entityName: name,
+    details: `Type: ${type ?? "cell"}`,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.status(201).json({ ...group, createdAt: group.createdAt.toISOString(), updatedAt: group.updatedAt.toISOString() });
 });
 
-router.patch("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+// admin + pastor + leadership
+router.patch("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -99,15 +135,33 @@ router.patch("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leader
   if (isActive !== undefined) updateData.isActive = isActive;
   const [updated] = await db.update(groupsTable).set(updateData).where(eq(groupsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Group not found" }); return; }
+  await logActivity({
+    userId: req.userId,
+    action: "update_group",
+    entityType: "group",
+    entityId: id,
+    entityName: updated.name,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+// admin + pastor + leadership
+router.delete("/groups/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ name: groupsTable.name }).from(groupsTable).where(eq(groupsTable.id, id)).limit(1);
   await db.update(membersTable).set({ cellGroupId: null, cellGroupName: null }).where(eq(membersTable.cellGroupId, id));
   await db.delete(groupsTable).where(eq(groupsTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "delete_group",
+    entityType: "group",
+    entityId: id,
+    entityName: existing?.name,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.sendStatus(204);
 });
 

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, branchesTable } from "@workspace/db";
-import { requireAuth, requireRole } from "../middlewares/auth";
+import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../lib/activityLog";
 
 const router = Router();
 
@@ -10,14 +11,25 @@ router.get("/branches", requireAuth, async (_req, res): Promise<void> => {
   res.json(branches.map(b => ({ ...b, createdAt: b.createdAt.toISOString(), updatedAt: b.updatedAt.toISOString() })));
 });
 
-router.post("/branches", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
+// admin + pastor
+router.post("/branches", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const { name, location, leaderName } = req.body;
   if (!name || !location) { res.status(400).json({ error: "name and location required" }); return; }
   const [branch] = await db.insert(branchesTable).values({ name, location, leaderName }).returning();
+  await logActivity({
+    userId: req.userId,
+    action: "create_branch",
+    entityType: "branch",
+    entityId: branch.id,
+    entityName: name,
+    details: `Location: ${location}`,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.status(201).json({ ...branch, createdAt: branch.createdAt.toISOString(), updatedAt: branch.updatedAt.toISOString() });
 });
 
-router.patch("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
+// admin + pastor
+router.patch("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -28,14 +40,32 @@ router.patch("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), asy
   if (leaderName !== undefined) updateData.leaderName = leaderName;
   const [updated] = await db.update(branchesTable).set(updateData).where(eq(branchesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Branch not found" }); return; }
+  await logActivity({
+    userId: req.userId,
+    action: "update_branch",
+    entityType: "branch",
+    entityId: id,
+    entityName: updated.name,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
-router.delete("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), async (req, res): Promise<void> => {
+// admin + pastor
+router.delete("/branches/:id", requireAuth, requireRole(["admin", "pastor"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [existing] = await db.select({ name: branchesTable.name }).from(branchesTable).where(eq(branchesTable.id, id)).limit(1);
   await db.delete(branchesTable).where(eq(branchesTable.id, id));
+  await logActivity({
+    userId: req.userId,
+    action: "delete_branch",
+    entityType: "branch",
+    entityId: id,
+    entityName: existing?.name,
+    ipAddress: req.ip ?? "unknown",
+  });
   res.sendStatus(204);
 });
 

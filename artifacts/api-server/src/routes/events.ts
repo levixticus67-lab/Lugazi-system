@@ -40,7 +40,7 @@ router.post("/events", requireAuth, requireRole(["admin", "pastor", "leadership"
   res.status(201).json({ ...event, createdAt: event.createdAt.toISOString(), updatedAt: event.updatedAt.toISOString() });
 });
 
-router.patch("/events/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/events/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -54,6 +54,9 @@ router.patch("/events/:id", requireAuth, requireRole(["admin", "pastor", "leader
   if (category !== undefined) updateData.category = category;
   const [updated] = await db.update(eventsTable).set(updateData).where(eq(eventsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Event not found" }); return; }
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  // admin + pastor + leadership
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "update_event", entityType: "event", entityId: id, entityName: updated.title, ipAddress: req.ip ?? "unknown" });
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 

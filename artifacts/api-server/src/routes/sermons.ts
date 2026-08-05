@@ -38,7 +38,7 @@ router.post("/sermons", requireAuth, requireRole(["admin", "pastor", "leadership
   res.status(201).json({ ...sermon, createdAt: sermon.createdAt.toISOString(), updatedAt: sermon.updatedAt.toISOString() });
 });
 
-router.patch("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req, res): Promise<void> => {
+router.patch("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const { title, preacher, sermonDate, series, description, mediaUrl, mediaType, thumbnailUrl, scriptureRef } = req.body;
@@ -54,6 +54,9 @@ router.patch("/sermons/:id", requireAuth, requireRole(["admin", "pastor", "leade
   if (scriptureRef !== undefined) update.scriptureRef = scriptureRef;
   const [updated] = await db.update(sermonsTable).set(update).where(eq(sermonsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  const [actor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  // admin + pastor + leadership
+  await logActivity({ userId: req.userId!, displayName: actor?.displayName ?? "Admin", action: "update_sermon", entityType: "sermon", entityId: id, entityName: updated.title, ipAddress: req.ip ?? "unknown" });
   res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
 });
 
