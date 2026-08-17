@@ -10,6 +10,7 @@ export const membersTable = pgTable("members", {
   email: text("email").notNull().unique(),
   phone: text("phone"),
   role: roleEnum("role").notNull().default("member"),
+  ageGroup: text("age_group").notNull().default("adult"),
   branchId: integer("branch_id").notNull().default(1),
   department: text("department"),
   profession: text("profession"),
@@ -26,6 +27,7 @@ export const membersTable = pgTable("members", {
 }, (table) => [
   index("members_branch_id_idx").on(table.branchId),
   index("members_cell_group_id_idx").on(table.cellGroupId),
+  index("members_age_group_idx").on(table.ageGroup),
   index("members_is_active_idx").on(table.isActive),
 ]);
 

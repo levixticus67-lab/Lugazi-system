@@ -42,6 +42,7 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
     const base = {
       id: m.id, fullName: m.fullName, department: m.department, profession: m.profession,
       branchId: m.branchId, role: m.role, isActive: m.isActive,
+      ageGroup: m.ageGroup,
       photoUrl: mergePhoto(m.photoUrl, m.userId ? userPhotoMap[m.userId] : undefined),
       birthday: m.birthday ?? null, createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString(),
     };
@@ -53,13 +54,13 @@ router.get("/members", requireAuth, async (req: AuthRequest, res): Promise<void>
 });
 
 router.post("/members", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
-  const { fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address } = req.body;
+  const { fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address, ageGroup } = req.body;
   if (!fullName || !email || !branchId) { res.status(400).json({ error: "fullName, email, and branchId are required" }); return; }
   const [blocked] = await db.select({ id: usersTable.id, isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (blocked && !blocked.isActive) { res.status(403).json({ error: "This person has been removed and blocked from re-entry. Contact an admin to reinstate them." }); return; }
   const [member] = await db.insert(membersTable).values({
     fullName, email, phone, branchId, department, profession, photoUrl, bio, birthday, address,
-    role: "member", qrToken: uuidv4(), isActive: true,
+    role: "member", ageGroup: ageGroup === "child" ? "child" : "adult", qrToken: uuidv4(), isActive: true,
   }).returning();
   await logActivity({ userId: req.userId, action: "create_member", entityType: "member", entityId: member.id, entityName: fullName, details: email, ipAddress: req.ip ?? "unknown" });
   res.status(201).json({ ...member, createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() });
@@ -95,7 +96,7 @@ router.get("/members/:id", requireAuth, async (req: AuthRequest, res): Promise<v
     userPhoto = u?.photoUrl ?? null;
   }
   const canSeeSensitive = SENSITIVE_ROLES.includes(req.userRole ?? "member");
-  const base = { id: member.id, fullName: member.fullName, department: member.department, profession: member.profession, branchId: member.branchId, role: member.role, isActive: member.isActive, photoUrl: mergePhoto(member.photoUrl, userPhoto), createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() };
+  const base = { id: member.id, fullName: member.fullName, department: member.department, profession: member.profession, branchId: member.branchId, role: member.role, ageGroup: member.ageGroup, isActive: member.isActive, photoUrl: mergePhoto(member.photoUrl, userPhoto), createdAt: member.createdAt.toISOString(), updatedAt: member.updatedAt.toISOString() };
   if (canSeeSensitive) { res.json({ ...base, email: member.email, phone: member.phone, address: member.address, bio: member.bio, birthday: member.birthday, userId: member.userId, qrToken: member.qrToken }); }
   else { res.json(base); }
 });
@@ -107,7 +108,7 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "pastor", "leade
   const [target] = await db.select({ role: membersTable.role }).from(membersTable).where(eq(membersTable.id, id)).limit(1);
   if (!target) { res.status(404).json({ error: "Member not found" }); return; }
   if (target.role === "admin" && req.userRole !== "admin") { res.status(403).json({ error: "You cannot edit an admin account" }); return; }
-  const { fullName, phone, branchId, department, profession, photoUrl, bio, birthday, address, isActive } = req.body;
+  const { fullName, phone, branchId, department, profession, photoUrl, bio, birthday, address, ageGroup, isActive } = req.body;
   const updateData: Record<string, unknown> = {};
   if (fullName !== undefined) updateData.fullName = fullName;
   if (phone !== undefined) updateData.phone = phone;
@@ -118,6 +119,7 @@ router.patch("/members/:id", requireAuth, requireRole(["admin", "pastor", "leade
   if (bio !== undefined) updateData.bio = bio;
   if (birthday !== undefined) updateData.birthday = birthday;
   if (address !== undefined) updateData.address = address;
+  if (ageGroup !== undefined) updateData.ageGroup = ageGroup === "child" ? "child" : "adult";
   if (isActive !== undefined && req.userRole === "admin") updateData.isActive = isActive;
   const [updated] = await db.update(membersTable).set(updateData).where(eq(membersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }

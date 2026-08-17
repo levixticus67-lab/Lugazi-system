@@ -4,6 +4,7 @@ export * from "./members";
 export * from "./branches";
 export * from "./groups";
 export * from "./attendance";
+export * from "./cellAttendance";
 export * from "./events";
 export * from "./finance";
 export * from "./media";
