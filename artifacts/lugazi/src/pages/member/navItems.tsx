@@ -1,7 +1,7 @@
 import { NavItem } from "@/components/PortalLayout";
 import {
   LayoutDashboard, User, CalendarCheck, CalendarDays, Heart,
-  ArrowUpCircle, QrCode, HandHeart, Mic2, Users, HandCoins, Star, Image
+  ArrowUpCircle, QrCode, HandHeart, Mic2, Users, HandCoins, Star, Image, ClipboardCheck
 } from "lucide-react";
 
 export const memberNavItems: NavItem[] = [
@@ -9,6 +9,7 @@ export const memberNavItems: NavItem[] = [
   { label: "My Profile", href: "/member/profile", icon: <User className="h-4 w-4" /> },
   { label: "My Family", href: "/member/family", icon: <Users className="h-4 w-4" /> },
   { label: "Attendance", href: "/member/attendance", icon: <CalendarCheck className="h-4 w-4" /> },
+  { label: "Cell Attendance", href: "/member/cell-attendance", icon: <ClipboardCheck className="h-4 w-4" /> },
   { label: "Events", href: "/member/events", icon: <CalendarDays className="h-4 w-4" /> },
   { label: "Sermon Library", href: "/member/sermons", icon: <Mic2 className="h-4 w-4" /> },
   { label: "Media Gallery", href: "/member/media", icon: <Image className="h-4 w-4" /> },

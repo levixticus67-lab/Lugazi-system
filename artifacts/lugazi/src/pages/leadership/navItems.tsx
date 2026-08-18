@@ -2,7 +2,7 @@ import { NavItem } from "@/components/PortalLayout";
 import {
   LayoutDashboard, Users, CalendarCheck, CalendarDays, Heart,
   FileText, TrendingUp, User, HandHeart, Mic2, Calendar, UserCheck, Image, Home, HandCoins, QrCode,
-  ClipboardList, CalendarRange, UsersRound, HeartHandshake
+  ClipboardList, ClipboardCheck, CalendarRange, UsersRound, HeartHandshake
 } from "lucide-react";
 
 export const leadershipNavItems: NavItem[] = [
@@ -15,6 +15,7 @@ export const leadershipNavItems: NavItem[] = [
   { label: "Task Assignments",href: "/leadership/tasks",          icon: <ClipboardList className="h-4 w-4" /> },
   { label: "Duty Roster",     href: "/leadership/duty-roster",    icon: <CalendarRange className="h-4 w-4" /> },
   { label: "Cell Fellowship", href: "/leadership/groups",         icon: <Home className="h-4 w-4" /> },
+  { label: "Cell Attendance", href: "/leadership/cell-attendance", icon: <ClipboardCheck className="h-4 w-4" /> },
   { label: "Attendance",      href: "/leadership/attendance",     icon: <CalendarCheck className="h-4 w-4" /> },
   { label: "Events",          href: "/leadership/events",         icon: <CalendarDays className="h-4 w-4" /> },
   { label: "Meetings",        href: "/leadership/meetings",       icon: <Calendar className="h-4 w-4" /> },

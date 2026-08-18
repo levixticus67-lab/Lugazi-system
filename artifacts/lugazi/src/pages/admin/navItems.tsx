@@ -4,7 +4,7 @@ import {
   CalendarCheck, CalendarDays, Image, Heart,
   FileText, TrendingUp, FolderOpen, Settings, User, Mic2, HandHeart, Cake,
   Megaphone, Home, BookOpen, HandCoins, Star, ClipboardList, CalendarRange, UsersRound,
-  Activity, HeartHandshake,
+  Activity, HeartHandshake, ClipboardCheck,
 } from "lucide-react";
 
 export const adminNavItems: NavItem[] = [
@@ -15,6 +15,7 @@ export const adminNavItems: NavItem[] = [
   { label: "Users & Roles",      href: "/admin/users",           icon: <UserCog className="h-4 w-4" /> },
   { label: "Role Requests",      href: "/admin/role-requests",   icon: <Bell className="h-4 w-4" /> },
   { label: "Cell Fellowship",    href: "/admin/cell-fellowship", icon: <Home className="h-4 w-4" /> },
+  { label: "Cell Attendance",     href: "/admin/cell-attendance",  icon: <ClipboardCheck className="h-4 w-4" /> },
   { label: "Ministry Teams",     href: "/admin/ministry-teams",  icon: <UsersRound className="h-4 w-4" /> },
   { label: "Task Assignments",   href: "/admin/tasks",           icon: <ClipboardList className="h-4 w-4" /> },
   { label: "Duty Roster",        href: "/admin/duty-roster",     icon: <CalendarRange className="h-4 w-4" /> },

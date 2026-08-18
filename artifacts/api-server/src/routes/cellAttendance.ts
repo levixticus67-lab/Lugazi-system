@@ -59,7 +59,11 @@ function normaliseCountMode(value: unknown, hasRecords: boolean, hasManualCounts
 }
 
 async function getAccessibleGroup(groupId: number, req: AuthRequest) {
-  const [group] = await db.select().from(groupsTable).where(eq(groupsTable.id, groupId)).limit(1);
+  const [group] = await db
+    .select()
+    .from(groupsTable)
+    .where(and(eq(groupsTable.id, groupId), eq(groupsTable.type, "cell")))
+    .limit(1);
   if (!group) return null;
   if (!isManager(req) && group.leaderUserId !== req.userId) return null;
   return group;
@@ -131,7 +135,7 @@ router.get("/cell-attendance/my-group", requireAuth, async (req: AuthRequest, re
   const [group] = await db
     .select()
     .from(groupsTable)
-    .where(eq(groupsTable.leaderUserId, req.userId!))
+    .where(and(eq(groupsTable.leaderUserId, req.userId!), eq(groupsTable.type, "cell")))
     .limit(1);
   if (!group) {
     res.json(null);

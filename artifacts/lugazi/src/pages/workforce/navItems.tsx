@@ -2,7 +2,7 @@ import { NavItem } from "@/components/PortalLayout";
 import {
   LayoutDashboard, CalendarCheck, CalendarDays, FileText, Image, User,
   Mic2, Calendar, HandCoins, QrCode, HandHeart, Heart, Star,
-  ClipboardList, CalendarRange, Users, HeartHandshake
+  ClipboardList, ClipboardCheck, CalendarRange, Users, HeartHandshake
 } from "lucide-react";
 
 export const workforceNavItems: NavItem[] = [
@@ -16,6 +16,7 @@ export const workforceNavItems: NavItem[] = [
   { label: "Testimonies",     href: "/workforce/testimonies",    icon: <Star className="h-4 w-4" /> },
   { label: "Welfare",         href: "/workforce/welfare",        icon: <Heart className="h-4 w-4" /> },
   { label: "Attendance",      href: "/workforce/attendance",     icon: <CalendarCheck className="h-4 w-4" /> },
+  { label: "Cell Attendance", href: "/workforce/cell-attendance", icon: <ClipboardCheck className="h-4 w-4" /> },
   { label: "Events",          href: "/workforce/events",         icon: <CalendarDays className="h-4 w-4" /> },
   { label: "Meetings",        href: "/workforce/meetings",       icon: <Calendar className="h-4 w-4" /> },
   { label: "Sermon Library",  href: "/workforce/sermons",        icon: <Mic2 className="h-4 w-4" /> },

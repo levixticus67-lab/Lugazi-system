@@ -41,6 +41,7 @@ import axios from "@/lib/axios";
   const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
   const AdminCommunication = lazy(() => import("@/pages/admin/Communication"));
   const AdminCellFellowship = lazy(() => import("@/pages/admin/CellFellowship"));
+  const AdminCellAttendance = lazy(() => import("@/pages/admin/CellAttendance"));
   const AdminInduction = lazy(() => import("@/pages/admin/Induction"));
   const AdminGiving = lazy(() => import("@/pages/admin/Giving"));
   const AdminTestimonies = lazy(() => import("@/pages/admin/Testimonies"));
@@ -58,6 +59,7 @@ import axios from "@/lib/axios";
   const PastorRoleRequests = lazy(() => import("@/pages/pastor/RoleRequests"));
   const PastorMeetings = lazy(() => import("@/pages/pastor/Meetings"));
   const PastorFamily = lazy(() => import("@/pages/pastor/Family"));
+  const PastorCellAttendance = lazy(() => import("@/pages/pastor/CellAttendance"));
 
   // Leadership pages
   const LeadershipDashboard = lazy(() => import("@/pages/leadership/Dashboard"));
@@ -80,6 +82,7 @@ import axios from "@/lib/axios";
   const LeadershipDutyRoster = lazy(() => import("@/pages/leadership/DutyRoster"));
   const LeadershipMinistryTeams = lazy(() => import("@/pages/leadership/MinistryTeams"));
   const LeadershipFamily = lazy(() => import("@/pages/leadership/Family"));
+  const LeadershipCellAttendance = lazy(() => import("@/pages/leadership/CellAttendance"));
 
   // Workforce pages
   const WorkforceDashboard = lazy(() => import("@/pages/workforce/Dashboard"));
@@ -99,6 +102,7 @@ import axios from "@/lib/axios";
   const WorkforceWelfare = lazy(() => import("@/pages/workforce/Welfare"));
   const WorkforceTestimonies = lazy(() => import("@/pages/workforce/Testimonies"));
   const WorkforceFamily = lazy(() => import("@/pages/workforce/Family"));
+  const WorkforceCellAttendance = lazy(() => import("@/pages/workforce/CellAttendance"));
 
   // Member pages
   const MemberDashboard = lazy(() => import("@/pages/member/Dashboard"));
@@ -114,6 +118,7 @@ import axios from "@/lib/axios";
   const MemberGiving = lazy(() => import("@/pages/member/Giving"));
   const MemberTestimonies = lazy(() => import("@/pages/member/Testimonies"));
   const MemberMedia = lazy(() => import("@/pages/member/Media"));
+  const MemberCellAttendance = lazy(() => import("@/pages/member/CellAttendance"));
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -242,6 +247,7 @@ import axios from "@/lib/axios";
         <Route path="/admin/role-requests"><RequireAuth roles={["admin"]}><AdminRoleRequests /></RequireAuth></Route>
         <Route path="/admin/groups"><RequireAuth roles={["admin"]}><AdminGroups /></RequireAuth></Route>
         <Route path="/admin/cell-fellowship"><RequireAuth roles={["admin"]}><AdminCellFellowship /></RequireAuth></Route>
+        <Route path="/admin/cell-attendance"><RequireAuth roles={["admin"]}><AdminCellAttendance /></RequireAuth></Route>
         <Route path="/admin/induction"><RequireAuth roles={["admin"]}><AdminInduction /></RequireAuth></Route>
         <Route path="/admin/attendance"><RequireAuth roles={["admin"]}><AdminAttendance /></RequireAuth></Route>
         <Route path="/admin/events"><RequireAuth roles={["admin"]}><AdminEvents /></RequireAuth></Route>
@@ -269,6 +275,7 @@ import axios from "@/lib/axios";
         <Route path="/pastor/members"><RequireAuth roles={["admin", "pastor"]}><PastorMembers /></RequireAuth></Route>
         <Route path="/pastor/role-requests"><RequireAuth roles={["admin", "pastor"]}><PastorRoleRequests /></RequireAuth></Route>
         <Route path="/pastor/cell-fellowship"><RequireAuth roles={["admin", "pastor"]}><AdminCellFellowship /></RequireAuth></Route>
+        <Route path="/pastor/cell-attendance"><RequireAuth roles={["admin", "pastor"]}><PastorCellAttendance /></RequireAuth></Route>
         <Route path="/pastor/ministry-teams"><RequireAuth roles={["admin", "pastor"]}><AdminMinistryTeams /></RequireAuth></Route>
         <Route path="/pastor/tasks"><RequireAuth roles={["admin", "pastor"]}><AdminTasks /></RequireAuth></Route>
         <Route path="/pastor/duty-roster"><RequireAuth roles={["admin", "pastor"]}><AdminDutyRoster /></RequireAuth></Route>
@@ -296,6 +303,7 @@ import axios from "@/lib/axios";
         <Route path="/leadership/teams"><RequireAuth roles={["admin", "leadership"]}><LeadershipTeams /></RequireAuth></Route>
         <Route path="/leadership/ministry-teams"><RequireAuth roles={["admin", "leadership"]}><LeadershipMinistryTeams /></RequireAuth></Route>
         <Route path="/leadership/groups"><RequireAuth roles={["admin", "leadership"]}><LeadershipGroups /></RequireAuth></Route>
+        <Route path="/leadership/cell-attendance"><RequireAuth roles={["admin", "leadership"]}><LeadershipCellAttendance /></RequireAuth></Route>
         <Route path="/leadership/attendance"><RequireAuth roles={["admin", "leadership"]}><LeadershipAttendance /></RequireAuth></Route>
         <Route path="/leadership/events"><RequireAuth roles={["admin", "leadership"]}><LeadershipEvents /></RequireAuth></Route>
         <Route path="/leadership/meetings"><RequireAuth roles={["admin", "leadership"]}><LeadershipMeetings /></RequireAuth></Route>
@@ -329,6 +337,7 @@ import axios from "@/lib/axios";
         <Route path="/workforce/welfare"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceWelfare /></RequireAuth></Route>
         <Route path="/workforce/testimonies"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceTestimonies /></RequireAuth></Route>
         <Route path="/workforce/family"><RequireAuth roles={["admin", "workforce"]}><WorkforceFamily /></RequireAuth></Route>
+        <Route path="/workforce/cell-attendance"><RequireAuth roles={["admin", "leadership", "workforce"]}><WorkforceCellAttendance /></RequireAuth></Route>
 
         {/* ── Member portal — all roles ── */}
         <Route path="/member/dashboard"><RequireAuth><MemberDashboard /></RequireAuth></Route>
@@ -343,6 +352,7 @@ import axios from "@/lib/axios";
         <Route path="/member/welfare"><RequireAuth><MemberWelfare /></RequireAuth></Route>
         <Route path="/member/upgrade"><RequireAuth><MemberUpgrade /></RequireAuth></Route>
         <Route path="/member/media"><RequireAuth><MemberMedia /></RequireAuth></Route>
+        <Route path="/member/cell-attendance"><RequireAuth><MemberCellAttendance /></RequireAuth></Route>
         <Route path="/member/qr"><RequireAuth><MemberQrCode /></RequireAuth></Route>
 
         <Route path="/reset-password" component={ResetPassword} />
