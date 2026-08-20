@@ -131,9 +131,14 @@ export default function CellLeaderCard() {
                   {m.phone && <p className="text-[10px] text-muted-foreground">{m.phone}</p>}
                 </div>
                 <button
-                  onClick={() => removeMember.mutate(m.id)}
+                  onClick={() => {
+                    if (window.confirm(`Remove ${m.fullName} from ${group.name}? They will no longer be assigned to this cell fellowship.`)) {
+                      removeMember.mutate(m.id);
+                    }
+                  }}
                   disabled={removeMember.isPending}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition p-1"
+                  aria-label={`Remove ${m.fullName} from ${group.name}`}
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition p-2 rounded-lg hover:bg-destructive/10 shrink-0"
                   title="Remove from fellowship"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
