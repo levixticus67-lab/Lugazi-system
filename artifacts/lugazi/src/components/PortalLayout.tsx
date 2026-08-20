@@ -143,7 +143,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
               </div>}
           <div className="min-w-0 flex-1">
             <p className="text-sidebar-foreground text-xs font-medium truncate">{user?.displayName}</p>
-            <p className="text-sidebar-foreground/50 text-xs truncate capitalize">{user?.role}</p>
+            <p className="text-sidebar-foreground/50 text-xs truncate capitalize">{user?.role === "workforce" ? "Ministry" : user?.role}</p>
           </div>
           <ThemeToggle />
           <button onClick={logout} className="text-sidebar-foreground/50 hover:text-destructive transition-colors"
@@ -404,7 +404,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
               <UserAvatar size="md" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate">{user?.displayName}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                <p className="text-xs text-muted-foreground capitalize">{user?.role === "workforce" ? "Ministry" : user?.role}</p>
               </div>
               <button onClick={logout}
                 className="flex items-center gap-1.5 text-xs font-semibold text-destructive shrink-0 px-3 py-2 rounded-xl bg-destructive/10 hover:bg-destructive/15 transition-colors">

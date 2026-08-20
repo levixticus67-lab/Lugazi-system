@@ -108,7 +108,7 @@ const roleBadge: Record<string, string> = {
   member: "bg-slate-500/20 text-slate-400 border border-slate-500/30",
 };
 const roleLabel: Record<string, string> = {
-  admin: "Admin", leadership: "Leader", workforce: "Workforce", member: "Member", pastor: "Pastor",
+  admin: "Admin", leadership: "Leader", workforce: "Ministry", member: "Member", pastor: "Pastor",
 };
 
 function Avatar({ name, photoUrl, size = "sm" }: { name: string; photoUrl?: string | null; size?: "sm" | "xs" }) {
