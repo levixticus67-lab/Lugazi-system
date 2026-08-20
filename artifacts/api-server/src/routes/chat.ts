@@ -2,6 +2,7 @@ import { Router } from "express";
 import { desc, eq, and, ilike, or, sql, ne, gte } from "drizzle-orm";
 import { db, chatMessagesTable, chatReactionsTable, privateMessagesTable, userStatusTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
+import { createNotifications } from "../lib/fcm";
 import { checkDbRateLimit } from "../lib/rateLimiter";
 
 const router = Router();
@@ -201,7 +202,7 @@ router.post("/chat/dm/:otherUserId", requireAuth, async (req: AuthRequest, res):
   if (!isPrivateMode) {
     const senderName = fromName || "Someone";
     const preview = message.trim().slice(0, 80) + (message.trim().length > 80 ? "…" : "");
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: otherId,
       title: "New message from " + senderName,
       message: preview,

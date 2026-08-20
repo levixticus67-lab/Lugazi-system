@@ -1,6 +1,6 @@
 import admin from "firebase-admin";
 import { db, fcmTokensTable, inAppNotificationsTable } from "@workspace/db";
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 
 const PUSH_CHANNEL_ID = "dcl-push";
@@ -73,22 +73,44 @@ async function sendFcmPush(
   }
 }
 
-async function tick(messaging: admin.messaging.Messaging): Promise<void> {
-  try {
-    const pending = await db
-      .select()
-      .from(inAppNotificationsTable)
-      .where(isNull(inAppNotificationsTable.fcmSentAt))
-      .limit(50);
+/**
+ * Creates an in-app notification and immediately sends its FCM push.
+ *
+ * This is intentionally event-triggered: callers invoke it immediately after
+ * the business event creates a notification, so there is no database polling
+ * loop keeping Neon awake during idle periods.
+ *
+ * Required env var: FIREBASE_SERVICE_ACCOUNT
+ *   → Paste the full contents of your Firebase service account JSON key file.
+ *   → Generate one at: Firebase Console → Project Settings → Service Accounts →
+ *     "Generate new private key"
+ *
+ * Does nothing for push delivery if the env var is missing, so the server
+ * still works normally in development.
+ */
+export async function createNotifications(
+  values: typeof inAppNotificationsTable.$inferInsert | typeof inAppNotificationsTable.$inferInsert[],
+): Promise<void> {
+  const notifications = Array.isArray(values) ? values : [values];
+  if (notifications.length === 0) return;
 
-    if (pending.length === 0) return;
+  const inserted = await db
+    .insert(inAppNotificationsTable)
+    .values(notifications)
+    .returning({
+      id: inAppNotificationsTable.id,
+      userId: inAppNotificationsTable.userId,
+      title: inAppNotificationsTable.title,
+      message: inAppNotificationsTable.message,
+    });
 
-    for (const notif of pending) {
-      await db
-        .update(inAppNotificationsTable)
-        .set({ fcmSentAt: new Date() })
-        .where(eq(inAppNotificationsTable.id, notif.id));
+  const messaging = getMessaging();
+  if (!messaging) {
+    return;
+  }
 
+  await Promise.all(inserted.map(async (notif) => {
+    try {
       const tokens = await db
         .select({ token: fcmTokensTable.token })
         .from(fcmTokensTable)
@@ -97,39 +119,17 @@ async function tick(messaging: admin.messaging.Messaging): Promise<void> {
       for (const { token } of tokens) {
         const isStale = await sendFcmPush(token, notif.title, notif.message, messaging);
         if (isStale) {
-          // Permanently delete the dead token so it never wastes a send again
-          await db
-            .delete(fcmTokensTable)
-            .where(eq(fcmTokensTable.token, token));
+          await db.delete(fcmTokensTable).where(eq(fcmTokensTable.token, token));
           logger.info({ token: token.slice(0, 12) }, "FCM: deleted stale token from DB");
         }
       }
-    }
-  } catch (err) {
-    logger.error(err, "FCM worker tick error");
-  }
-}
 
-/**
- * Starts the FCM background worker using the Firebase Admin SDK (FCM HTTP v1 API).
- *
- * Required env var: FIREBASE_SERVICE_ACCOUNT
- *   → Paste the full contents of your Firebase service account JSON key file.
- *   → Generate one at: Firebase Console → Project Settings → Service Accounts →
- *     "Generate new private key"
- *
- * Does nothing if the env var is missing, so the server works fine in dev.
- */
-export function startFcmWorker(): void {
-  const messaging = getMessaging();
-  if (!messaging) {
-    logger.info(
-      "FIREBASE_SERVICE_ACCOUNT not set — push notifications disabled. " +
-        "Set this env var on Render to enable FCM HTTP v1 pushes.",
-    );
-    return;
-  }
-  logger.info("FCM worker started — HTTP v1 API via firebase-admin (30 s interval)");
-  void tick(messaging);
-  setInterval(() => void tick(messaging), 30_000);
+      await db
+        .update(inAppNotificationsTable)
+        .set({ fcmSentAt: new Date() })
+        .where(eq(inAppNotificationsTable.id, notif.id));
+    } catch (err) {
+      logger.error({ err, notificationId: notif.id }, "FCM event-triggered push failed");
+    }
+  }));
 }

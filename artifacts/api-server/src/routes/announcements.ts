@@ -4,6 +4,7 @@ import { db, announcementsTable, usersTable, inAppNotificationsTable } from "@wo
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -81,7 +82,7 @@ router.post("/announcements", requireAuth, requireRole(["admin", "pastor", "lead
     const notifyUsers = recipients.filter(u => u.id !== req.userId);
     if (notifyUsers.length > 0) {
       const senderName = actor?.displayName ?? record.sentBy ?? "Admin";
-      await db.insert(inAppNotificationsTable).values(
+      await createNotifications(
         notifyUsers.map(u => ({
           userId: u.id,
           title: "📢 " + record.title,

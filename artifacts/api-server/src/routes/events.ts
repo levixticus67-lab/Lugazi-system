@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db, eventsTable, attendanceTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.post("/events", requireAuth, requireRole(["admin", "pastor", "leadership"
   const notifyUsers = activeUsers.filter(u => u.id !== req.userId);
   if (notifyUsers.length > 0) {
     const datePart = " on " + date + " at " + time + ".";
-    await db.insert(inAppNotificationsTable).values(
+    await createNotifications(
       notifyUsers.map(u => ({
         userId: u.id,
         title: "New event: " + title,

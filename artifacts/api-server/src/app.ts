@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import pinoHttp from "pino-http";
 import router from "./routes";
-import { startFcmWorker } from "./lib/fcm";
 import { startRetentionWorker } from "./lib/retention";
 import { logger } from "./lib/logger";
 
@@ -144,7 +143,6 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
 
 app.use("/api", router);
 
-startFcmWorker();
 startRetentionWorker(); // L3: daily cleanup of expired messages + rate-limit rows
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

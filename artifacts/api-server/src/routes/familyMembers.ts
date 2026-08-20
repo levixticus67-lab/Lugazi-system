@@ -3,6 +3,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { db, familyMembersTable, membersTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -60,7 +61,7 @@ router.post("/family", requireAuth, async (req: AuthRequest, res): Promise<void>
       .from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     const adderName = adder?.displayName ?? "A church member";
 
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: linkedUserId,
       title: "Family connection added",
       message: `${adderName} has added you as their ${relationship}.`,
@@ -106,7 +107,7 @@ router.patch("/family/:id", requireAuth, async (req: AuthRequest, res): Promise<
       .from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     const adderName = adder?.displayName ?? "A church member";
 
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: linkedUserId,
       title: "Family connection updated",
       message: `${adderName} has linked you as their ${relationship}.`,

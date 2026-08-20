@@ -3,6 +3,7 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db, prayerRequestsTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.post("/prayer-requests", requireAuth, async (req: AuthRequest, res): Prom
     .where(inArray(usersTable.role, ["admin", "pastor", "leadership"]));
   if (reviewers.length > 0) {
     const submitterLabel = isAnonymous ? "Someone (anonymous)" : (displayName || "A member");
-    await db.insert(inAppNotificationsTable).values(
+    await createNotifications(
       reviewers.map(r => ({
         userId: r.id,
         title: "New prayer request",
@@ -73,7 +74,7 @@ router.patch("/prayer-requests/:id", requireAuth, requireRole(["admin", "pastor"
   if (status && status !== "pending" && !updated.isAnonymous) {
     const statusLabel = status === "prayed" ? "prayed for" : status === "answered" ? "answered" : "updated";
     const notePart = adminNote ? " Note: " + adminNote : "";
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: updated.userId,
       title: "Prayer request " + statusLabel,
       message: "Your prayer request \"" + updated.subject + "\" has been " + statusLabel + "." + notePart,

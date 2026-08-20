@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db, usersTable, membersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -107,7 +108,7 @@ router.patch("/users/:id/role", requireAuth, requireRole(["admin"]), async (req:
   await db.update(membersTable).set({ role }).where(eq(membersTable.userId, id));
   const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   const adminName = adminActor?.displayName ?? "An administrator";
-  await db.insert(inAppNotificationsTable).values({
+  await createNotifications({
     userId: id,
     title: "Your role has been updated",
     message: adminName + " updated your role to " + role + ".",

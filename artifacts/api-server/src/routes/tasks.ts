@@ -3,6 +3,7 @@ import { eq, desc, or } from "drizzle-orm";
 import { db, tasksTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.post("/tasks", requireAuth, requireRole(["admin", "pastor", "leadership"]
   if (assignedToId && assignedToId !== req.userId) {
     const assigner = me?.displayName ?? "Leadership";
     const duePart = dueDate ? " Due: " + dueDate + "." : "";
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: assignedToId,
       title: "New task assigned to you",
       message: assigner + " assigned you a task: \"" + title.trim() + "\"." + duePart,
@@ -100,7 +101,7 @@ router.patch("/tasks/:id", requireAuth, async (req: AuthRequest, res): Promise<v
     existing.assignedByUserId !== req.userId
   ) {
     const completerName = (await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1))[0]?.displayName ?? "Someone";
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: existing.assignedByUserId,
       title: "Task completed ✓",
       message: completerName + " completed the task: \"" + existing.title + "\".",

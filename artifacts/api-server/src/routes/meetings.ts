@@ -3,6 +3,7 @@ import { desc, eq, inArray, or, and, lt } from "drizzle-orm";
 import { db, meetingsTable, usersTable, inAppNotificationsTable, ministryTeamMembersTable } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -90,7 +91,7 @@ router.post("/meetings", requireAuth, async (req: AuthRequest, res): Promise<voi
 
     if (userIds.length > 0) {
       const dateLabel = new Date(record.scheduledAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-      await db.insert(inAppNotificationsTable).values(
+      await createNotifications(
         userIds.map(uid => ({
           userId: uid,
           title: "New meeting scheduled",

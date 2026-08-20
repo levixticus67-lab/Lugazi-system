@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db, roleRequestsTable, usersTable, membersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -71,7 +72,7 @@ router.post("/role-requests", requireAuth, async (req: AuthRequest, res): Promis
   // Notify all admins
   const admins = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "admin"));
   if (admins.length > 0) {
-    await db.insert(inAppNotificationsTable).values(
+    await createNotifications(
       admins.map(a => ({
         userId: a.id,
         title: "New role upgrade request",
@@ -96,7 +97,7 @@ router.patch("/role-requests/:id/approve", requireAuth, requireRole(["admin"]), 
   await db.update(membersTable).set({ role: request.requestedRole }).where(eq(membersTable.userId, request.userId));
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, request.userId)).limit(1);
   const [adminActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, (req as AuthRequest).userId!)).limit(1);
-  await db.insert(inAppNotificationsTable).values({
+  await createNotifications({
     userId: request.userId,
     title: "Role request approved",
     message: "Your request for the " + request.requestedRole + " role has been approved.",
@@ -118,7 +119,7 @@ router.patch("/role-requests/:id/reject", requireAuth, requireRole(["admin"]), a
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, updated.userId)).limit(1);
   const [rejectActor] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, (req as AuthRequest).userId!)).limit(1);
   const noteText = adminNote ? " Note: " + adminNote : "";
-  await db.insert(inAppNotificationsTable).values({
+  await createNotifications({
     userId: updated.userId,
     title: "Role request not approved",
     message: "Your request for the " + updated.requestedRole + " role was not approved." + noteText,

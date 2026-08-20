@@ -1,7 +1,6 @@
 import http from "http";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { pool } from "@workspace/db";
 
 const rawPort = process.env["PORT"];
 
@@ -56,7 +55,7 @@ server.listen(port, (err?: Error) => {
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 // Render sends SIGTERM before restarting/stopping the instance. Without this,
-// in-flight requests are dropped and the DB pool is abandoned.
+// in-flight requests are dropped.
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Shutdown signal received — closing server");
 
@@ -71,9 +70,6 @@ async function shutdown(signal: string): Promise<void> {
       server.close((err) => (err ? reject(err) : resolve())),
     );
     logger.info("HTTP server closed");
-
-    await pool.end();
-    logger.info("DB pool closed");
 
     clearTimeout(forceExit);
     process.exit(0);

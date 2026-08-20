@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { db, dutyRosterTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.post("/duty-roster", requireAuth, requireRole(["admin", "pastor", "leader
     const [assigner] = await db.select({ displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     const assignerName = assigner?.displayName ?? "Leadership";
     const locationPart = location ? " at " + location : "";
-    await db.insert(inAppNotificationsTable).values({
+    await createNotifications({
       userId: assignedToId,
       title: "You have a duty assignment",
       message: assignerName + " assigned you as " + dutyRole + " for " + serviceType + " on " + serviceDate + locationPart + ".",

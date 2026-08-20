@@ -3,6 +3,7 @@ import { eq, desc, inArray } from "drizzle-orm";
 import { db, welfareTable, membersTable, usersTable, inAppNotificationsTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
+import { createNotifications } from "../lib/fcm";
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.post("/welfare", requireAuth, async (req: AuthRequest, res): Promise<void
     .where(inArray(usersTable.role, ["admin", "pastor", "leadership"]));
   if (reviewers.length > 0) {
     const amtPart = amountRequested ? " (Amount: " + amountRequested + ")" : "";
-    await db.insert(inAppNotificationsTable).values(
+    await createNotifications(
       reviewers.map(r => ({
         userId: r.id,
         title: "New welfare request submitted",
@@ -71,7 +72,7 @@ router.patch("/welfare/:id", requireAuth, requireRole(["admin", "pastor", "leade
     if (submitterMember?.userId) {
       const statusLabel = status === "approved" ? "approved" : status === "fulfilled" ? "fulfilled" : "not approved";
       const notePart = adminNote ? " Note: " + adminNote : "";
-      await db.insert(inAppNotificationsTable).values({
+      await createNotifications({
         userId: submitterMember.userId,
         title: "Welfare request " + statusLabel,
         message: "Your " + original.category + " welfare request has been " + statusLabel + "." + notePart,
