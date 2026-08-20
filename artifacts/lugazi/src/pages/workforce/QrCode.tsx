@@ -27,7 +27,7 @@ export default function WorkforceQrCode() {
   }, [user]);
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="My QR Code" description="Show this when checking into events" />
       <div className="flex flex-col items-center gap-6 py-8">
         {qrData ? (

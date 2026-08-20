@@ -60,7 +60,7 @@ export default function WorkforceMedia() {
   const others = (items as MediaItem[]).filter(i => !["image","video","audio"].includes(i.type));
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader
         title="Media Gallery"
         description="Photos, videos, and audio from church activities"

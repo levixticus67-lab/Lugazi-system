@@ -73,7 +73,7 @@ export default function WorkforceAttendance() {
   }
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="Attendance" actions={
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => { setScannedToken(""); setSelectedEventId(""); setShowQr(true); }}>

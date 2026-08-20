@@ -69,10 +69,10 @@ import { PasswordInput } from "@/components/ui/password-input";
       });
     }
 
-    if (isLoading) return <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal"><div className="text-muted-foreground p-6">Loading...</div></PortalLayout>;
+    if (isLoading) return <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal"><div className="text-muted-foreground p-6">Loading...</div></PortalLayout>;
 
     return (
-      <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+      <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
         <PageHeader title="My Profile" description="Manage your personal information and security" />
         <div className="max-w-lg space-y-6 animate-slide-in-up">
 

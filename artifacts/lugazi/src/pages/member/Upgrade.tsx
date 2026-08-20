@@ -11,6 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { statusBadge } from "@/components/Badge";
 
+function roleLabel(role: string) {
+  return role === "workforce" ? "Ministry" : role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 export default function MemberUpgrade() {
   const { user } = useAuth();
   const createMutation = useCreateRoleRequest();
@@ -32,7 +36,7 @@ export default function MemberUpgrade() {
       <div className="max-w-md">
         <div className="bg-card border border-card-border rounded-xl p-6 shadow-sm space-y-4">
           <div className="text-sm text-muted-foreground">
-            <p>Current role: <span className="font-medium text-foreground capitalize">{user?.role}</span></p>
+            <p>Current role: <span className="font-medium text-foreground">{user?.role ? roleLabel(user.role) : "Member"}</span></p>
           </div>
           {submitted ? (
             <div className="text-center py-4">
@@ -46,7 +50,7 @@ export default function MemberUpgrade() {
                 <Select value={requestedRole} onValueChange={setRequestedRole}>
                   <SelectTrigger data-testid="select-requested-role"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="workforce">Workforce</SelectItem>
+                    <SelectItem value="workforce">Ministry</SelectItem>
                     <SelectItem value="leadership">Leadership</SelectItem>
                   </SelectContent>
                 </Select>

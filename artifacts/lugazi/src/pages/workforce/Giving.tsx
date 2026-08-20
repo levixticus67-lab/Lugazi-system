@@ -59,7 +59,7 @@ export default function WorkforceGiving() {
   });
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="My Giving Record" description="View your contribution history and record a new gift"
         actions={<button onClick={() => setShowForm(true)} className="blue-gradient-bg text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"><Plus className="h-4 w-4"/>Record Giving</button>} />
 

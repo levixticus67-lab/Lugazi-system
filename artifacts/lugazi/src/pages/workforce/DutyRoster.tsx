@@ -20,7 +20,7 @@ import { useQuery } from "@tanstack/react-query";
     const past = duties.filter(d => !isUpcoming(d.serviceDate));
 
     return (
-      <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+      <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
         <PageHeader title="My Duty Roster" description="Your upcoming and past service assignments" />
 
         {isLoading ? (

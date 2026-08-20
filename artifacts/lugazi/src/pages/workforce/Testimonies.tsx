@@ -36,7 +36,7 @@ import { useState } from "react";
     });
 
     return (
-      <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+      <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
         <PageHeader title="Testimonies" description="Share and celebrate what God has done" actions={
           <Button size="sm" onClick={() => setShowForm(!showForm)} className="blue-gradient-bg text-white border-0 hover:opacity-90"><Plus className="h-4 w-4 mr-1" /> Share Testimony</Button>
         } />

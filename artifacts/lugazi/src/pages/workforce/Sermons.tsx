@@ -24,7 +24,7 @@ export default function WorkforceSermons() {
   const [viewId, setViewId] = useState<number | undefined>();
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="Sermon Library" description="Access messages and sermon resources" />
 
       {isLoading ? (

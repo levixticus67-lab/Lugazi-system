@@ -39,7 +39,7 @@ import { useState } from "react";
     const completed = tasks.filter(t => t.status === "completed");
 
     return (
-      <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+      <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
         <PageHeader title="My Tasks" description="Ministry tasks assigned to you" />
 
         <div className="grid grid-cols-3 gap-4 mb-6">

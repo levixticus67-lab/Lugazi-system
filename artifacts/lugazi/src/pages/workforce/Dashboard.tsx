@@ -34,8 +34,8 @@ import { useGetMemberStats } from "@workspace/api-client-react";
     });
 
     return (
-      <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
-        <PageHeader title="Workforce Dashboard" description="Your ministry activity overview" />
+      <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
+        <PageHeader title="Ministers Dashboard" description="Your ministry activity overview" />
 
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

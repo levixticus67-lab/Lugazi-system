@@ -54,7 +54,7 @@ export default function PortalLayout({ children, navItems, portalLabel }: Portal
     { label: "Admin",      href: "/admin/dashboard",      role: "admin",      emoji: "🛡️" },
     { label: "Pastor",     href: "/pastor/dashboard",     role: "pastor",     emoji: "✝️" },
     { label: "Leadership", href: "/leadership/dashboard", role: "leadership", emoji: "⭐" },
-    { label: "Workforce",  href: "/workforce/dashboard",  role: "workforce",  emoji: "🔧" },
+    { label: "Ministers",  href: "/workforce/dashboard",  role: "workforce",  emoji: "🔧" },
     { label: "Member",     href: "/member/dashboard",     role: "member",     emoji: "🙏" },
   ];
 

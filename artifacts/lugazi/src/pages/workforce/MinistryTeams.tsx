@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
     });
 
     return (
-      <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
         <PageHeader title="My Ministry Teams" description="The ministry teams you are part of" />
 
         {isLoading ? (

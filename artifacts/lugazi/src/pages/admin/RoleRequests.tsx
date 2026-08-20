@@ -18,6 +18,10 @@ type RoleRequest = {
   adminNote?: string | null; createdAt: string;
 };
 
+function roleLabel(role: string) {
+  return role === "workforce" ? "Ministry" : role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 export default function AdminRoleRequests() {
   const { data: requests = [], isLoading } = useListRoleRequests();
   const approveMutation = useApproveRoleRequest();
@@ -31,7 +35,7 @@ export default function AdminRoleRequests() {
     approveMutation.mutate({ id: r.id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListRoleRequestsQueryKey() });
-        toast({ title: `Approved — ${r.userDisplayName} is now ${r.requestedRole}` });
+        toast({ title: `Approved — ${r.userDisplayName} is now ${roleLabel(r.requestedRole)}` });
       },
     });
   }
@@ -68,9 +72,9 @@ export default function AdminRoleRequests() {
                 <p className="text-sm text-muted-foreground">{r.userEmail}</p>
                 <p className="text-sm mt-1">
                   <span className="text-muted-foreground">Requests: </span>
-                  <span className="font-medium text-foreground">{r.currentRole}</span>
+                  <span className="font-medium text-foreground">{roleLabel(r.currentRole)}</span>
                   <span className="text-muted-foreground mx-2">→</span>
-                  <span className="font-medium text-primary">{r.requestedRole}</span>
+                  <span className="font-medium text-primary">{roleLabel(r.requestedRole)}</span>
                 </p>
                 {r.reason && <p className="text-sm text-muted-foreground mt-2 italic">"{r.reason}"</p>}
                 <p className="text-xs text-muted-foreground mt-2">{new Date(r.createdAt).toLocaleString()}</p>
@@ -95,7 +99,7 @@ export default function AdminRoleRequests() {
                 <div key={r.id} className="bg-card border border-card-border rounded-lg px-4 py-3 flex items-center justify-between shadow-sm" data-testid={`reviewed-request-${r.id}`}>
                   <div>
                     <span className="font-medium text-sm">{r.userDisplayName || r.userEmail}</span>
-                    <span className="text-muted-foreground text-sm ml-2">requested {r.requestedRole}</span>
+                    <span className="text-muted-foreground text-sm ml-2">requested {roleLabel(r.requestedRole)}</span>
                   </div>
                   {statusBadge(r.status)}
                 </div>

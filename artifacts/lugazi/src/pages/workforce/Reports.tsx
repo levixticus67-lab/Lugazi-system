@@ -5,7 +5,7 @@ import { FileText, Info } from "lucide-react";
 
 export default function WorkforceReports() {
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="Reports" description="Branch and ministry reports" />
       <div className="glass-card p-8 text-center space-y-3">
         <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center mx-auto">

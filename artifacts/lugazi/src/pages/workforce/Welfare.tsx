@@ -44,7 +44,7 @@ export default function WorkforceWelfare() {
   const displayed = filterStatus === "all" ? all : all.filter(r => r.status === filterStatus);
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="My Welfare Requests" description={`${all.filter(r=>r.status==="pending").length} pending · ${all.length} total`}
         actions={<Button size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />New Request</Button>} />
 

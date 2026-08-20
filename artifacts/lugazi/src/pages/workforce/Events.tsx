@@ -29,7 +29,7 @@ export default function WorkforceEvents() {
   const applyFilter = (list: Event[]) => filterCat === "all" ? list : list.filter(e => e.category === filterCat);
 
   return (
-    <PortalLayout navItems={workforceNavItems} portalLabel="Workforce Portal">
+    <PortalLayout navItems={workforceNavItems} portalLabel="Ministers Portal">
       <PageHeader title="Events" description={`${upcoming.length} upcoming · ${past.length} past`} />
 
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
