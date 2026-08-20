@@ -1,20 +1,36 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, reportsTable, usersTable } from "@workspace/db";
+import { eq, desc, inArray } from "drizzle-orm";
+import { db, groupsTable, reportsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-// Admin sees all; pastor/leadership see only their own
+// Admin and pastor can review all reports; leadership sees only their own.
 router.get("/reports", requireAuth, requireRole(["admin", "pastor", "leadership"]), async (req: AuthRequest, res): Promise<void> => {
   try {
-    const isAdmin = req.userRole === "admin";
-    const rows = isAdmin
+    const canReviewAll = req.userRole === "admin" || req.userRole === "pastor";
+    const rows = canReviewAll
       ? await db.select().from(reportsTable).orderBy(desc(reportsTable.createdAt))
       : await db.select().from(reportsTable)
           .where(eq(reportsTable.submittedBy, req.userId!))
           .orderBy(desc(reportsTable.createdAt));
-    res.json(rows.map(r => ({ ...r, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() })));
+
+    const groupIds = rows
+      .map(row => row.cellGroupId)
+      .filter((id): id is number => id !== null);
+    const groups = groupIds.length
+      ? await db.select({ id: groupsTable.id, name: groupsTable.name })
+        .from(groupsTable)
+        .where(inArray(groupsTable.id, groupIds))
+      : [];
+    const groupNames = new Map(groups.map(group => [group.id, group.name]));
+
+    res.json(rows.map(r => ({
+      ...r,
+      cellGroupName: r.cellGroupId ? groupNames.get(r.cellGroupId) ?? null : null,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+    })));
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch reports" });
   }
@@ -62,7 +78,8 @@ router.patch("/reports/:id", requireAuth, requireRole(["admin", "pastor", "leade
     if (title !== undefined && isOwner) updateData.title = title;
     if (period !== undefined && isOwner) updateData.period = period;
     if (content !== undefined && isOwner) updateData.content = content;
-    if (attendance !== undefined && isOwner) updateData.attendance = attendance;
+    // Cell-report attendance is derived from the linked attendance session.
+    if (attendance !== undefined && isOwner && !existing.cellAttendanceSessionId) updateData.attendance = attendance;
     if (soulWinning !== undefined && isOwner) updateData.soulWinning = soulWinning;
     if (fileUrl !== undefined && isOwner) updateData.fileUrl = fileUrl;
     if (fileType !== undefined && isOwner) updateData.fileType = fileType;

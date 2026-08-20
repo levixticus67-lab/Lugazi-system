@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Check, ClipboardCheck, Clock3, MapPin, Plus, Search, Trash2, Users, UserRound, UsersRound } from "lucide-react";
+import { Camera, Check, ClipboardCheck, Clock3, FileText, MapPin, Plus, Search, Trash2, Users, UserRound, UsersRound } from "lucide-react";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import PortalLayout from "@/components/PortalLayout";
 import type { NavItem } from "@/components/PortalLayout";
 import PageHeader from "@/components/PageHeader";
@@ -15,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CellGroup {
   id: number;
   name: string;
+  type?: string;
   leaderName?: string | null;
   location?: string | null;
   meetingDay?: string | null;
@@ -67,8 +69,6 @@ interface CellAttendancePageProps {
   portalLabel: string;
 }
 
-const MANAGER_ROLES = new Set(["admin", "pastor", "leadership"]);
-
 function today() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
@@ -90,9 +90,10 @@ function meetingLabel(group: CellGroup) {
 
 export default function CellAttendancePage({ navItems, portalLabel }: CellAttendancePageProps) {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isManager = MANAGER_ROLES.has(user?.role ?? "");
+  const isAdmin = user?.role === "admin";
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [meetingDate, setMeetingDate] = useState(today);
@@ -103,36 +104,51 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
   const [notes, setNotes] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
 
   const myGroupQuery = useQuery<MyGroupResponse | null>({
     queryKey: ["cell-attendance-my-group"],
     queryFn: () => axios.get<MyGroupResponse | null>("/api/cell-attendance/my-group").then(response => response.data),
-    enabled: Boolean(user && !isManager),
+    enabled: Boolean(user && !isAdmin),
     staleTime: 30_000,
   });
 
   const groupsQuery = useQuery<CellGroup[]>({
     queryKey: ["cell-attendance-groups"],
     queryFn: () => axios.get<CellGroup[]>("/api/groups").then(response => response.data),
-    enabled: Boolean(user && isManager),
+    enabled: Boolean(user && isAdmin),
     staleTime: 30_000,
   });
+  const cellGroups = (groupsQuery.data ?? []).filter(group => group.type === "cell" && group.isActive !== false);
 
-  const activeGroup = isManager
-    ? groupsQuery.data?.find(group => String(group.id) === selectedGroupId) ?? null
+  const activeGroup = isAdmin
+    ? cellGroups.find(group => String(group.id) === selectedGroupId) ?? null
     : myGroupQuery.data?.group ?? null;
   const groupId = activeGroup?.id ?? null;
 
   useEffect(() => {
-    if (isManager && !selectedGroupId && groupsQuery.data?.length) {
-      setSelectedGroupId(String(groupsQuery.data[0].id));
+    if (isAdmin && !selectedGroupId && cellGroups.length) {
+      setSelectedGroupId(String(cellGroups[0].id));
     }
-  }, [groupsQuery.data, isManager, selectedGroupId]);
+  }, [cellGroups, isAdmin, selectedGroupId]);
+
+  useEffect(() => {
+    if (!user || isAdmin || myGroupQuery.isLoading || myGroupQuery.data) return;
+    const dashboardByRole: Record<string, string> = {
+      pastor: "/pastor/dashboard",
+      leadership: "/leadership/dashboard",
+      workforce: "/workforce/dashboard",
+      member: "/member/dashboard",
+    };
+    navigate(dashboardByRole[user.role] ?? "/");
+  }, [isAdmin, myGroupQuery.data, myGroupQuery.isLoading, navigate, user]);
 
   useEffect(() => {
     setSessionId(null);
     setMeetingDate(today());
     setSearch("");
+    setReportSubmitted(false);
   }, [groupId]);
 
   const membersQuery = useQuery<CellMember[]>({
@@ -214,6 +230,25 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
     }
   }
 
+  async function submitReport() {
+    if (!sessionId) return;
+    setReporting(true);
+    try {
+      const response = await axios.post<{ alreadySubmitted: boolean }>(
+        `/api/cell-attendance/sessions/${sessionId}/report`,
+      );
+      setReportSubmitted(true);
+      toast({
+        title: response.data.alreadySubmitted ? "Report already submitted" : "Report submitted",
+        description: "Pastors and administrators can now review this attendance report.",
+      });
+    } catch {
+      toast({ title: "Could not submit attendance report", variant: "destructive" });
+    } finally {
+      setReporting(false);
+    }
+  }
+
   async function addMember(member: CellMember) {
     if (!sessionId) return;
     try {
@@ -262,6 +297,7 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
     setAdultManualCount(String(existing.adultManualCount));
     setChildManualCount(String(existing.childManualCount));
     setNotes(existing.notes ?? "");
+    setReportSubmitted(false);
   }
 
   function startNewSession() {
@@ -270,6 +306,7 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
     setAdultManualCount("0");
     setChildManualCount("0");
     setNotes("");
+    setReportSubmitted(false);
   }
 
   return (
@@ -287,7 +324,7 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
       />
 
       <div className="space-y-5">
-        {isManager && (
+        {isAdmin && (
           <section className="glass-card p-4">
             <label htmlFor="attendance-group" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cell group</label>
             <select
@@ -296,7 +333,7 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
               onChange={event => setSelectedGroupId(event.target.value)}
               className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
-              {(groupsQuery.data ?? []).map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+              {cellGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
             </select>
           </section>
         )}
@@ -420,7 +457,15 @@ export default function CellAttendancePage({ navItems, portalLabel }: CellAttend
                     <label className="text-xs font-medium">Children<input type="number" min="0" value={childManualCount} onChange={event => setChildManualCount(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm" /></label>
                   </div>
                   <label className="text-xs font-medium block mt-4">Notes<textarea value={notes} onChange={event => setNotes(event.target.value)} rows={3} placeholder="Optional notes about this gathering" className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none" /></label>
-                  <Button className="w-full mt-4" onClick={updateCounts} disabled={saving}><Check className="h-4 w-4 mr-1" />Save totals</Button>
+                  <div className="space-y-2 mt-4">
+                    <Button className="w-full" onClick={updateCounts} disabled={saving}>
+                      <Check className="h-4 w-4 mr-1" />Save totals
+                    </Button>
+                    <Button className="w-full" variant="outline" onClick={submitReport} disabled={reporting || reportSubmitted}>
+                      <FileText className="h-4 w-4 mr-1" />
+                      {reportSubmitted ? "Report submitted" : reporting ? "Submitting report…" : "Submit attendance report"}
+                    </Button>
+                  </div>
                 </section>
               )}
 

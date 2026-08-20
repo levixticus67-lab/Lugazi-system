@@ -18,6 +18,19 @@ ALTER TABLE reports ADD COLUMN IF NOT EXISTS file_size text;
 
 These are all safe, additive changes — no existing data is affected.
 
+## Cell Attendance Reports — Linked Sessions and Cell Groups
+
+The cell-attendance workflow now creates a submitted report directly from an attendance session. The schema additions are additive:
+
+```sql
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS cell_group_id integer;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS cell_attendance_session_id integer;
+CREATE INDEX IF NOT EXISTS reports_cell_group_id_idx ON reports (cell_group_id);
+CREATE INDEX IF NOT EXISTS reports_cell_attendance_session_id_idx ON reports (cell_attendance_session_id);
+```
+
+Existing reports remain unchanged. New cell attendance reports use the linked session to derive the attendance total, so the number cannot drift from the recorded session.
+
 ## Session Whitelist — Token Invalidation on Logout
 
 Applied automatically by the GitHub Actions workflow (drizzle-kit push → Neon).

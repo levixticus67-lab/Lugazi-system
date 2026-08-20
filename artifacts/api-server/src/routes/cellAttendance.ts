@@ -6,6 +6,7 @@ import {
   cellAttendanceSessionsTable,
   groupsTable,
   membersTable,
+  reportsTable,
   usersTable,
 } from "@workspace/db";
 import { requireAuth, AuthRequest } from "../middlewares/auth";
@@ -23,8 +24,8 @@ interface AttendeeInput {
   method?: AttendanceMethod;
 }
 
-function isManager(req: AuthRequest): boolean {
-  return ["admin", "pastor", "leadership"].includes(req.userRole ?? "");
+function isAdmin(req: AuthRequest): boolean {
+  return req.userRole === "admin";
 }
 
 function parseId(value: string | string[] | undefined): number | null {
@@ -65,7 +66,7 @@ async function getAccessibleGroup(groupId: number, req: AuthRequest) {
     .where(and(eq(groupsTable.id, groupId), eq(groupsTable.type, "cell")))
     .limit(1);
   if (!group) return null;
-  if (!isManager(req) && group.leaderUserId !== req.userId) return null;
+  if (!isAdmin(req) && group.leaderUserId !== req.userId) return null;
   return group;
 }
 
@@ -135,7 +136,11 @@ router.get("/cell-attendance/my-group", requireAuth, async (req: AuthRequest, re
   const [group] = await db
     .select()
     .from(groupsTable)
-    .where(and(eq(groupsTable.leaderUserId, req.userId!), eq(groupsTable.type, "cell")))
+    .where(and(
+      eq(groupsTable.leaderUserId, req.userId!),
+      eq(groupsTable.type, "cell"),
+      eq(groupsTable.isActive, true),
+    ))
     .limit(1);
   if (!group) {
     res.json(null);
@@ -308,7 +313,13 @@ router.post("/cell-attendance/sessions", requireAuth, async (req: AuthRequest, r
       await tx.update(cellAttendanceSessionsTable)
         .set({ meetingTime, recordedBy: req.userId!, adultManualCount, childManualCount, countMode, notes })
         .where(eq(cellAttendanceSessionsTable.id, existing.id));
-      await tx.delete(cellAttendanceRecordsTable).where(eq(cellAttendanceRecordsTable.sessionId, existing.id));
+      // A session can be reopened to update totals or notes. Only replace
+      // named attendees when the caller explicitly supplied a non-empty list.
+      // This prevents opening an existing session from silently erasing
+      // previously scanned or manually recorded members.
+      if (attendees.length > 0) {
+        await tx.delete(cellAttendanceRecordsTable).where(eq(cellAttendanceRecordsTable.sessionId, existing.id));
+      }
     } else {
       const [created] = await tx.insert(cellAttendanceSessionsTable).values({
         groupId,
@@ -352,6 +363,73 @@ router.post("/cell-attendance/sessions", requireAuth, async (req: AuthRequest, r
   }
   await logAttendanceActivity(req, wasCreated ? "cell_attendance_created" : "cell_attendance_updated", sessionId, group.name, `${meetingDate} — ${countMode}`);
   res.status(wasCreated ? 201 : 200).json(await readSession(savedSession));
+});
+
+router.post("/cell-attendance/sessions/:sessionId/report", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const sessionId = parseId(req.params.sessionId);
+  if (!sessionId) {
+    res.status(400).json({ error: "Invalid session ID" });
+    return;
+  }
+
+  const accessible = await getAccessibleSession(sessionId, req);
+  if (!accessible) {
+    res.status(404).json({ error: "Attendance session not found" });
+    return;
+  }
+
+  const { session, group } = accessible;
+  const serialised = await readSession(session);
+  const [existing] = await db
+    .select()
+    .from(reportsTable)
+    .where(eq(reportsTable.cellAttendanceSessionId, sessionId))
+    .limit(1);
+
+  if (existing) {
+    res.json({
+      ...existing,
+      alreadySubmitted: true,
+      createdAt: existing.createdAt.toISOString(),
+      updatedAt: existing.updatedAt.toISOString(),
+    });
+    return;
+  }
+
+  const [actor] = await db
+    .select({ displayName: usersTable.displayName })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.userId!))
+    .limit(1);
+
+  const [report] = await db.insert(reportsTable).values({
+    title: `${group.name} Cell Attendance Report`,
+    type: "cell_attendance",
+    period: session.meetingDate,
+    submittedBy: req.userId!,
+    submittedByName: actor?.displayName ?? "Cell leader",
+    branchId: group.branchId,
+    cellGroupId: group.id,
+    cellAttendanceSessionId: session.id,
+    content: session.notes ?? `Cell gathering held on ${session.meetingDate}.`,
+    attendance: serialised.totalCount,
+    status: "submitted",
+  }).returning();
+
+  await logAttendanceActivity(
+    req,
+    "cell_attendance_report_submitted",
+    session.id,
+    group.name,
+    `${session.meetingDate} — ${serialised.totalCount} attendees`,
+  );
+
+  res.status(201).json({
+    ...report,
+    alreadySubmitted: false,
+    createdAt: report.createdAt.toISOString(),
+    updatedAt: report.updatedAt.toISOString(),
+  });
 });
 
 router.post("/cell-attendance/sessions/:sessionId/scan", requireAuth, async (req: AuthRequest, res): Promise<void> => {

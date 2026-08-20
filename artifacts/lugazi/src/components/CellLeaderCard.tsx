@@ -3,7 +3,8 @@ import { cldAvatar } from "@/lib/cloudinary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Plus, Trash2, Search, X, MapPin, Clock, UsersRound } from "lucide-react";
+import { Link } from "wouter";
+import { Users, Plus, Trash2, Search, X, MapPin, Clock, UsersRound, ClipboardCheck } from "lucide-react";
 
 interface CellMember {
   id: number;
@@ -76,6 +77,14 @@ export default function CellLeaderCard() {
   const filteredAll = allMembers.filter(
     m => !currentMemberIds.has(m.id) && m.fullName.toLowerCase().includes(search.toLowerCase())
   );
+  const attendancePathByRole: Record<string, string> = {
+    admin: "/admin/cell-attendance",
+    pastor: "/pastor/cell-attendance",
+    leadership: "/leadership/cell-attendance",
+    workforce: "/workforce/cell-attendance",
+    member: "/member/cell-attendance",
+  };
+  const attendancePath = attendancePathByRole[user?.role ?? "member"];
 
   return (
     <>
@@ -133,6 +142,14 @@ export default function CellLeaderCard() {
             ))}
           </div>
         )}
+
+        <Link
+          href={attendancePath}
+          className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
+        >
+          <ClipboardCheck className="h-3.5 w-3.5" />
+          Record cell attendance
+        </Link>
       </div>
 
       {showAddMember && (

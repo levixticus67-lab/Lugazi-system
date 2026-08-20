@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, sql, isNotNull } from "drizzle-orm";
+import { and, eq, sql, isNotNull } from "drizzle-orm";
 import { db, groupsTable, membersTable } from "@workspace/db";
 import { requireAuth, requireRole, AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../lib/activityLog";
@@ -8,7 +8,11 @@ const router = Router();
 
 router.get("/groups/my-group", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const myId = req.userId!;
-  const groups = await db.select().from(groupsTable).where(eq(groupsTable.leaderUserId, myId));
+  const groups = await db.select().from(groupsTable).where(and(
+    eq(groupsTable.leaderUserId, myId),
+    eq(groupsTable.type, "cell"),
+    eq(groupsTable.isActive, true),
+  ));
   if (groups.length === 0) { res.json(null); return; }
   const group = groups[0];
   const groupMembers = await db.select({ id: membersTable.id, fullName: membersTable.fullName, photoUrl: membersTable.photoUrl, role: membersTable.role, phone: membersTable.phone })

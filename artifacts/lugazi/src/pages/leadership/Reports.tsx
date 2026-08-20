@@ -23,15 +23,17 @@ import { FileOpener } from "@capacitor-community/file-opener";
 type Report = {
   id: number; title: string; type: string; period: string; status: string;
   content?: string | null; attendance?: number | null; soulWinning?: number | null;
+  cellGroupName?: string | null; cellAttendanceSessionId?: number | null;
   createdAt: string; fileUrl?: string | null; fileType?: string | null; fileSize?: string | null;
 };
 
-const TYPE_CONFIG: Record<string,string> = { weekly_branch:"Weekly Branch", monthly_branch:"Monthly Branch", quarterly:"Quarterly", annual:"Annual", special:"Special" };
+const TYPE_CONFIG: Record<string,string> = { weekly_branch:"Weekly Branch", monthly_branch:"Monthly Branch", quarterly:"Quarterly", annual:"Annual", special:"Special", cell_attendance:"Cell Attendance" };
 const STATUS_CONFIG: Record<string,{label:string;color:string;icon:React.ReactNode}> = {
   draft:    { label:"Pending Review", color:"bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",  icon:<Clock className="h-3 w-3"/> },
+  submitted:{ label:"Submitted",      color:"bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",    icon:<Clock className="h-3 w-3"/> },
   reviewed: { label:"Reviewed",       color:"bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",  icon:<CheckCircle2 className="h-3 w-3"/> },
 };
-const REPORT_TYPES = ["weekly_branch","monthly_branch","quarterly","annual","special"];
+const REPORT_TYPES = ["weekly_branch","monthly_branch","quarterly","annual","special","cell_attendance"];
 const DOC_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp";
 
 function getMimeType(ext: string): string {
@@ -181,10 +183,11 @@ export default function LeadershipReports() {
       <PageHeader title="My Reports" description={`${all.length} report${all.length!==1?"s":""} submitted`}
         actions={<Button size="sm" onClick={()=>{ setForm(blank); setUploadResult(null); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1"/>Submit Report</Button>} />
 
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-4 gap-3 mb-5">
         {[
           {label:"Total",    value:all.length,                                  color:"text-blue-600"},
           {label:"Pending",  value:all.filter(r=>r.status==="draft").length,    color:"text-amber-600"},
+          {label:"Submitted",value:all.filter(r=>r.status==="submitted").length,color:"text-sky-600"},
           {label:"Reviewed", value:all.filter(r=>r.status==="reviewed").length, color:"text-green-600"},
         ].map(s=>(
           <div key={s.label} className="glass-card p-3 text-center">
@@ -195,10 +198,10 @@ export default function LeadershipReports() {
       </div>
 
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
-        {(["all","draft","reviewed"] as const).map(s=>(
+        {(["all","draft","submitted","reviewed"] as const).map(s=>(
           <button key={s} onClick={()=>setFilterStatus(s)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterStatus===s?(s==="all"?"blue-gradient-bg text-white shadow":s==="draft"?"bg-amber-100 text-amber-700 ring-1 ring-amber-300":"bg-green-100 text-green-700 ring-1 ring-green-300"):"bg-muted text-muted-foreground"}`}>
-            {s==="all"?`All (${all.length})`:s==="draft"?`Pending (${all.filter(r=>r.status==="draft").length})`:`Reviewed (${all.filter(r=>r.status==="reviewed").length})`}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterStatus===s?(s==="all"?"blue-gradient-bg text-white shadow":s==="draft"?"bg-amber-100 text-amber-700 ring-1 ring-amber-300":s==="submitted"?"bg-sky-100 text-sky-700 ring-1 ring-sky-300":"bg-green-100 text-green-700 ring-1 ring-green-300"):"bg-muted text-muted-foreground"}`}>
+            {s==="all"?`All (${all.length})`:s==="draft"?`Pending (${all.filter(r=>r.status==="draft").length})`:s==="submitted"?`Submitted (${all.filter(r=>r.status==="submitted").length})`:`Reviewed (${all.filter(r=>r.status==="reviewed").length})`}
           </button>
         ))}
       </div>
@@ -234,6 +237,7 @@ export default function LeadershipReports() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{TYPE_CONFIG[r.type]??r.type}</span>
+                    {r.cellGroupName && <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">Cell: {r.cellGroupName}</span>}
                     {r.fileUrl && <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"><Paperclip className="h-2.5 w-2.5"/>Attachment</span>}
                   </div>
                   {(r.attendance||r.soulWinning) && (
